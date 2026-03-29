@@ -1,0 +1,73 @@
+{
+  "common": {
+    "institutional_grade": "مستوى مؤسسي",
+    "syncing": "جاري المزامنة...",
+    "disconnect": "قطع الاتصال",
+    "error": "خطأ"
+  },
+  "menu": {
+    "portfolio": "المحفظة",
+    "scanner": "الماسح",
+    "floor": "منصة التداول",
+    "network": "الشبكة",
+    "comms": "الاتصالات",
+    "profile": "الملف الشخصي"
+  },
+  "dashboard": {
+    "title": "مركز القيادة",
+    "portfolio_value": "قيمة المحفظة",
+    "active_supply": "المعروض النشط",
+    "tracked_targets": "الأصول المتتبعة",
+    "pending_execution": "في انتظار التنفيذ",
+    "my_assets": "أصولي",
+    "tracked_vault": "القبو المتتبع",
+    "incoming": "واردة",
+    "outgoing": "صادرة"
+  },
+  "scanner": {
+    "title": "ماسح الأصول",
+    "digitize": "رقمنة الأصول المادية",
+    "success_title": "تمت رقمنة الأصل",
+    "success_subtitle": "تم الرفع بنجاح إلى القبو الآمن.",
+    "visual_data": "البيانات المرئية",
+    "add_photo": "إضافة صورة",
+    "material": "تسمية المادة",
+    "valuation": "التقييم العام (€)",
+    "origin": "مصدر الاستخراج",
+    "location": "الموقع الحالي",
+    "thickness": "السماكة (سم)",
+    "quantity": "الكمية (م²)",
+    "incoterm": "شروط التسليم",
+    "upload": "جاري التشفير والرفع...",
+    "publish_btn": "نشر على الشبكة"
+  },
+  "network": {
+    "title": "الدليل العالمي",
+    "nodes": "عقد موثقة"
+  },
+  "trading": {
+    "search_placeholder": "ابحث عن أصول، مواقع، أو شركات...",
+    "verified": "موثق",
+    "no_assets": "لم يتم العثور على أصول."
+  },
+  "inbox": {
+    "title": "اتصالات آمنة",
+    "encryption_active": "تشفير P2P نشط",
+    "type_message": "إرسال رسالة أو شروط..."
+  },
+  "auth": {
+    "subtitle": "تفويض الوصول لمنصة B2B",
+    "node_login": "تسجيل الدخول",
+    "request_access": "طلب وصول",
+    "corporate_entity": "اسم الشركة",
+    "tax_id": "الرقم الضريبي",
+    "secure_email": "البريد الإلكتروني للشركة",
+    "access_key": "مفتاح الوصول",
+    "authenticating": "جاري المصادقة...",
+    "init_connection": "بدء الاتصال",
+    "submit_credentials": "إرسال البيانات",
+    "military_encryption": "اتصال مشفر AES-256",
+    "email_confirm": "تم إرسال بريد التحقق.",
+    "reg_success": "تم تسجيل الشركة بنجاح."
+  }
+}

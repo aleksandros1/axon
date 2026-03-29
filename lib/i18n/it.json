@@ -1,0 +1,73 @@
+{
+  "common": {
+    "institutional_grade": "Grado Istituzionale",
+    "syncing": "Sincronizzazione...",
+    "disconnect": "Disconnetti",
+    "error": "Errore"
+  },
+  "menu": {
+    "portfolio": "Portafoglio",
+    "scanner": "Scanner",
+    "floor": "Mercato",
+    "network": "Rete Globale",
+    "comms": "Comunicazioni",
+    "profile": "Profilo"
+  },
+  "dashboard": {
+    "title": "Centro di Controllo",
+    "portfolio_value": "Valore Portafoglio",
+    "active_supply": "Offerta Attiva",
+    "tracked_targets": "Asset Monitorati",
+    "pending_execution": "In Attesa di Esecuzione",
+    "my_assets": "I Miei Asset",
+    "tracked_vault": "Caveau Monitorato",
+    "incoming": "In Entrata",
+    "outgoing": "In Uscita"
+  },
+  "scanner": {
+    "title": "Scanner Asset",
+    "digitize": "Digitalizza Asset Fisico",
+    "success_title": "Asset Digitalizzato",
+    "success_subtitle": "Caricato con successo nel caveau sicuro.",
+    "visual_data": "Dati Visivi",
+    "add_photo": "Aggiungi Foto",
+    "material": "Designazione Materiale",
+    "valuation": "Valutazione Pubblica (€)",
+    "origin": "Origine di Estrazione",
+    "location": "Posizione Attuale",
+    "thickness": "Spessore (cm)",
+    "quantity": "Quantità (m²)",
+    "incoterm": "Logistica (Incoterm)",
+    "upload": "Crittografia in corso...",
+    "publish_btn": "Pubblica sulla Rete"
+  },
+  "network": {
+    "title": "Directory Globale",
+    "nodes": "Nodi Verificati"
+  },
+  "trading": {
+    "search_placeholder": "Cerca asset, luoghi o aziende...",
+    "verified": "Verificato",
+    "no_assets": "Nessun asset trovato."
+  },
+  "inbox": {
+    "title": "Comunicazioni Sicure",
+    "encryption_active": "Crittografia P2P Attiva",
+    "type_message": "Trasmetti messaggio o termini..."
+  },
+  "auth": {
+    "subtitle": "Autorizzazione Terminale B2B",
+    "node_login": "Accesso Nodo",
+    "request_access": "Richiedi Accesso",
+    "corporate_entity": "Nome Entità Aziendale",
+    "tax_id": "Partita IVA",
+    "secure_email": "Email Aziendale Sicura",
+    "access_key": "Chiave di Accesso",
+    "authenticating": "Autenticazione...",
+    "init_connection": "Inizializza Connessione",
+    "submit_credentials": "Invia Credenziali",
+    "military_encryption": "Connessione Crittografata AES-256",
+    "email_confirm": "Email di verifica inviata.",
+    "reg_success": "Entità registrata con successo."
+  }
+}

@@ -1,0 +1,770 @@
+'use client';
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '../../lib/supabase';
+import { 
+  Shield, Globe, BarChart3, Crosshair, MessageSquare, 
+  LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
+  Trash2, Handshake, ExternalLink, Calendar, AlertOctagon, RotateCcw, X, Loader2,
+  Bell, Check, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart
+} from 'lucide-react';
+import Link from 'next/link';
+
+// STRIPE IMPORTS
+import { loadStripe } from '@stripe/stripe-js';
+
+import { useLanguage } from '../../lib/i18n/LanguageContext';
+import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher';
+
+const stripePromise = loadStripe('pk_test_51TBwXT1RTGOC3MKLvHSA6uyyLoE1PaPGVb46ogLGueeTPnGEq5F0wZfFLE0c9FqHQRwB5aP8FsRbluepidkYreT700CBUJiDPV');
+
+export default function PortfolioDashboard() {
+  const router = useRouter();
+  
+  const { t, language } = useLanguage(); 
+  
+  const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  
+  const [activeTab, setActiveTab] = useState<'assets' | 'private' | 'tracked' | 'incoming' | 'outgoing'>('assets');
+  
+  const [mySlabs, setMySlabs] = useState<any[]>([]);
+  const [incomingOffers, setIncomingOffers] = useState<any[]>([]);
+  const [outgoingOffers, setOutgoingOffers] = useState<any[]>([]);
+  const [trackedSlabs, setTrackedSlabs] = useState<any[]>([]);
+
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifs, setShowNotifs] = useState(false);
+
+  // --- MODALS STATE ---
+  const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<any>(null);
+  const [refundType, setRefundType] = useState<'full' | 'partial'>('full');
+  const [refundAmount, setRefundAmount] = useState('');
+  const [isRefunding, setIsRefunding] = useState(false);
+  const [refundSuccess, setRefundSuccess] = useState(false);
+
+  const [isTermSheetOpen, setIsTermSheetOpen] = useState(false);
+  const [selectedTarget, setSelectedTarget] = useState<any>(null);
+  const [isSubmittingTerm, setIsSubmittingTerm] = useState(false);
+  const [termSuccess, setTermSuccess] = useState(false);
+  const [termSheet, setTermSheet] = useState({ price: '', incoterms: 'FOB', deposit: '30', inspection: '7' });
+
+  // --- EDIT MODAL STATE ---
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingSlab, setEditingSlab] = useState<any>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editForm, setEditForm] = useState({
+    material: '', price: '', origin: '', location: '', thickness: '', quantity: '', incoterm: 'EXW', description: '', visibility: 'public', pricing_model: 'PUBLIC'
+  });
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/auth'); return; }
+      
+      const user = session.user;
+      setCurrentUser(user);
+
+      // Fetch My Assets
+      const { data: slabsData } = await supabase.from('slabs').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+      if (slabsData) setMySlabs(slabsData);
+
+      // Fetch Tracked Assets
+      const { data: vaultData } = await supabase
+        .from('saved_assets')
+        .select(`
+          slab_id,
+          slabs (*, profiles(company_name, status))
+        `)
+        .eq('user_id', user.id);
+
+      if (vaultData) {
+        const cleanTracked = vaultData.map((item: any) => item.slabs).filter(Boolean);
+        setTrackedSlabs(cleanTracked);
+      }
+
+      // Fetch Notifications
+      const { data: notifs } = await supabase.from('notifications').select('*').eq('user_id', user.id).eq('is_read', false).order('created_at', { ascending: false });
+      if (notifs) setNotifications(notifs);
+
+      // Fetch Offers
+      const { data: offersData } = await supabase.from('messages').select('*').eq('is_offer', true).or(`receiver_id.eq.${user.id},sender_id.eq.${user.id}`).order('created_at', { ascending: false });
+
+      if (offersData) {
+        const inc = offersData.filter(o => o.receiver_id === user.id);
+        const out = offersData.filter(o => o.sender_id === user.id);
+
+        const profileIds = [...new Set(offersData.map(o => o.sender_id === user.id ? o.receiver_id : o.sender_id))];
+        const { data: profilesData } = await supabase.from('profiles').select('id, company_name, email').in('id', profileIds);
+
+        const getContactName = (id: string) => {
+          const p = profilesData?.find(p => p.id === id);
+          return p ? (p.company_name || p.email) : 'Unknown Entity';
+        };
+
+        setIncomingOffers(inc.map(o => ({ ...o, contactName: getContactName(o.sender_id) })));
+        setOutgoingOffers(out.map(o => ({ ...o, contactName: getContactName(o.receiver_id) })));
+      }
+      setLoading(false);
+    };
+    fetchDashboardData();
+  }, [router]);
+
+  const markAsRead = async (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+  };
+
+  const handleLogout = async () => { await supabase.auth.signOut(); router.push('/auth'); };
+
+  const deleteSlab = async (id: string) => {
+    if (confirm(language === 'el' ? 'ΠΡΟΣΟΧΗ: Θέλετε σίγουρα να διαγράψετε αυτό το Asset;' : 'WARNING: Are you sure you want to delete this Asset?')) {
+      setMySlabs(mySlabs.filter(s => s.id !== id)); 
+      await supabase.from('slabs').delete().eq('id', id).eq('user_id', currentUser.id);
+    }
+  };
+
+  // --- EDIT ASSET LOGIC ---
+  const openEditModal = (slab: any) => {
+    setEditingSlab(slab);
+    setEditForm({
+      material: slab.material || '',
+      price: slab.price || '',
+      origin: slab.origin || '',
+      location: slab.location || '',
+      thickness: slab.thickness || '',
+      quantity: slab.quantity || '',
+      incoterm: slab.incoterm || 'EXW',
+      description: slab.description || '',
+      visibility: slab.visibility || 'public',
+      pricing_model: slab.pricing_model || 'PUBLIC'
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingEdit(true);
+    try {
+      const { error } = await supabase
+        .from('slabs')
+        .update({
+          material: editForm.material,
+          price: editForm.price,
+          origin: editForm.origin,
+          location: editForm.location,
+          thickness: editForm.thickness,
+          quantity: editForm.quantity,
+          incoterm: editForm.incoterm,
+          description: editForm.description,
+          visibility: editForm.visibility,
+          pricing_model: editForm.pricing_model,
+          is_vault: editForm.visibility === 'private'
+        })
+        .eq('id', editingSlab.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setMySlabs(prev => prev.map(s => s.id === editingSlab.id ? { ...s, ...editForm, is_vault: editForm.visibility === 'private' } : s));
+      setIsEditModalOpen(false);
+      setEditingSlab(null);
+    } catch (error: any) {
+      alert(`Update Error: ${error.message}`);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const formatCurrency = (amount: string | number) => {
+    const val = typeof amount === 'string' ? parseFloat(amount.replace(/\./g, '').replace(/,/g, '.')) : amount;
+    return new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val || 0);
+  };
+
+  const formatTime = (isoString: string) => {
+    return new Date(isoString).toLocaleDateString('el-GR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  // --- ESCROW TERMINATION (REFUND) LOGIC ---
+  const openRefundModal = (deal: any) => {
+    setSelectedDeal(deal);
+    setRefundType('full');
+    setRefundAmount('');
+    setRefundSuccess(false);
+    setIsRefundModalOpen(true);
+  };
+
+  const executeRefund = async () => {
+    setIsRefunding(true);
+    const paymentIntentId = selectedDeal.stripe_payment_id || 'pi_TEST_DUMMY_ID'; 
+    const amountToRefund = refundType === 'partial' ? parseFloat(refundAmount) : null;
+
+    try {
+      await fetch('/api/refund', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentIntentId, amountToRefund }) });
+      await supabase.from('messages').delete().eq('id', selectedDeal.id);
+      setIncomingOffers(prev => prev.filter(offer => offer.id !== selectedDeal.id));
+      setOutgoingOffers(prev => prev.filter(offer => offer.id !== selectedDeal.id));
+      setIsRefunding(false);
+      setRefundSuccess(true);
+      setTimeout(() => { setIsRefundModalOpen(false); setSelectedDeal(null); }, 2500);
+    } catch (error) {
+      console.error(error);
+      setIsRefunding(false);
+    }
+  };
+
+  // --- SMART TERM SHEET LOGIC ---
+  const openTermSheet = (slab: any) => {
+    setSelectedTarget(slab);
+    setTermSheet({
+      price: slab.price ? slab.price.toString() : '',
+      incoterms: 'FOB',
+      deposit: '30',
+      inspection: '7'
+    });
+    setTermSuccess(false);
+    setIsTermSheetOpen(true);
+  };
+
+  const submitTermSheet = async () => {
+    if (!selectedTarget || !currentUser) return;
+    setIsSubmittingTerm(true);
+
+    try {
+      const generatedText = `BINDING TERM SHEET GENERATED:\n• Target Asset: AX-${selectedTarget.id.substring(0,8)}\n• Proposed Value: €${termSheet.price}\n• Logistics (Incoterms): ${termSheet.incoterms}\n• Escrow Deposit: ${termSheet.deposit}%\n• Surveyor Inspection Window: ${termSheet.inspection} Days\n\n*Awaiting Vendor Authorization to initialize Stripe Escrow API.*`;
+
+      const { error } = await supabase.from('messages').insert({
+        sender_id: currentUser.id,
+        receiver_id: selectedTarget.user_id || selectedTarget.vendor_id,
+        text: generatedText,
+        is_offer: true,
+        offer_details: {
+          asset_id: selectedTarget.id,
+          price: termSheet.price,
+          incoterms: termSheet.incoterms,
+          deposit: termSheet.deposit,
+          inspection: termSheet.inspection
+        }
+      });
+
+      if (error) throw error;
+      await supabase.from('saved_assets').delete().match({ user_id: currentUser.id, slab_id: selectedTarget.id });
+      setTrackedSlabs(prev => prev.filter(s => s.id !== selectedTarget.id));
+
+      setTermSuccess(true);
+      setTimeout(() => { setIsTermSheetOpen(false); router.push('/inbox'); }, 2000);
+    } catch (error) {
+      console.error('Term Sheet Error:', error);
+      alert(t('common.error'));
+    } finally {
+      setIsSubmittingTerm(false);
+    }
+  };
+
+  // --- ΔΙΑΧΩΡΙΣΜΟΣ PUBLIC ΚΑΙ PRIVATE ASSETS ---
+  const publicAssets = mySlabs.filter(slab => slab.visibility !== 'private');
+  const privateAssets = mySlabs.filter(slab => slab.visibility === 'private');
+
+  const myPortfolioValue = publicAssets.reduce((acc, slab) => {
+    const val = typeof slab.price === 'string' ? parseFloat(slab.price.replace(/\./g, '').replace(/,/g, '.')) : (slab.price || 0);
+    return acc + val;
+  }, 0);
+
+  const trackedVaultValue = trackedSlabs.reduce((acc, slab) => {
+    const val = typeof slab.price === 'string' ? parseFloat(slab.price.replace(/\./g, '').replace(/,/g, '.')) : (slab.price || 0);
+    return acc + val;
+  }, 0);
+
+  return (
+    <div className="flex flex-col md:flex-row h-[100dvh] bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
+      
+      {/* --- MODAL: EDIT ASSET --- */}
+      {isEditModalOpen && editingSlab && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="bg-[#01030A] border border-[#A6947D]/30 rounded-2xl w-full max-w-2xl relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-5 md:p-6 border-b border-[#A6947D]/20 bg-[#020509] flex-none">
+              <div className="flex items-center gap-3 text-[#F8F5EE]"><Edit size={20} className="text-[#A6947D]" /><h2 className="text-sm md:text-lg font-serif uppercase tracking-[0.2em]">Modify Asset Parameters</h2></div>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-500/10"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="overflow-y-auto custom-scrollbar flex-1 p-6 md:p-8 space-y-6">
+              
+              <div className="bg-[#020509] p-4 rounded-xl border border-[#A6947D]/20 shadow-inner flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest mb-2 flex items-center gap-1.5"><ShieldCheck size={12}/> Placement Strategy</label>
+                  <div className="flex bg-[#01030A] border border-[#A6947D]/30 rounded-lg p-1">
+                    <button type="button" onClick={() => setEditForm({...editForm, visibility: 'public'})} className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${editForm.visibility === 'public' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm' : 'text-[#A6947D]/40 hover:text-[#A6947D]'}`}>Public Floor</button>
+                    <button type="button" onClick={() => setEditForm({...editForm, visibility: 'private'})} className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${editForm.visibility === 'private' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-sm' : 'text-[#A6947D]/40 hover:text-[#A6947D]'}`}>Private Vault</button>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest mb-2 flex items-center gap-1.5"><ShoppingCart size={12}/> Pricing Model</label>
+                  <div className="flex bg-[#01030A] border border-[#A6947D]/30 rounded-lg p-1">
+                    <button type="button" onClick={() => setEditForm({...editForm, pricing_model: 'PUBLIC'})} className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${editForm.pricing_model === 'PUBLIC' ? 'bg-[#A6947D]/10 text-[#A6947D] border border-[#A6947D]/20 shadow-sm' : 'text-[#A6947D]/40 hover:text-[#A6947D]'}`}>Fixed Price</button>
+                    <button type="button" onClick={() => setEditForm({...editForm, pricing_model: 'ROQ'})} className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${editForm.pricing_model === 'ROQ' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm' : 'text-[#A6947D]/40 hover:text-[#A6947D]'}`}>Request Quote</button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Material</label>
+                  <input type="text" required value={editForm.material} onChange={(e) => setEditForm({...editForm, material: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex justify-between items-center">
+                    <span>Valuation (€)</span>
+                    {editForm.pricing_model === 'ROQ' && <Lock size={8} className="text-amber-500" />}
+                  </label>
+                  <input type="text" required value={editForm.price} onChange={(e) => setEditForm({...editForm, price: e.target.value})} className={`w-full bg-[#020509] border rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none transition-colors ${editForm.pricing_model === 'ROQ' ? 'border-amber-500/30 focus:border-amber-500' : 'border-[#A6947D]/40 focus:border-amber-500'}`} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Origin</label>
+                  <input type="text" value={editForm.origin} onChange={(e) => setEditForm({...editForm, origin: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Location</label>
+                  <input type="text" value={editForm.location} onChange={(e) => setEditForm({...editForm, location: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Thickness</label>
+                    <input type="text" value={editForm.thickness} onChange={(e) => setEditForm({...editForm, thickness: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Quantity</label>
+                    <input type="text" value={editForm.quantity} onChange={(e) => setEditForm({...editForm, quantity: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Incoterm</label>
+                  <select value={editForm.incoterm} onChange={(e) => setEditForm({...editForm, incoterm: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 rounded-xl px-4 py-3 text-sm font-sans text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors appearance-none">
+                    <option value="EXW">EXW (Ex Works)</option>
+                    <option value="FOB">FOB (Free on Board)</option>
+                    <option value="CIF">CIF (Cost, Insurance, Freight)</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Description</label>
+                <textarea value={editForm.description} onChange={(e) => setEditForm({...editForm, description: e.target.value})} rows={3} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-5 py-4 text-sm text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors resize-none shadow-inner custom-scrollbar" />
+              </div>
+
+              <div className="pt-4 flex gap-4 border-t border-[#A6947D]/20">
+                <button type="button" onClick={() => setIsEditModalOpen(false)} disabled={isSavingEdit} className="px-6 py-4 rounded-xl border border-[#A6947D]/30 text-[#A6947D] hover:bg-[#A6947D]/10 text-[10px] font-bold uppercase tracking-[0.2em] transition-all">Cancel</button>
+                <button type="submit" disabled={isSavingEdit} className="flex-1 bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all text-[10px] flex items-center justify-center gap-2 shadow-[0_4px_15px_rgba(166,148,125,0.2)] disabled:opacity-50">
+                  {isSavingEdit ? <><Loader2 size={16} className="animate-spin"/> Syncing...</> : <><ShieldCheck size={16}/> Update Parameters</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL: REFUND --- */}
+      {isRefundModalOpen && selectedDeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#01030A] border border-red-900/50 rounded-2xl w-full max-w-lg relative shadow-[0_0_50px_rgba(239,68,68,0.1)] overflow-hidden">
+            {refundSuccess ? (
+              <div className="p-8 md:p-12 flex flex-col items-center justify-center text-center animate-in zoom-in duration-500">
+                <div className="w-20 h-20 rounded-full border border-emerald-500/30 flex items-center justify-center mb-6 bg-emerald-500/10 relative"><div className="absolute inset-0 border border-emerald-500/20 rounded-full animate-ping"></div><RotateCcw size={40} className="text-emerald-500" /></div>
+                <h2 className="text-xl md:text-2xl font-serif uppercase tracking-[0.2em] text-[#F8F5EE] mb-3">Contract Terminated</h2>
+                <p className="text-[#A6947D] text-[10px] font-mono uppercase tracking-[0.2em]">Escrow Funds Released & Deal Purged.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center p-5 md:p-6 border-b border-red-900/30 bg-[#020509]">
+                  <div className="flex items-center gap-3 text-red-500"><AlertOctagon size={20} /><h2 className="text-sm md:text-lg font-serif uppercase tracking-[0.2em] text-[#F8F5EE]">Terminate Contract</h2></div>
+                  <button onClick={() => setIsRefundModalOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-500/10"><X size={20} /></button>
+                </div>
+                <div className="p-6 md:p-8 bg-[#020509] text-center relative border-b border-red-900/20">
+                  <p className="text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.3em] mb-2">Asset Value Locked</p>
+                  <p className="text-3xl md:text-4xl font-mono font-light tracking-tighter text-[#F8F5EE]">{formatCurrency(selectedDeal.offer_details?.price)}</p>
+                </div>
+                <div className="p-5 md:p-8 space-y-6 bg-[#01030A] max-h-[50vh] overflow-y-auto custom-scrollbar">
+                  <div className="space-y-4">
+                    <p className="text-[10px] text-[#A6947D] uppercase font-bold tracking-[0.2em] border-b border-[#A6947D]/10 pb-2">Resolution Strategy</p>
+                    <label className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${refundType === 'full' ? 'bg-red-500/10 border-red-500/50' : 'bg-[#020509] border-[#A6947D]/20 hover:border-[#A6947D]/40'}`}>
+                      <input type="radio" name="refundType" checked={refundType === 'full'} onChange={() => setRefundType('full')} className="mt-1" />
+                      <div><p className="text-xs font-bold uppercase tracking-widest text-[#F8F5EE]">Mutual Agreement (Full Refund)</p><p className="text-[9px] text-[#A6947D]/80 mt-1 font-mono uppercase tracking-widest">Return 100% of the escrow funds to the buyer.</p></div>
+                    </label>
+                    <label className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${refundType === 'partial' ? 'bg-red-500/10 border-red-500/50' : 'bg-[#020509] border-[#A6947D]/20 hover:border-[#A6947D]/40'}`}>
+                      <input type="radio" name="refundType" checked={refundType === 'partial'} onChange={() => setRefundType('partial')} className="mt-1" />
+                      <div className="w-full"><p className="text-xs font-bold uppercase tracking-widest text-[#F8F5EE]">Breach of Contract (Partial Refund)</p><p className="text-[9px] text-[#A6947D]/80 mt-1 font-mono uppercase tracking-widest mb-3">Hold a penalty fee. Return the remaining balance.</p>
+                        {refundType === 'partial' && (
+                          <div className="relative mt-2"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A6947D] font-mono text-sm">€</span>
+                            <input type="number" placeholder="Amount to refund..." value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} className="w-full bg-[#01030A] border border-red-500/30 rounded-lg py-3 pl-10 pr-4 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-red-500 transition-colors shadow-inner" />
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+                  <div className="pt-4 flex gap-3 md:gap-4">
+                    <button type="button" onClick={() => setIsRefundModalOpen(false)} disabled={isRefunding} className="px-4 md:px-6 py-4 rounded-xl border border-[#A6947D]/30 text-[#A6947D] hover:bg-[#A6947D]/10 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all disabled:opacity-50">Abort</button>
+                    <button onClick={executeRefund} disabled={isRefunding || (refundType === 'partial' && !refundAmount)} className="flex-1 bg-red-600 hover:bg-red-500 text-[#020509] font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all text-[9px] md:text-[10px] flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 shadow-[0_4px_15px_rgba(220,38,38,0.2)]">
+                      {isRefunding ? <><Loader2 size={16} className="animate-spin"/> Releasing...</> : <><RotateCcw size={16}/> Execute Refund</>}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 2. SMART TERM SHEET MODAL */}
+      {isTermSheetOpen && selectedTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="bg-[#01030A] border border-[#A6947D]/30 rounded-2xl w-full max-w-xl relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
+            
+            {termSuccess ? (
+              <div className="p-12 flex flex-col items-center justify-center text-center animate-in zoom-in duration-500 flex-1">
+                <div className="w-20 h-20 rounded-full border border-emerald-500/30 flex items-center justify-center mb-6 bg-emerald-500/10 relative"><div className="absolute inset-0 border border-emerald-500/20 rounded-full animate-ping"></div><FileSignature size={40} className="text-emerald-500" /></div>
+                <h2 className="text-2xl font-serif uppercase tracking-[0.2em] text-[#F8F5EE] mb-3">Binding Term Sheet Transmitted</h2>
+                <p className="text-[#A6947D] text-[10px] font-mono uppercase tracking-[0.2em]">Awaiting Vendor Escrow Authorization.</p>
+              </div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center p-5 md:p-6 border-b border-[#A6947D]/20 bg-[#020509] flex-none">
+                  <div className="flex items-center gap-3 text-[#F8F5EE]"><FileSignature size={20} className="text-[#A6947D]" /><h2 className="text-sm md:text-lg font-serif uppercase tracking-[0.2em]">Escrow Term Sheet</h2></div>
+                  <button onClick={() => setIsTermSheetOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-500/10"><X size={20} /></button>
+                </div>
+
+                <div className="overflow-y-auto custom-scrollbar flex-1 p-6 md:p-8 space-y-6">
+                  <div className="bg-[#020509] border border-[#A6947D]/15 p-4 rounded-xl flex items-center justify-between">
+                    <div>
+                        <p className="text-[8px] text-[#A6947D] font-mono tracking-widest uppercase mb-1">Target Asset ID: AX-{selectedTarget.id.substring(0,8)}</p>
+                        <p className="text-lg font-serif uppercase text-[#F8F5EE]">{selectedTarget.material}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Vendor Entity</p>
+                        <p className="text-[10px] font-bold uppercase text-[#A6947D]">{selectedTarget.profiles?.company_name || 'Verified Vendor'}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-5">
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Wallet size={12}/> Proposed Valuation (€)</label>
+                      <input type="number" value={termSheet.price} onChange={(e) => setTermSheet({...termSheet, price: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-lg font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Ship size={12}/> Incoterms</label>
+                        <select value={termSheet.incoterms} onChange={(e) => setTermSheet({...termSheet, incoterms: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 rounded-xl px-4 py-3 text-sm font-sans text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors appearance-none cursor-pointer">
+                          <option value="EXW">EXW (Ex Works)</option>
+                          <option value="FOB">FOB (Free on Board)</option>
+                          <option value="CIF">CIF (Cost, Insurance, Freight)</option>
+                          <option value="DAP">DAP (Delivered at Place)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><ShieldCheck size={12}/> Escrow Deposit</label>
+                        <select value={termSheet.deposit} onChange={(e) => setTermSheet({...termSheet, deposit: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors appearance-none cursor-pointer">
+                          <option value="10">10% Deposit</option>
+                          <option value="30">30% Deposit</option>
+                          <option value="50">50% Deposit</option>
+                          <option value="100">100% Full Payment</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Scale size={12}/> Surveyor Inspection Window (Days)</label>
+                      <input type="number" min="1" max="30" value={termSheet.inspection} onChange={(e) => setTermSheet({...termSheet, inspection: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 md:p-6 border-t border-[#A6947D]/20 bg-[#01030A] flex gap-3 md:gap-4 flex-none">
+                  <button type="button" onClick={() => setIsTermSheetOpen(false)} disabled={isSubmittingTerm} className="px-4 md:px-6 py-4 rounded-xl border border-[#A6947D]/30 text-[#A6947D] hover:bg-[#A6947D]/10 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all disabled:opacity-50">Cancel</button>
+                  <button onClick={submitTermSheet} disabled={isSubmittingTerm || !termSheet.price} className="flex-1 bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all text-[9px] md:text-[10px] flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 shadow-[0_4px_15px_rgba(166,148,125,0.2)]">
+                    {isSubmittingTerm ? <><Loader2 size={16} className="animate-spin"/> Generating...</> : <><FileSignature size={16}/> Transmit Binding Offer</>}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MASTER SIDEBAR */}
+      <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)] relative overflow-hidden">
+        <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none"><Shield size={300} className="text-[#A6947D]" /></div>
+        
+        <div className="p-8 pb-12 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
+          <div className="w-12 h-12 border border-[#A6947D]/30 rounded-full flex items-center justify-center relative mb-4 shadow-[0_0_15px_rgba(166,148,125,0.05)] bg-[#01030A]">
+            <Shield size={20} className="text-[#A6947D]"/>
+          </div>
+          <h1 className="text-2xl font-serif uppercase text-[#F8F5EE] tracking-[0.2em] font-light leading-none mb-1">AXON</h1>
+          <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">{t('common.institutional_grade')}</p>
+        </div>
+
+        <SidebarLanguageSwitcher />
+
+        <nav className="flex-1 px-4 space-y-2 relative z-10">
+          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><BarChart3 size={16} /> {t('menu.portfolio')}</Link>
+          <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Crosshair size={16} /> {t('menu.scanner')}</Link>
+          <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> {t('menu.floor')}</Link>
+          <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> {t('menu.network')}</Link>
+          <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> {t('menu.comms')}</Link>
+          <Link href="/me" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><User size={16} /> {t('menu.profile')}</Link>
+        </nav>
+
+        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><LogOut size={16} /> {t('common.disconnect')}</button></div>
+      </aside>
+
+      <main className="flex-1 overflow-y-auto relative bg-[#020509] pb-24 md:pb-0 custom-scrollbar">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0 fixed"><Globe size={800} className="text-[#A6947D]" /></div>
+        
+        <div className="p-4 md:p-12 max-w-7xl mx-auto relative z-10">
+          <header className="mb-6 md:mb-10 flex justify-between items-start">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-serif text-[#F8F5EE] uppercase tracking-[0.1em] font-light">{t('dashboard.title')}</h2>
+              <div className="flex items-center gap-2 md:gap-3 mt-2"><span className="h-px w-6 md:w-8 bg-[#A6947D]/30"></span><p className="text-[8px] md:text-[10px] text-[#A6947D] uppercase tracking-[0.2em] font-mono">Portfolio Oversight</p></div>
+            </div>
+            <div className="relative">
+              <button onClick={() => setShowNotifs(!showNotifs)} className={`p-2.5 md:p-3 rounded-xl border transition-all relative ${notifications.length > 0 ? 'bg-amber-500/10 border-amber-500/30 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'bg-[#01030A] border-[#A6947D]/20 text-[#A6947D]/60'}`}>
+                <Bell size={20} />
+                {notifications.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 md:w-5 md:h-5 bg-amber-500 text-[#020509] text-[9px] md:text-[10px] font-bold rounded-full flex items-center justify-center animate-bounce">{notifications.length}</span>}
+              </button>
+              {showNotifs && (
+                <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-[#01030A] border border-[#A6947D]/30 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="p-4 border-b border-[#A6947D]/10 bg-[#020509] flex justify-between items-center"><p className="text-[10px] font-bold uppercase tracking-widest text-[#A6947D]">Intelligence Feed</p><button onClick={() => setShowNotifs(false)} className="text-[#A6947D]/60 hover:text-[#A6947D]"><X size={14}/></button></div>
+                  <div className="max-h-80 md:max-h-96 overflow-y-auto custom-scrollbar">
+                    {notifications.length === 0 ? <div className="p-10 text-center text-[10px] font-mono text-[#A6947D]/40 uppercase tracking-widest">No active alerts.</div> : notifications.map(n => (
+                      <div key={n.id} className="p-4 border-b border-[#A6947D]/5 hover:bg-[#A6947D]/5 transition-colors group">
+                        <p className="text-[10px] font-bold text-[#F8F5EE] uppercase mb-1">{n.title}</p><p className="text-[10px] md:text-[11px] text-[#A6947D] leading-relaxed mb-3">{n.message}</p>
+                        <div className="flex gap-2"><button onClick={() => markAsRead(n.id)} className="text-[9px] text-[#A6947D]/40 hover:text-emerald-400 p-1.5 transition-colors"><Check size={14}/></button></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </header>
+
+          {!loading && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8 animate-in fade-in duration-700 delay-100">
+              <div className="bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/20 rounded-2xl p-5 md:p-6 shadow-lg relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-500"><Wallet size={64} className="text-[#A6947D]"/></div>
+                <p className="text-[9px] font-bold text-[#A6947D]/60 uppercase tracking-widest mb-2 flex items-center gap-2"><Package size={12}/> Public Portfolio</p>
+                <p className="text-2xl md:text-3xl font-serif text-[#F8F5EE] tracking-wider mb-2">{formatCurrency(myPortfolioValue)}</p>
+                <div className="flex items-center gap-2 text-[10px] font-mono"><ArrowUpRight size={12} className="text-emerald-500"/><span className="text-emerald-500">{t('dashboard.active_supply')}</span><span className="text-[#A6947D]/40">|</span><span className="text-[#F8F5EE]/60">{publicAssets.length} Assets</span></div>
+              </div>
+              <div className="bg-[#01030A]/80 backdrop-blur-md border border-indigo-500/30 rounded-2xl p-5 md:p-6 shadow-[0_0_20px_rgba(99,102,241,0.1)] relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-500"><Lock size={64} className="text-indigo-400"/></div>
+                <p className="text-[9px] font-bold text-indigo-400/80 uppercase tracking-widest mb-2 flex items-center gap-2"><Lock size={12}/> OTC Dark Pool (Private)</p>
+                <p className="text-2xl md:text-3xl font-serif text-[#F8F5EE] tracking-wider mb-2">Off-Market</p>
+                <div className="flex items-center gap-2 text-[10px] font-mono"><Shield size={12} className="text-indigo-400"/><span className="text-indigo-400">Secured</span><span className="text-[#A6947D]/40">|</span><span className="text-[#F8F5EE]/60">{privateAssets.length} Assets</span></div>
+              </div>
+              <div className="bg-[#01030A]/80 backdrop-blur-md border border-amber-500/20 rounded-2xl p-5 md:p-6 shadow-[0_0_20px_rgba(245,158,11,0.05)] relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-500"><Target size={64} className="text-amber-500"/></div>
+                <p className="text-[9px] font-bold text-[#A6947D]/60 uppercase tracking-widest mb-2 flex items-center gap-2"><Crosshair size={12}/> {t('dashboard.tracked_targets')}</p>
+                <p className="text-2xl md:text-3xl font-serif text-[#F8F5EE] tracking-wider mb-2">{formatCurrency(trackedVaultValue)}</p>
+                <div className="flex items-center gap-2 text-[10px] font-mono"><ArrowDownRight size={12} className="text-amber-500"/><span className="text-amber-500">{t('dashboard.pending_execution')}</span><span className="text-[#A6947D]/40">|</span><span className="text-[#F8F5EE]/60">{trackedSlabs.length} Assets</span></div>
+              </div>
+              <div onClick={() => router.push('/contracts')} className="bg-[#01030A]/80 backdrop-blur-md border border-emerald-500/30 rounded-2xl p-5 md:p-6 shadow-[0_0_20px_rgba(16,185,129,0.1)] relative overflow-hidden group cursor-pointer hover:border-emerald-500/60 hover:shadow-[0_0_30px_rgba(16,185,129,0.2)] transition-all duration-300">
+                <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 group-hover:scale-110 transition-all duration-500"><FileSignature size={64} className="text-emerald-500"/></div>
+                <p className="text-[9px] font-bold text-emerald-500/80 uppercase tracking-widest mb-2 flex items-center gap-2"><ShieldCheck size={12}/> Escrow Contracts</p>
+                <p className="text-2xl md:text-3xl font-serif text-[#F8F5EE] tracking-wider mb-2">{formatCurrency(0)}</p>
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <div className="flex items-center gap-2"><Handshake size={12} className="text-emerald-400"/><span className="text-emerald-400">Secured Funds</span></div>
+                  <span className="text-[#F8F5EE]/40 group-hover:text-emerald-400 transition-colors uppercase font-bold tracking-widest text-[8px]">Access Vault &rarr;</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 md:gap-4 border-b border-[#A6947D]/10 mb-6 md:mb-8 overflow-x-auto custom-scrollbar pb-px animate-in fade-in duration-700 delay-100 fill-mode-both w-full scroll-smooth">
+            <button onClick={() => setActiveTab('assets')} className={`pb-3 md:pb-4 px-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'assets' ? 'text-[#A6947D] border-b-2 border-[#A6947D]' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}><Package size={14} /> {t('dashboard.my_assets')} ({publicAssets.length})</button>
+            <button onClick={() => setActiveTab('private')} className={`pb-3 md:pb-4 px-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'private' ? 'text-indigo-400 border-b-2 border-indigo-400' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}><Lock size={14} /> Private Vault {privateAssets.length > 0 && <span className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] shadow-sm">{privateAssets.length}</span>}</button>
+            <button onClick={() => setActiveTab('tracked')} className={`pb-3 md:pb-4 px-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'tracked' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}><Target size={14} /> {t('dashboard.tracked_vault')} {trackedSlabs.length > 0 && <span className="bg-amber-500/20 text-amber-500 border border-amber-500/30 px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px]">{trackedSlabs.length}</span>}</button>
+            <button onClick={() => setActiveTab('incoming')} className={`pb-3 md:pb-4 px-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'incoming' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}><ArrowDownRight size={14} /> {t('dashboard.incoming')} {incomingOffers.length > 0 && <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] shadow-[0_0_10px_rgba(16,185,129,0.2)]">{incomingOffers.length}</span>}</button>
+            <button onClick={() => setActiveTab('outgoing')} className={`pb-3 md:pb-4 px-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'outgoing' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}><ArrowUpRight size={14} /> {t('dashboard.outgoing')} ({outgoingOffers.length})</button>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-20 text-[#A6947D] animate-pulse font-mono text-xs uppercase tracking-widest">Synchronizing...</div>
+          ) : (
+            <div className="animate-in fade-in duration-700 delay-200 fill-mode-both">
+              
+              {/* --- PUBLIC ASSETS TAB --- */}
+              {activeTab === 'assets' && (
+                <div>
+                  {publicAssets.length === 0 ? (
+                    <div className="bg-[#01030A]/60 backdrop-blur-md border border-[#A6947D]/10 rounded-2xl p-8 md:p-16 text-center flex flex-col items-center justify-center shadow-[0_0_30px_rgba(166,148,125,0.03)]">
+                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-[#A6947D]/20 flex items-center justify-center mb-4 md:mb-6 bg-[#A6947D]/5"><Package size={28} className="text-[#A6947D]/60" /></div>
+                      <h3 className="text-lg md:text-xl font-serif text-[#A6947D] uppercase tracking-[0.15em] mb-2 md:mb-3">Public Ledger is Empty</h3>
+                      <p className="text-[9px] md:text-[10px] text-[#F8F5EE]/40 font-mono uppercase tracking-widest mb-6 md:mb-8">No visible assets listed.</p>
+                      <Link href="/scanner" className="bg-transparent border border-[#A6947D]/40 text-[#A6947D] hover:text-[#F8F5EE] hover:border-[#A6947D] hover:bg-[#A6947D]/10 px-6 py-3 rounded-xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all shadow-md">Initiate Scan</Link>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                      {publicAssets.map(slab => (
+                        <div key={slab.id} className="bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/15 rounded-2xl overflow-hidden hover:border-[#A6947D]/40 transition-all duration-500 group flex flex-col shadow-lg">
+                          <div className="h-40 md:h-48 bg-[#020509] relative overflow-hidden">
+                            {slab.image_url ? <img src={slab.image_url} alt={slab.material} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-transform duration-700 group-hover:scale-105" /> : <div className="w-full h-full flex items-center justify-center text-[#A6947D]/20"><Package size={40} /></div>}
+                            <div className="absolute top-2 right-2 md:top-3 md:right-3 bg-[#020509]/90 backdrop-blur-md border border-[#A6947D]/30 px-2 py-1 rounded-lg text-[8px] font-bold text-[#A6947D] uppercase tracking-[0.2em] shadow-lg">AX-{slab.id.substring(0,6)}</div>
+                          </div>
+                          <div className="p-4 md:p-6 flex-1 flex flex-col">
+                            <h3 className="text-base md:text-lg font-serif text-[#F8F5EE] uppercase tracking-wider mb-1 md:mb-2 truncate">{slab.material || 'Unknown Material'}</h3>
+                            <p className="text-xl md:text-2xl font-mono text-[#A6947D] mb-4 md:mb-6">{formatCurrency(slab.price)}</p>
+                            <div className="mt-auto pt-4 border-t border-[#A6947D]/10 flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => openEditModal(slab)} className="text-amber-500/60 hover:text-amber-500 p-1.5 md:p-2 rounded-lg hover:bg-amber-500/10 transition-colors"><Edit size={14} className="md:w-4 md:h-4" /></button>
+                                <button onClick={() => deleteSlab(slab.id)} className="text-red-500/40 hover:text-red-500 p-1.5 md:p-2 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={14} className="md:w-4 md:h-4" /></button>
+                              </div>
+                              <Link href={`/trading/${slab.id}`} target="_blank" className="text-[#A6947D]/60 hover:text-[#A6947D] text-[9px] md:text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 transition-colors"><ExternalLink size={14}/> View Ledger</Link>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* --- PRIVATE VAULT TAB --- */}
+              {activeTab === 'private' && (
+                <div>
+                  {privateAssets.length === 0 ? (
+                    <div className="bg-[#01030A]/60 backdrop-blur-md border border-indigo-500/10 rounded-2xl p-8 md:p-16 text-center flex flex-col items-center justify-center shadow-[0_0_30px_rgba(99,102,241,0.03)]">
+                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-indigo-500/20 flex items-center justify-center mb-4 md:mb-6 bg-indigo-500/5"><Lock size={28} className="text-indigo-500/40" /></div>
+                      <h3 className="text-lg md:text-xl font-serif text-indigo-400 uppercase tracking-[0.15em] mb-2 md:mb-3">Vault is Empty</h3>
+                      <p className="text-[9px] md:text-[10px] text-[#F8F5EE]/40 font-mono uppercase tracking-widest mb-6 md:mb-8">No off-market assets stored.</p>
+                      <Link href="/scanner" className="bg-transparent border border-indigo-500/40 text-indigo-400 hover:text-[#F8F5EE] hover:border-indigo-400 hover:bg-indigo-500/10 px-6 py-3 rounded-xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all shadow-md">Add Private Asset</Link>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                      {privateAssets.map(slab => (
+                        <div key={slab.id} className="bg-[#01030A]/90 backdrop-blur-xl border border-indigo-500/30 rounded-2xl overflow-hidden hover:border-indigo-500/60 hover:shadow-[0_0_20px_rgba(99,102,241,0.1)] transition-all duration-300 group flex flex-col relative shadow-lg">
+                          <div className="absolute top-2 right-2 md:top-3 md:right-3 z-20 flex items-center gap-1.5 bg-indigo-900/80 backdrop-blur-md border border-indigo-500/50 px-2 py-1 rounded-lg shadow-lg"><Lock size={10} className="text-indigo-400"/><span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest">Off-Market</span></div>
+                          <div className="h-40 md:h-48 bg-[#020509] relative overflow-hidden border-b border-indigo-500/20">
+                            {slab.image_url ? <img src={slab.image_url} alt={slab.material} className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" /> : <div className="w-full h-full flex items-center justify-center opacity-20"><Package size={48} className="text-indigo-400" /></div>}
+                          </div>
+                          <div className="p-4 md:p-6 flex flex-col flex-1">
+                            <h3 className="text-base md:text-lg font-serif text-[#F8F5EE] uppercase tracking-wider mb-1 md:mb-2 truncate">{slab.material || 'Unknown Material'}</h3>
+                            <p className="text-xl md:text-2xl font-mono text-indigo-400 mb-4 md:mb-6">{formatCurrency(slab.price)}</p>
+                            <div className="mt-auto pt-4 border-t border-indigo-500/10 flex justify-between items-center gap-3">
+                              <div className="flex gap-2">
+                                <button onClick={() => openEditModal(slab)} className="text-amber-500/40 hover:text-amber-500 p-2 rounded-lg hover:bg-amber-500/10 transition-colors"><Edit size={14} className="md:w-4 md:h-4" /></button>
+                                <button onClick={() => deleteSlab(slab.id)} className="text-red-500/40 hover:text-red-500 p-2 rounded-lg hover:bg-red-500/10 transition-colors"><Trash2 size={14} className="md:w-4 md:h-4" /></button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* --- TRACKED VAULT TAB --- */}
+              {activeTab === 'tracked' && (
+                <div>
+                  {trackedSlabs.length === 0 ? (
+                    <div className="bg-[#01030A]/60 backdrop-blur-md border border-amber-500/10 rounded-2xl p-8 md:p-16 text-center flex flex-col items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.03)]">
+                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-amber-500/20 flex items-center justify-center mb-4 md:mb-6 bg-amber-500/5"><Target size={28} className="text-amber-500/40" /></div>
+                      <h3 className="text-lg md:text-xl font-serif text-amber-500 uppercase tracking-[0.15em] mb-2 md:mb-3">No Targets Locked</h3>
+                      <p className="text-[9px] md:text-[10px] text-[#F8F5EE]/40 font-mono uppercase tracking-widest mb-6 md:mb-8">Access the trading floor to track assets.</p>
+                      <Link href="/trading" className="bg-transparent border border-amber-500/40 text-amber-500 hover:text-amber-400 hover:border-amber-500 hover:bg-amber-500/10 px-6 py-3 rounded-xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all shadow-md">Enter Public Floor</Link>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                      {trackedSlabs.map(slab => (
+                        <div key={slab.id} className="bg-[#01030A]/90 backdrop-blur-xl border border-amber-500/30 rounded-2xl overflow-hidden hover:border-amber-500/60 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all duration-300 group flex flex-col relative">
+                          <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded shadow-lg"><Target size={10} className="text-amber-500 animate-pulse"/><span className="text-[8px] font-bold text-amber-500 uppercase tracking-widest">Locked</span></div>
+                          <Link href={`/trading/${slab.id}`}>
+                            <div className="h-40 bg-[#020509] relative overflow-hidden border-b border-[#A6947D]/15">
+                              <div className="absolute inset-0 bg-gradient-to-t from-[#01030A] to-transparent z-10 opacity-80"></div>
+                              {slab.image_url ? <img src={slab.image_url} alt={slab.material} className="w-full h-full object-cover grayscale-[40%] group-hover:grayscale-0 transition-all duration-700" /> : <div className="w-full h-full flex items-center justify-center opacity-20"><Package size={48} className="text-[#A6947D]" /></div>}
+                              <div className="absolute bottom-3 left-3 z-20"><p className="text-[8px] text-amber-500/80 font-mono tracking-widest uppercase mb-1">Target ID: {slab.id.substring(0,8)}</p><h4 className="text-base font-serif uppercase text-[#F8F5EE] leading-none">{slab.material}</h4></div>
+                            </div>
+                          </Link>
+                          <div className="p-4 flex flex-col flex-1">
+                            <div className="flex justify-between items-end mb-4">
+                              <div><p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Buy Price</p><p className="text-base font-mono text-[#F8F5EE]">{formatCurrency(slab.price)}</p></div>
+                              <div className="text-right"><p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Vendor</p><p className="text-[10px] font-bold uppercase text-[#A6947D] truncate max-w-[100px]">{slab.profiles?.company_name || 'Unknown'}</p></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* INCOMING & OUTGOING TABS (Συμπτυγμένα για χώρο) */}
+              {activeTab === 'incoming' && (
+                 <div className="space-y-4">
+                 {incomingOffers.length === 0 ? (
+                   <div className="bg-[#01030A]/60 backdrop-blur-md border border-[#A6947D]/10 rounded-2xl p-10 md:p-16 text-center flex flex-col items-center justify-center">
+                     <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-emerald-500/20 flex items-center justify-center mb-4 md:mb-6 bg-emerald-500/5"><ArrowDownRight size={28} className="text-emerald-500/40" /></div>
+                     <p className="text-[9px] md:text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-[0.2em]">No incoming offers detected.</p>
+                   </div>
+                 ) : (
+                   incomingOffers.map(offer => (
+                     <div key={offer.id} className="bg-[#01030A]/80 backdrop-blur-md border border-emerald-500/20 rounded-2xl p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-start md:items-center relative overflow-hidden group shadow-lg">
+                        <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.4)]"></div>
+                        <div className="flex-1 space-y-3 w-full pl-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-[#A6947D]/10 pb-2 md:pb-3">
+                            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[8px] md:text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 w-fit"><ArrowDownRight size={10}/> Incoming Deal</span>
+                            <span className="text-[#A6947D]/60 text-[9px] md:text-[10px] font-mono flex items-center gap-1.5"><Calendar size={10}/> {formatTime(offer.created_at)}</span>
+                          </div>
+                          <div className="pt-1"><p className="text-[8px] md:text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.2em] mb-1">Sender Entity</p><p className="text-base md:text-xl font-serif text-[#F8F5EE] uppercase tracking-wider">{offer.contactName}</p></div>
+                          <div className="bg-[#020509] border border-[#A6947D]/15 p-4 md:p-5 rounded-xl inline-block w-full max-w-md shadow-inner">
+                            <div className="flex justify-between items-center mb-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Target Asset</span><Link href={`/trading/${offer.offer_details?.asset_id}`} target="_blank" className="text-[9px] md:text-[11px] font-mono text-[#F8F5EE] hover:text-[#A6947D] transition-colors bg-[#A6947D]/10 px-2 py-0.5 rounded border border-[#A6947D]/20">AX-{offer.offer_details?.asset_id.substring(0,6)}</Link></div>
+                            <div className="flex justify-between items-center border-t border-[#A6947D]/15 pt-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Proposed Value</span><span className="text-lg md:text-2xl font-mono text-emerald-400 font-light tracking-tighter">{formatCurrency(offer.offer_details?.price)}</span></div>
+                          </div>
+                        </div>
+                     </div>
+                   ))
+                 )}
+                 </div>
+              )}
+              {activeTab === 'outgoing' && (
+                 <div className="space-y-4">
+                 {outgoingOffers.length === 0 ? (
+                   <div className="bg-[#01030A]/60 backdrop-blur-md border border-[#A6947D]/10 rounded-2xl p-10 md:p-16 text-center flex flex-col items-center justify-center">
+                     <div className="w-16 h-16 md:w-20 h-20 rounded-full border border-amber-500/20 flex items-center justify-center mb-4 md:mb-6 bg-amber-500/5"><ArrowUpRight size={28} className="text-amber-500/40" /></div>
+                     <p className="text-[9px] md:text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-[0.2em]">No active transmissions.</p>
+                   </div>
+                 ) : (
+                   outgoingOffers.map(offer => (
+                     <div key={offer.id} className="bg-[#01030A]/80 backdrop-blur-md border border-amber-500/20 rounded-2xl p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-start md:items-center relative overflow-hidden group shadow-lg">
+                        <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]"></div>
+                        <div className="flex-1 space-y-3 w-full pl-2">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-[#A6947D]/10 pb-2 md:pb-3">
+                            <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[8px] md:text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 w-fit shadow-sm"><ArrowUpRight size={10}/> Transmitted Deal</span>
+                            <span className="text-[#A6947D]/60 text-[9px] md:text-[10px] font-mono flex items-center gap-1.5"><Calendar size={10}/> {formatTime(offer.created_at)}</span>
+                          </div>
+                          <div className="pt-1"><p className="text-[8px] md:text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.2em] mb-1">Target Entity</p><p className="text-base md:text-xl font-serif text-[#F8F5EE] uppercase tracking-wider">{offer.contactName}</p></div>
+                          <div className="bg-[#020509] border border-[#A6947D]/15 p-4 md:p-5 rounded-xl inline-block w-full max-w-md shadow-inner opacity-80">
+                            <div className="flex justify-between items-center mb-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Requested Asset</span><Link href={`/trading/${offer.offer_details?.asset_id}`} target="_blank" className="text-[9px] md:text-[11px] font-mono text-[#F8F5EE] hover:text-[#A6947D] transition-colors bg-[#A6947D]/10 px-2 py-0.5 rounded border border-[#A6947D]/20">AX-{offer.offer_details?.asset_id.substring(0,6)}</Link></div>
+                            <div className="flex justify-between items-center border-t border-[#A6947D]/15 pt-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Your Offer</span><span className="text-lg md:text-2xl font-mono text-[#F8F5EE] font-light tracking-tighter">{formatCurrency(offer.offer_details?.price)}</span></div>
+                          </div>
+                        </div>
+                     </div>
+                   ))
+                 )}
+                 </div>
+              )}
+
+            </div>
+          )}
+        </div>
+      </main>
+
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/90 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
+        <Link href="/dashboard" className="text-[#A6947D] p-2 flex flex-col items-center gap-1"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.portfolio').substring(0,4)}</span></Link>
+        <Link href="/network" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1"><Users size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.network').substring(0,3)}</span></Link>
+        <Link href="/trading" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.floor').substring(0,5)}</span></Link>
+        <Link href="/inbox" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative"><MessageSquare size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.comms').substring(0,5)}</span></Link>
+        <Link href="/me" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative"><User size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.profile').substring(0,4)}</span></Link>
+      </nav>
+    </div>
+  );
+}

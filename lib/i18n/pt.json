@@ -1,0 +1,73 @@
+{
+  "common": {
+    "institutional_grade": "Grau Institucional",
+    "syncing": "Sincronizando...",
+    "disconnect": "Desconectar",
+    "error": "Erro"
+  },
+  "menu": {
+    "portfolio": "Portfólio",
+    "scanner": "Scanner",
+    "floor": "Mercado",
+    "network": "Rede Global",
+    "comms": "Comunicações",
+    "profile": "Perfil"
+  },
+  "dashboard": {
+    "title": "Centro de Comando",
+    "portfolio_value": "Valor do Portfólio",
+    "active_supply": "Oferta Ativa",
+    "tracked_targets": "Ativos Rastreados",
+    "pending_execution": "Execução Pendente",
+    "my_assets": "Meus Ativos",
+    "tracked_vault": "Cofre Rastreado",
+    "incoming": "Recebidas",
+    "outgoing": "Enviadas"
+  },
+  "scanner": {
+    "title": "Scanner de Ativos",
+    "digitize": "Digitalizar Ativo Físico",
+    "success_title": "Ativo Digitalizado",
+    "success_subtitle": "Enviado com sucesso para o cofre seguro.",
+    "visual_data": "Dados Visuais",
+    "add_photo": "Adicionar Foto",
+    "material": "Designação de Material",
+    "valuation": "Avaliação Pública (€)",
+    "origin": "Origem de Extração",
+    "location": "Localização Atual",
+    "thickness": "Espessura (cm)",
+    "quantity": "Quantidade (m²)",
+    "incoterm": "Logística (Incoterm)",
+    "upload": "Criptografando e Enviando...",
+    "publish_btn": "Publicar na Rede"
+  },
+  "network": {
+    "title": "Diretório Global",
+    "nodes": "Nós Verificados"
+  },
+  "trading": {
+    "search_placeholder": "Pesquisar ativos, locais ou empresas...",
+    "verified": "Verificado",
+    "no_assets": "Nenhum ativo encontrado."
+  },
+  "inbox": {
+    "title": "Comunicações Seguras",
+    "encryption_active": "Criptografia P2P Ativa",
+    "type_message": "Transmitir mensagem ou termos..."
+  },
+  "auth": {
+    "subtitle": "Autorização de Terminal B2B",
+    "node_login": "Acesso do Nó",
+    "request_access": "Solicitar Acesso",
+    "corporate_entity": "Nome da Entidade Corporativa",
+    "tax_id": "CNPJ / NIF",
+    "secure_email": "E-mail Corporativo Seguro",
+    "access_key": "Chave de Acesso",
+    "authenticating": "Autenticando...",
+    "init_connection": "Inicializar Conexão",
+    "submit_credentials": "Enviar Credenciais",
+    "military_encryption": "Conexão Criptografada AES-256",
+    "email_confirm": "E-mail de verificação enviado.",
+    "reg_success": "Entidade registrada com sucesso."
+  }
+}

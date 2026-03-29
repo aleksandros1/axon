@@ -1,0 +1,73 @@
+{
+  "common": {
+    "institutional_grade": "机构级别",
+    "syncing": "同步中...",
+    "disconnect": "断开连接",
+    "error": "错误"
+  },
+  "menu": {
+    "portfolio": "资产组合",
+    "scanner": "扫描仪",
+    "floor": "交易大厅",
+    "network": "全球网络",
+    "comms": "安全通信",
+    "profile": "个人资料"
+  },
+  "dashboard": {
+    "title": "指挥中心",
+    "portfolio_value": "资产组合价值",
+    "active_supply": "活跃供应",
+    "tracked_targets": "追踪目标",
+    "pending_execution": "待执行交易",
+    "my_assets": "我的资产",
+    "tracked_vault": "追踪金库",
+    "incoming": "收到的报价",
+    "outgoing": "发出的报价"
+  },
+  "scanner": {
+    "title": "资产扫描仪",
+    "digitize": "数字化实物资产",
+    "success_title": "资产已数字化",
+    "success_subtitle": "成功上传至安全金库。",
+    "visual_data": "视觉数据",
+    "add_photo": "添加照片",
+    "material": "材料名称",
+    "valuation": "公开估值 (€)",
+    "origin": "开采源地",
+    "location": "当前位置",
+    "thickness": "厚度 (cm)",
+    "quantity": "数量 (m²)",
+    "incoterm": "物流条款 (Incoterm)",
+    "upload": "加密并上传中...",
+    "publish_btn": "发布至网络"
+  },
+  "network": {
+    "title": "全球目录",
+    "nodes": "已验证节点"
+  },
+  "trading": {
+    "search_placeholder": "搜索资产、地点或企业...",
+    "verified": "已验证",
+    "no_assets": "未找到资产。"
+  },
+  "inbox": {
+    "title": "安全通信",
+    "encryption_active": "P2P 加密已激活",
+    "type_message": "发送消息或条款..."
+  },
+  "auth": {
+    "subtitle": "B2B 终端授权",
+    "node_login": "节点登录",
+    "request_access": "请求访问",
+    "corporate_entity": "企业名称",
+    "tax_id": "税号 / 增值税号",
+    "secure_email": "安全企业邮箱",
+    "access_key": "访问密钥",
+    "authenticating": "正在验证...",
+    "init_connection": "初始化连接",
+    "submit_credentials": "提交凭据",
+    "military_encryption": "AES-256 加密连接",
+    "email_confirm": "验证邮件已发送，请检查收件箱。",
+    "reg_success": "企业注册成功。"
+  }
+}

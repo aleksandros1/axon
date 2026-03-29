@@ -1,0 +1,73 @@
+{
+  "common": {
+    "institutional_grade": "Kurumsal Düzey",
+    "syncing": "Senkronize ediliyor...",
+    "disconnect": "Çıkış Yap",
+    "error": "Hata"
+  },
+  "menu": {
+    "portfolio": "Portföy",
+    "scanner": "Tarayıcı",
+    "floor": "Ticaret Platformu",
+    "network": "Küresel Ağ",
+    "comms": "İletişim",
+    "profile": "Profil"
+  },
+  "dashboard": {
+    "title": "Kontrol Merkezi",
+    "portfolio_value": "Portföy Değeri",
+    "active_supply": "Aktif Arz",
+    "tracked_targets": "İzlenen Hedefler",
+    "pending_execution": "Bekleyen İşlemler",
+    "my_assets": "Varlıklarım",
+    "tracked_vault": "İzlenen Kasa",
+    "incoming": "Gelen",
+    "outgoing": "Giden"
+  },
+  "scanner": {
+    "title": "Varlık Tarayıcı",
+    "digitize": "Fiziksel Varlığı Dijitalleştir",
+    "success_title": "Varlık Dijitalleştirildi",
+    "success_subtitle": "Güvenli kasaya başarıyla yüklendi.",
+    "visual_data": "Görsel Veri",
+    "add_photo": "Fotoğraf Ekle",
+    "material": "Malzeme Tanımı",
+    "valuation": "Açık Değerleme (€)",
+    "origin": "Çıkarım Yeri",
+    "location": "Mevcut Konum",
+    "thickness": "Kalınlık (cm)",
+    "quantity": "Hacim (m²)",
+    "incoterm": "Lojistik (Incoterm)",
+    "upload": "Şifreleniyor ve Yükleniyor...",
+    "publish_btn": "Ağa Yayınla"
+  },
+  "network": {
+    "title": "Küresel Dizin",
+    "nodes": "Doğrulanmış Düğümler"
+  },
+  "trading": {
+    "search_placeholder": "Varlık, konum veya şirket ara...",
+    "verified": "Doğrulandı",
+    "no_assets": "Varlık bulunamadı."
+  },
+  "inbox": {
+    "title": "Güvenli İletişim",
+    "encryption_active": "P2P Şifreleme Aktif",
+    "type_message": "Mesaj veya şartları ilet..."
+  },
+  "auth": {
+    "subtitle": "B2B Terminal Yetkilendirmesi",
+    "node_login": "Düğüm Girişi",
+    "request_access": "Erişim İste",
+    "corporate_entity": "Kurumsal Şirket Adı",
+    "tax_id": "Vergi Numarası / KDV",
+    "secure_email": "Güvenli Kurumsal E-posta",
+    "access_key": "Erişim Anahtarı",
+    "authenticating": "Doğrulanıyor...",
+    "init_connection": "Bağlantıyı Başlat",
+    "submit_credentials": "Bilgileri Gönder",
+    "military_encryption": "AES-256 Şifreli Bağlantı",
+    "email_confirm": "Doğrulama e-postası gönderildi.",
+    "reg_success": "Şirket başarıyla kaydedildi."
+  }
+}
