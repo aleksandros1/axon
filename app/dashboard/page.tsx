@@ -7,7 +7,7 @@ import {
   Shield, Globe, BarChart3, Crosshair, MessageSquare, 
   LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
   Trash2, Handshake, ExternalLink, Calendar, AlertOctagon, RotateCcw, X, Loader2,
-  Bell, Check, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart
+  Bell, Check, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -199,19 +199,21 @@ export default function PortfolioDashboard() {
 
   const executeRefund = async () => {
     setIsRefunding(true);
-    const paymentIntentId = selectedDeal.stripe_payment_id || 'pi_TEST_DUMMY_ID'; 
+    const paymentIntentId = selectedDeal?.stripe_payment_id || 'pi_TEST_DUMMY_ID'; 
     const amountToRefund = refundType === 'partial' ? parseFloat(refundAmount) : null;
 
     try {
       await fetch('/api/refund', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentIntentId, amountToRefund }) });
-      await supabase.from('messages').delete().eq('id', selectedDeal.id);
-      setIncomingOffers(prev => prev.filter(offer => offer.id !== selectedDeal.id));
-      setOutgoingOffers(prev => prev.filter(offer => offer.id !== selectedDeal.id));
-      setIsRefunding(false);
+      if (selectedDeal?.id) {
+        await supabase.from('messages').delete().eq('id', selectedDeal.id);
+        setIncomingOffers(prev => prev.filter(offer => offer.id !== selectedDeal.id));
+        setOutgoingOffers(prev => prev.filter(offer => offer.id !== selectedDeal.id));
+      }
       setRefundSuccess(true);
       setTimeout(() => { setIsRefundModalOpen(false); setSelectedDeal(null); }, 2500);
     } catch (error) {
       console.error(error);
+    } finally {
       setIsRefunding(false);
     }
   };
