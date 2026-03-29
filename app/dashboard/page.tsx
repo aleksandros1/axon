@@ -281,7 +281,8 @@ export default function PortfolioDashboard() {
   }, 0);
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
+    /* FIXED OVERFLOW-X: Κλειδώνουμε το πλάτος για να μην κουνιέται δεξιά-αριστερά */
+    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
       {/* --- MODAL: EDIT ASSET --- */}
       {isEditModalOpen && editingSlab && (
@@ -492,7 +493,7 @@ export default function PortfolioDashboard() {
         </div>
       )}
 
-      {/* MASTER SIDEBAR */}
+      {/* MASTER SIDEBAR - DESKTOP ONLY */}
       <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)] relative overflow-hidden">
         <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none"><Shield size={300} className="text-[#A6947D]" /></div>
         
@@ -518,10 +519,14 @@ export default function PortfolioDashboard() {
         <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><LogOut size={16} /> {t('common.disconnect')}</button></div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto relative bg-[#020509] pb-24 md:pb-0 custom-scrollbar">
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0 fixed"><Globe size={800} className="text-[#A6947D]" /></div>
+      {/* MAIN CONTENT AREA: FIXED WIDTH & NO OVERFLOW-X */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020509] pb-24 md:pb-0 custom-scrollbar w-full">
+        {/* BACKGROUND ICON - CONTAINED */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0 overflow-hidden">
+          <Globe size={800} className="text-[#A6947D] shrink-0" />
+        </div>
         
-        <div className="p-4 md:p-12 max-w-7xl mx-auto relative z-10">
+        <div className="p-4 md:p-12 max-w-7xl mx-auto relative z-10 w-full overflow-x-hidden">
           <header className="mb-6 md:mb-10 flex justify-between items-start">
             <div>
               <h2 className="text-2xl md:text-3xl font-serif text-[#F8F5EE] uppercase tracking-[0.1em] font-light">{t('dashboard.title')}</h2>
@@ -591,11 +596,12 @@ export default function PortfolioDashboard() {
           {loading ? (
             <div className="flex justify-center py-20 text-[#A6947D] animate-pulse font-mono text-xs uppercase tracking-widest">Synchronizing...</div>
           ) : (
-            <div className="animate-in fade-in duration-700 delay-200 fill-mode-both">
+            /* ASSET GRID - LOCKED */
+            <div className="animate-in fade-in duration-700 delay-200 fill-mode-both w-full overflow-x-hidden">
               
               {/* --- PUBLIC ASSETS TAB --- */}
               {activeTab === 'assets' && (
-                <div>
+                <div className="w-full">
                   {publicAssets.length === 0 ? (
                     <div className="bg-[#01030A]/60 backdrop-blur-md border border-[#A6947D]/10 rounded-2xl p-8 md:p-16 text-center flex flex-col items-center justify-center shadow-[0_0_30px_rgba(166,148,125,0.03)]">
                       <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-[#A6947D]/20 flex items-center justify-center mb-4 md:mb-6 bg-[#A6947D]/5"><Package size={28} className="text-[#A6947D]/60" /></div>
@@ -604,9 +610,9 @@ export default function PortfolioDashboard() {
                       <Link href="/scanner" className="bg-transparent border border-[#A6947D]/40 text-[#A6947D] hover:text-[#F8F5EE] hover:border-[#A6947D] hover:bg-[#A6947D]/10 px-6 py-3 rounded-xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all shadow-md">Initiate Scan</Link>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 w-full">
                       {publicAssets.map(slab => (
-                        <div key={slab.id} className="bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/15 rounded-2xl overflow-hidden hover:border-[#A6947D]/40 transition-all duration-500 group flex flex-col shadow-lg">
+                        <div key={slab.id} className="bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/15 rounded-2xl overflow-hidden hover:border-[#A6947D]/40 transition-all duration-500 group flex flex-col shadow-lg w-full">
                           <div className="h-40 md:h-48 bg-[#020509] relative overflow-hidden">
                             {slab.image_url ? <img src={slab.image_url} alt={slab.material} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-transform duration-700 group-hover:scale-105" /> : <div className="w-full h-full flex items-center justify-center text-[#A6947D]/20"><Package size={40} /></div>}
                             <div className="absolute top-2 right-2 md:top-3 md:right-3 bg-[#020509]/90 backdrop-blur-md border border-[#A6947D]/30 px-2 py-1 rounded-lg text-[8px] font-bold text-[#A6947D] uppercase tracking-[0.2em] shadow-lg">AX-{slab.id.substring(0,6)}</div>
@@ -631,7 +637,7 @@ export default function PortfolioDashboard() {
 
               {/* --- PRIVATE VAULT TAB --- */}
               {activeTab === 'private' && (
-                <div>
+                <div className="w-full">
                   {privateAssets.length === 0 ? (
                     <div className="bg-[#01030A]/60 backdrop-blur-md border border-indigo-500/10 rounded-2xl p-8 md:p-16 text-center flex flex-col items-center justify-center shadow-[0_0_30px_rgba(99,102,241,0.03)]">
                       <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-indigo-500/20 flex items-center justify-center mb-4 md:mb-6 bg-indigo-500/5"><Lock size={28} className="text-indigo-500/40" /></div>
@@ -640,9 +646,9 @@ export default function PortfolioDashboard() {
                       <Link href="/scanner" className="bg-transparent border border-indigo-500/40 text-indigo-400 hover:text-[#F8F5EE] hover:border-indigo-400 hover:bg-indigo-500/10 px-6 py-3 rounded-xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all shadow-md">Add Private Asset</Link>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 w-full">
                       {privateAssets.map(slab => (
-                        <div key={slab.id} className="bg-[#01030A]/90 backdrop-blur-xl border border-indigo-500/30 rounded-2xl overflow-hidden hover:border-indigo-500/60 hover:shadow-[0_0_20px_rgba(99,102,241,0.1)] transition-all duration-300 group flex flex-col relative shadow-lg">
+                        <div key={slab.id} className="bg-[#01030A]/90 backdrop-blur-xl border border-indigo-500/30 rounded-2xl overflow-hidden hover:border-indigo-500/60 hover:shadow-[0_0_20px_rgba(99,102,241,0.1)] transition-all duration-300 group flex flex-col relative shadow-lg w-full">
                           <div className="absolute top-2 right-2 md:top-3 md:right-3 z-20 flex items-center gap-1.5 bg-indigo-900/80 backdrop-blur-md border border-indigo-500/50 px-2 py-1 rounded-lg shadow-lg"><Lock size={10} className="text-indigo-400"/><span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest">Off-Market</span></div>
                           <div className="h-40 md:h-48 bg-[#020509] relative overflow-hidden border-b border-indigo-500/20">
                             {slab.image_url ? <img src={slab.image_url} alt={slab.material} className="w-full h-full object-cover opacity-60 grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" /> : <div className="w-full h-full flex items-center justify-center opacity-20"><Package size={48} className="text-indigo-400" /></div>}
@@ -666,7 +672,7 @@ export default function PortfolioDashboard() {
 
               {/* --- TRACKED VAULT TAB --- */}
               {activeTab === 'tracked' && (
-                <div>
+                <div className="w-full">
                   {trackedSlabs.length === 0 ? (
                     <div className="bg-[#01030A]/60 backdrop-blur-md border border-amber-500/10 rounded-2xl p-8 md:p-16 text-center flex flex-col items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.03)]">
                       <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-amber-500/20 flex items-center justify-center mb-4 md:mb-6 bg-amber-500/5"><Target size={28} className="text-amber-500/40" /></div>
@@ -675,9 +681,9 @@ export default function PortfolioDashboard() {
                       <Link href="/trading" className="bg-transparent border border-amber-500/40 text-amber-500 hover:text-amber-400 hover:border-amber-500 hover:bg-amber-500/10 px-6 py-3 rounded-xl text-[9px] font-bold uppercase tracking-[0.2em] transition-all shadow-md">Enter Public Floor</Link>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 w-full">
                       {trackedSlabs.map(slab => (
-                        <div key={slab.id} className="bg-[#01030A]/90 backdrop-blur-xl border border-amber-500/30 rounded-2xl overflow-hidden hover:border-amber-500/60 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all duration-300 group flex flex-col relative">
+                        <div key={slab.id} className="bg-[#01030A]/90 backdrop-blur-xl border border-amber-500/30 rounded-2xl overflow-hidden hover:border-amber-500/60 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all duration-300 group flex flex-col relative w-full">
                           <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded shadow-lg"><Target size={10} className="text-amber-500 animate-pulse"/><span className="text-[8px] font-bold text-amber-500 uppercase tracking-widest">Locked</span></div>
                           <Link href={`/trading/${slab.id}`}>
                             <div className="h-40 bg-[#020509] relative overflow-hidden border-b border-[#A6947D]/15">
@@ -699,9 +705,9 @@ export default function PortfolioDashboard() {
                 </div>
               )}
 
-              {/* INCOMING & OUTGOING TABS (Συμπτυγμένα για χώρο) */}
+              {/* INCOMING & OUTGOING TABS */}
               {activeTab === 'incoming' && (
-                 <div className="space-y-4">
+                 <div className="space-y-4 w-full">
                  {incomingOffers.length === 0 ? (
                    <div className="bg-[#01030A]/60 backdrop-blur-md border border-[#A6947D]/10 rounded-2xl p-10 md:p-16 text-center flex flex-col items-center justify-center">
                      <div className="w-16 h-16 md:w-20 md:h-20 rounded-full border border-emerald-500/20 flex items-center justify-center mb-4 md:mb-6 bg-emerald-500/5"><ArrowDownRight size={28} className="text-emerald-500/40" /></div>
@@ -709,7 +715,7 @@ export default function PortfolioDashboard() {
                    </div>
                  ) : (
                    incomingOffers.map(offer => (
-                     <div key={offer.id} className="bg-[#01030A]/80 backdrop-blur-md border border-emerald-500/20 rounded-2xl p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-start md:items-center relative overflow-hidden group shadow-lg">
+                     <div key={offer.id} className="bg-[#01030A]/80 backdrop-blur-md border border-emerald-500/20 rounded-2xl p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-start md:items-center relative overflow-hidden group shadow-lg w-full">
                         <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.4)]"></div>
                         <div className="flex-1 space-y-3 w-full pl-2">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-[#A6947D]/10 pb-2 md:pb-3">
@@ -728,7 +734,7 @@ export default function PortfolioDashboard() {
                  </div>
               )}
               {activeTab === 'outgoing' && (
-                 <div className="space-y-4">
+                 <div className="space-y-4 w-full">
                  {outgoingOffers.length === 0 ? (
                    <div className="bg-[#01030A]/60 backdrop-blur-md border border-[#A6947D]/10 rounded-2xl p-10 md:p-16 text-center flex flex-col items-center justify-center">
                      <div className="w-16 h-16 md:w-20 h-20 rounded-full border border-amber-500/20 flex items-center justify-center mb-4 md:mb-6 bg-amber-500/5"><ArrowUpRight size={28} className="text-amber-500/40" /></div>
@@ -736,7 +742,7 @@ export default function PortfolioDashboard() {
                    </div>
                  ) : (
                    outgoingOffers.map(offer => (
-                     <div key={offer.id} className="bg-[#01030A]/80 backdrop-blur-md border border-amber-500/20 rounded-2xl p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-start md:items-center relative overflow-hidden group shadow-lg">
+                     <div key={offer.id} className="bg-[#01030A]/80 backdrop-blur-md border border-amber-500/20 rounded-2xl p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-start md:items-center relative overflow-hidden group shadow-lg w-full">
                         <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]"></div>
                         <div className="flex-1 space-y-3 w-full pl-2">
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 border-b border-[#A6947D]/10 pb-2 md:pb-3">
@@ -760,12 +766,13 @@ export default function PortfolioDashboard() {
         </div>
       </main>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/90 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
-        <Link href="/dashboard" className="text-[#A6947D] p-2 flex flex-col items-center gap-1"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.portfolio').substring(0,4)}</span></Link>
-        <Link href="/network" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1"><Users size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.network').substring(0,3)}</span></Link>
-        <Link href="/trading" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.floor').substring(0,5)}</span></Link>
-        <Link href="/inbox" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative"><MessageSquare size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.comms').substring(0,5)}</span></Link>
-        <Link href="/me" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative"><User size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.profile').substring(0,4)}</span></Link>
+      {/* MOBILE BOTTOM NAVIGATION - STABILIZED */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/90 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] w-full">
+        <Link href="/dashboard" className="text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.portfolio').substring(0,4)}</span></Link>
+        <Link href="/network" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><Users size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.network').substring(0,3)}</span></Link>
+        <Link href="/trading" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.floor').substring(0,5)}</span></Link>
+        <Link href="/inbox" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative flex-1"><MessageSquare size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.comms').substring(0,5)}</span></Link>
+        <Link href="/me" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative flex-1"><User size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.profile').substring(0,4)}</span></Link>
       </nav>
     </div>
   );

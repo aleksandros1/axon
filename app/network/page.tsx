@@ -66,9 +66,10 @@ export default function GlobalNetwork() {
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
+    /* ΣΤΑΘΕΡΟΠΟΙΗΣΗ: w-full και overflow-x-hidden για να μην κουνιέται η οθόνη */
+    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-x-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
-      {/* SIDEBAR WITH LANGUAGE SWITCHER */}
+      {/* SIDEBAR WITH LANGUAGE SWITCHER - DESKTOP ONLY */}
       <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)] relative overflow-hidden">
         <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none"><Shield size={300} className="text-[#A6947D]" /></div>
         <div className="p-8 pb-12 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
@@ -95,73 +96,78 @@ export default function GlobalNetwork() {
         <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2"><LogOut size={16} /> {t('common.disconnect')}</button></div>
       </aside>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto relative bg-[#020509] pb-24 md:pb-0">
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0 fixed"><Globe size={800} className="text-[#A6947D]" /></div>
+      {/* MAIN CONTENT - NO OVERFLOW-X */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020509] pb-24 md:pb-0 w-full">
+        {/* BACKGROUND ICON - LOCKED */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0 overflow-hidden">
+          <Globe size={800} className="text-[#A6947D] shrink-0" />
+        </div>
         
-        <div className="p-4 md:p-12 max-w-6xl mx-auto relative z-10">
+        <div className="p-4 md:p-12 max-w-6xl mx-auto relative z-10 w-full overflow-x-hidden">
           <header className="mb-8 md:mb-12 animate-in fade-in duration-700">
             <h2 className="text-3xl md:text-5xl font-serif text-[#F8F5EE] uppercase tracking-[0.1em] font-light mb-8">{t('network.title')}</h2>
             
-            {/* SEARCH */}
-            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/20 rounded-2xl p-2 shadow-[0_0_30px_rgba(166,148,125,0.05)] focus-within:border-[#A6947D]/50 transition-colors">
+            {/* SEARCH AREA - STABILIZED */}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/20 rounded-2xl p-2 shadow-xl w-full">
               <div className="flex-1 flex items-center gap-3 pl-4">
                 <Search size={18} className="text-[#A6947D]/50" />
-                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('trading.search_placeholder')} className="w-full bg-transparent border-none py-3 md:py-4 text-sm outline-none text-[#F8F5EE] placeholder:text-[#A6947D]/30 font-sans tracking-wide" />
+                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder={t('trading.search_placeholder')} className="w-full bg-transparent border-none py-3 md:py-4 text-sm outline-none text-[#F8F5EE] placeholder:text-[#A6947D]/30" />
               </div>
             </div>
           </header>
 
-          <div className="flex gap-6 border-b border-[#A6947D]/10 mb-8 animate-in fade-in duration-700 delay-100">
-            <button onClick={() => setActiveTab('international')} className={`pb-4 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-all ${activeTab === 'international' ? 'text-[#A6947D] border-b-2 border-[#A6947D]' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}>
+          {/* TABS - STABILIZED */}
+          <div className="flex gap-6 border-b border-[#A6947D]/10 mb-8 animate-in fade-in duration-700 delay-100 overflow-x-auto no-scrollbar">
+            <button onClick={() => setActiveTab('international')} className={`pb-4 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'international' ? 'text-[#A6947D] border-b-2 border-[#A6947D]' : 'text-[#F8F5EE]/40'}`}>
               <Globe size={14} /> {language === 'el' ? 'Διεθνές Δίκτυο' : 'International Network'} <span className="bg-[#A6947D]/10 px-2 py-0.5 rounded-full text-[8px]">{filteredVendors.length} {t('network.nodes')}</span>
             </button>
           </div>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-[#A6947D] animate-pulse"><Loader2 size={32} className="animate-spin mb-4" /><p className="font-mono text-[10px] uppercase tracking-[0.3em]">{t('common.syncing')}</p></div>
+            <div className="flex flex-col items-center justify-center py-20 text-[#A6947D] animate-pulse font-mono text-[10px] uppercase tracking-[0.3em]">{t('common.syncing')}</div>
           ) : filteredVendors.length === 0 ? (
-            <div className="text-center py-16 border border-[#A6947D]/10 rounded-2xl bg-[#01030A]/50 backdrop-blur-sm animate-in fade-in duration-700">
-              <Users size={32} className="mx-auto mb-4 text-[#A6947D]/30" />
-              <p className="text-[#A6947D]/60 text-[10px] font-mono uppercase tracking-[0.2em]">No Entities Found</p>
+            <div className="text-center py-16 border border-[#A6947D]/10 rounded-2xl bg-[#01030A]/50 w-full">
+              <Users size={30} className="mx-auto mb-4 text-[#A6947D]/30" />
+              <p className="text-[#A6947D]/60 text-[10px] font-mono uppercase">No Entities Found</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 animate-in fade-in duration-700 delay-200">
+            /* VENDOR GRID - NO OVERFLOW */
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 animate-in fade-in duration-700 delay-200 w-full">
               {filteredVendors.map(vendor => (
-                <div key={vendor.id} onClick={() => router.push(`/vendor/${vendor.id}`)} className="bg-[#01030A]/90 border border-[#A6947D]/15 rounded-2xl p-6 hover:border-[#A6947D]/50 hover:shadow-[0_0_30px_rgba(166,148,125,0.1)] transition-all cursor-pointer group shadow-lg flex flex-col">
+                <div key={vendor.id} onClick={() => router.push(`/vendor/${vendor.id}`)} className="bg-[#01030A]/90 border border-[#A6947D]/15 rounded-2xl p-6 hover:border-[#A6947D]/50 transition-all cursor-pointer group shadow-lg flex flex-col w-full overflow-hidden">
                   
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-lg overflow-hidden flex-none ${vendor.logo_url ? 'bg-[#020509] border border-[#A6947D]/20' : getColor(vendor.company_name || vendor.email)}`}>
-                        {vendor.logo_url ? <img src={vendor.logo_url} alt="Logo" className="w-full h-full object-cover" /> : getInitials(vendor.company_name || vendor.email)}
+                  <div className="flex items-start justify-between mb-6 w-full">
+                    <div className="flex items-center gap-4 overflow-hidden">
+                      <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold text-white shadow-lg flex-none overflow-hidden ${vendor.logo_url ? 'bg-[#020509] border border-[#A6947D]/20' : getColor(vendor.company_name || vendor.email)}`}>
+                        {vendor.logo_url ? <img src={vendor.logo_url} alt="" className="w-full h-full object-cover" /> : getInitials(vendor.company_name || vendor.email)}
                       </div>
                       <div className="overflow-hidden">
                         <h3 className="text-base font-serif text-[#F8F5EE] uppercase tracking-wider mb-1 truncate">{vendor.company_name || vendor.email}</h3>
-                        <p className="text-[9px] text-[#A6947D]/60 font-mono tracking-widest uppercase flex items-center gap-1.5 truncate"><Building2 size={10} className="flex-none"/> {vendor.country || 'Global Entity'}</p>
+                        <p className="text-[9px] text-[#A6947D]/60 font-mono tracking-widest uppercase truncate flex items-center gap-1.5"><Building2 size={10}/> {vendor.country || 'Global'}</p>
                       </div>
                     </div>
                     {vendor.status === 'verified' ? (
-                      <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-lg flex-none"><CheckCircle2 size={12} className="text-emerald-500"/><span className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest hidden sm:inline">{t('trading.verified')}</span></div>
+                      <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 px-2 py-1.5 rounded-lg flex-none"><CheckCircle2 size={12} className="text-emerald-500"/></div>
                     ) : (
-                      <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg flex-none"><ShieldAlert size={12} className="text-amber-500"/><span className="text-[8px] font-bold text-amber-500 uppercase tracking-widest hidden sm:inline">Auth Req</span></div>
+                      <div className="flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 px-2 py-1.5 rounded-lg flex-none"><ShieldAlert size={12} className="text-amber-500"/></div>
                     )}
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 mb-6 mt-auto">
-                    <div className="bg-[#020509] border border-[#A6947D]/10 rounded-xl p-4 shadow-inner">
-                      <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Network Role</p>
-                      <p className="text-[10px] font-mono text-[#F8F5EE] uppercase">{vendor.role === 'buyer' ? 'Buyer' : 'Vendor'}</p>
+                  <div className="grid grid-cols-2 gap-3 md:gap-4 mb-6 mt-auto">
+                    <div className="bg-[#020509] border border-[#A6947D]/10 rounded-xl p-4">
+                      <p className="text-[7px] md:text-[8px] text-[#A6947D]/60 uppercase font-bold mb-1">Network Role</p>
+                      <p className="text-[9px] font-mono text-[#F8F5EE] uppercase">{vendor.role || 'Member'}</p>
                     </div>
-                    <div className="bg-[#020509] border border-[#A6947D]/10 rounded-xl p-4 shadow-inner">
-                      <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Trust Score</p>
+                    <div className="bg-[#020509] border border-[#A6947D]/10 rounded-xl p-4">
+                      <p className="text-[7px] md:text-[8px] text-[#A6947D]/60 uppercase font-bold mb-1">Trust Score</p>
                       <p className="text-base font-mono text-emerald-400">{vendor.trust_score}%</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center justify-between pt-4 border-t border-[#A6947D]/10">
-                    <p className="text-[9px] font-mono text-[#A6947D] uppercase tracking-widest">{vendor.active_slabs} {language === 'el' ? 'Ενεργά Υλικά' : 'Active Assets'}</p>
-                    <div className="bg-transparent border border-[#A6947D]/30 group-hover:border-[#A6947D] group-hover:bg-[#A6947D]/10 text-[#A6947D] px-4 py-2 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 group/btn">
-                      View Dossier <ChevronRight size={12} className="group-hover/btn:translate-x-1 transition-transform" />
+                  <div className="flex items-center justify-between pt-4 border-t border-[#A6947D]/10 w-full">
+                    <p className="text-[9px] font-mono text-[#A6947D] uppercase">{vendor.active_slabs} {language === 'el' ? 'Asset' : 'Assets'}</p>
+                    <div className="bg-transparent border border-[#A6947D]/30 text-[#A6947D] px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2">
+                      Dossier <ChevronRight size={10} />
                     </div>
                   </div>
 
@@ -172,13 +178,13 @@ export default function GlobalNetwork() {
         </div>
       </main>
 
-      {/* MOBILE NAV WITH t() */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/90 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)]">
-        <Link href="/dashboard" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1"><BarChart3 size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.portfolio').substring(0,4)}</span></Link>
-        <Link href="/network" className="text-[#A6947D] p-2 flex flex-col items-center gap-1"><Users size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.network').substring(0,3)}</span></Link>
-        <Link href="/trading" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1"><Globe size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.floor').substring(0,5)}</span></Link>
-        <Link href="/inbox" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative"><MessageSquare size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.comms').substring(0,5)}</span></Link>
-        <Link href="/me" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative"><User size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.profile').substring(0,4)}</span></Link>
+      {/* MOBILE NAV - STABILIZED */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] w-full">
+        <Link href="/dashboard" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.portfolio').substring(0,4)}</span></Link>
+        <Link href="/network" className="text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1"><Users size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.network').substring(0,3)}</span></Link>
+        <Link href="/trading" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.floor').substring(0,5)}</span></Link>
+        <Link href="/inbox" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative flex-1"><MessageSquare size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.comms').substring(0,5)}</span></Link>
+        <Link href="/me" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative flex-1"><User size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.profile').substring(0,4)}</span></Link>
       </nav>
     </div>
   );
