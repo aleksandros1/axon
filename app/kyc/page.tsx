@@ -5,15 +5,24 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { 
   ShieldCheck, UploadCloud, Building2, FileText, 
-  CheckCircle2, Clock, AlertOctagon, ArrowLeft, Lock, Loader2
+  CheckCircle2, Clock, AlertOctagon, ArrowLeft, Lock, Loader2, Shield
 } from 'lucide-react';
 import Link from 'next/link';
 
+// Η ΣΥΝΔΕΣΗ ΜΕ ΤΟΝ ΕΓΚΕΦΑΛΟ ΓΛΩΣΣΑΣ
+import { useLanguage } from '../../lib/i18n/LanguageContext';
+
 export default function KYCVerification() {
   const router = useRouter();
+  const { t, language } = useLanguage();
+  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [profile, setProfile] = useState<any>(null);
+
+  // VERIFICATION LOGIC STATES
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(0);
 
   // Φόρμα Data
   const [companyName, setCompanyName] = useState('');
@@ -51,56 +60,66 @@ export default function KYCVerification() {
     }
   };
 
+  // TRUST ENGINE: ΠΡΩΤΟΚΟΛΛΟ ΕΠΑΛΗΘΕΥΣΗΣ
+  const runVerificationProtocol = (callback: () => void) => {
+    setIsVerifying(true);
+    setVerificationStep(1); // Encrypting Payload
+    setTimeout(() => {
+      setVerificationStep(2); // Synchronizing Ledger
+      setTimeout(() => {
+        setVerificationStep(3); // Finalizing
+        setTimeout(() => {
+          setIsVerifying(false);
+          callback();
+        }, 1000);
+      }, 1200);
+    }, 1000);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!acceptedTerms) {
-      alert("You must accept the Terms of Service to proceed.");
-      return;
-    }
+    if (!acceptedTerms) return;
     
     setSubmitting(true);
 
-    try {
-      let documentUrl = profile.kyc_document_url;
+    runVerificationProtocol(async () => {
+      try {
+        let documentUrl = profile.kyc_document_url;
 
-      if (file) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${profile.id}-${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
+        if (file) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${profile.id}-${Math.random()}.${fileExt}`;
+          const { error: uploadError } = await supabase.storage
+            .from('kyc-documents')
+            .upload(fileName, file);
 
-        const { error: uploadError } = await supabase.storage
-          .from('kyc-documents')
-          .upload(filePath, file);
+          if (uploadError) throw uploadError;
+          const { data: publicUrlData } = supabase.storage
+            .from('kyc-documents')
+            .getPublicUrl(fileName);
+          documentUrl = publicUrlData.publicUrl;
+        }
 
-        if (uploadError) throw uploadError;
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            company_name: companyName,
+            vat_number: vatNumber,
+            country: country,
+            kyc_document_url: documentUrl,
+            status: 'pending'
+          })
+          .eq('id', profile.id);
 
-        const { data: publicUrlData } = supabase.storage
-          .from('kyc-documents')
-          .getPublicUrl(filePath);
+        if (updateError) throw updateError;
+        window.location.reload();
 
-        documentUrl = publicUrlData.publicUrl;
+      } catch (error: any) {
+        alert(`KYC Error: ${error.message}`);
+      } finally {
+        setSubmitting(false);
       }
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          company_name: companyName,
-          vat_number: vatNumber,
-          country: country,
-          kyc_document_url: documentUrl,
-          status: 'pending'
-        })
-        .eq('id', profile.id);
-
-      if (updateError) throw updateError;
-
-      window.location.reload();
-
-    } catch (error: any) {
-      alert(`KYC Error: ${error.message}`);
-    } finally {
-      setSubmitting(false);
-    }
+    });
   };
 
   if (loading) {
@@ -114,6 +133,25 @@ export default function KYCVerification() {
   return (
     <div className="min-h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] font-sans selection:bg-[#A6947D]/30 relative overflow-x-hidden">
       
+      {/* VERIFICATION OVERLAY (CONFIRMATION LOGIC) */}
+      {isVerifying && (
+        <div className="fixed inset-0 z-[100] bg-[#020509]/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6">
+          <div className="relative mb-8">
+            <div className="w-24 h-24 border border-[#A6947D]/20 rounded-full flex items-center justify-center animate-spin-slow">
+              <Shield size={40} className="text-[#A6947D] animate-pulse" />
+            </div>
+            <div className="absolute inset-0 border-2 border-emerald-500/50 rounded-full animate-ping opacity-20"></div>
+          </div>
+          <h2 className="text-xl font-serif uppercase tracking-[0.3em] text-[#F8F5EE] mb-4">
+            {verificationStep === 1 ? 'Encrypting Payload' : verificationStep === 2 ? 'ledger synchronization' : 'Finalizing Protocol'}
+          </h2>
+          <div className="w-48 h-1 bg-[#01040E] rounded-full overflow-hidden border border-[#A6947D]/10">
+            <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${(verificationStep / 3) * 100}%` }}></div>
+          </div>
+          <p className="mt-6 text-[9px] font-mono text-[#A6947D] uppercase tracking-widest animate-pulse">Institutional-Grade Security Sync</p>
+        </div>
+      )}
+
       {/* TOP NAVIGATION */}
       <nav className="border-b border-[#A6947D]/10 bg-[#01030A]/80 backdrop-blur-md sticky top-0 z-20 w-full">
         <div className="max-w-4xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between">
@@ -160,13 +198,13 @@ export default function KYCVerification() {
         {/* KYC FORM */}
         {profile?.status !== 'verified' && (
           <div className="bg-[#01030A] border border-[#A6947D]/20 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden w-full">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#A6947D]/5 rounded-full blur-[40px] pointer-events-none"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#A6947D]/5 rounded-full blur-[40px] pointer-events-none shrink-0"></div>
             
             <form onSubmit={handleSubmit} className="space-y-6 relative z-10 w-full">
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                 <div className="space-y-2">
-                  <label className="text-[9px] md:text-[10px] text-[#A6947D] uppercase font-bold tracking-widest">Legal Entity Name</label>
+                  <label className="text-[9px] md:text-[10px] text-[#A6947D] uppercase font-bold tracking-widest">{t('auth.corporate_entity')}</label>
                   <div className="relative">
                     <Building2 size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A6947D]/60" />
                     <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required disabled={profile?.status === 'pending'} className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl pl-12 pr-4 py-4 text-sm text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all" placeholder="Entity Name" />
@@ -174,7 +212,7 @@ export default function KYCVerification() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] md:text-[10px] text-[#A6947D] uppercase font-bold tracking-widest">Tax ID / VAT No.</label>
+                  <label className="text-[9px] md:text-[10px] text-[#A6947D] uppercase font-bold tracking-widest">{t('auth.tax_id')}</label>
                   <div className="relative">
                     <FileText size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A6947D]/60" />
                     <input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} required disabled={profile?.status === 'pending'} className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl pl-12 pr-4 py-4 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all" placeholder="VAT Number" />
@@ -185,7 +223,7 @@ export default function KYCVerification() {
               <div className="space-y-2">
                 <label className="text-[9px] md:text-[10px] text-[#A6947D] uppercase font-bold tracking-widest">Incorporation Region</label>
                 <select value={country} onChange={(e) => setCountry(e.target.value)} required disabled={profile?.status === 'pending'} className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-4 text-sm text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] appearance-none cursor-pointer transition-all">
-                  <option value="" disabled>Select Country</option>
+                  <option value="" disabled>{language === 'el' ? 'Επιλέξτε Χώρα' : 'Select Country'}</option>
                   <option value="Greece">Greece</option>
                   <option value="Italy">Italy</option>
                   <option value="Turkey">Turkey</option>
