@@ -43,7 +43,6 @@ function SecureCommsContent() {
   const [lastActivity, setLastActivity] = useState<Record<string, number>>({});
   const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
 
-  // VERIFICATION LOGIC STATES
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStep, setVerificationStep] = useState(0);
 
@@ -530,7 +529,7 @@ function SecureCommsContent() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* INPUT AREA - STABILIZED */}
+                  {/* INPUT AREA - FIXED OVERFLOW & SHRINK */}
                   <div className="p-3 md:p-4 border-t border-[#A6947D]/10 bg-[#01030A]/95 backdrop-blur-md relative z-20 w-full flex-none">
                     {draftContextAsset && (
                       <div className="bg-[#A6947D]/10 border border-[#A6947D]/20 rounded-xl p-2 flex items-center justify-between mb-3 max-w-4xl mx-auto w-full">
@@ -538,12 +537,23 @@ function SecureCommsContent() {
                         <button onClick={() => setDraftContextAsset(null)} className="p-1 text-[#A6947D]"><X size={14}/></button>
                       </div>
                     )}
-                    <form onSubmit={handleSendMessage} className="flex items-center gap-2 md:gap-3 max-w-4xl mx-auto w-full overflow-hidden">
+                    <form onSubmit={handleSendMessage} className="flex items-end gap-2 md:gap-3 max-w-4xl mx-auto w-full">
                       <input type="file" multiple hidden ref={fileInputRef} onChange={handleFileSelect} />
-                      <button type="button" onClick={() => fileInputRef.current?.click()} className="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl bg-[#020509] border border-[#A6947D]/20 text-[#A6947D]/40 flex-none"><Paperclip size={18} /></button>
-                      <button type="button" onClick={() => setIsOfferModalOpen(true)} className="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex-none"><Gavel size={18} /></button>
-                      <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type Transmission..." className="flex-1 bg-[#020509] border border-[#A6947D]/20 rounded-xl px-4 py-2.5 md:py-3.5 text-xs md:text-sm text-[#F8F5EE] focus:outline-none focus:border-[#A6947D]/60 transition-colors shadow-inner placeholder:text-[#A6947D]/20 max-h-[100px] custom-scrollbar resize-none" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }} />
-                      <button type="submit" disabled={(!newMessage.trim() && attachments.length === 0 && !draftContextAsset) || isUploading} className="bg-[#A6947D] text-[#020509] h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl flex-none disabled:opacity-30"><Send size={16} /></button>
+                      
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl bg-[#020509] border border-[#A6947D]/20 text-[#A6947D]/40 shrink-0">
+                        <Paperclip size={18} />
+                      </button>
+                      
+                      {/* OTC DEAL BUTTON - GUARANTEED VISIBLE */}
+                      <button type="button" onClick={() => setIsOfferModalOpen(true)} className="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 shrink-0">
+                        <Gavel size={18} />
+                      </button>
+                      
+                      <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type Transmission..." className="flex-1 min-w-0 bg-[#020509] border border-[#A6947D]/20 rounded-xl px-3 md:px-4 py-2.5 md:py-3.5 text-xs md:text-sm text-[#F8F5EE] focus:outline-none focus:border-[#A6947D]/60 transition-colors shadow-inner placeholder:text-[#A6947D]/20 max-h-[100px] custom-scrollbar resize-none" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }} />
+                      
+                      <button type="submit" disabled={(!newMessage.trim() && attachments.length === 0 && !draftContextAsset) || isUploading} className="bg-[#A6947D] text-[#020509] h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl shrink-0 disabled:opacity-30">
+                        <Send size={16} />
+                      </button>
                     </form>
                   </div>
                 </>
