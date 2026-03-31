@@ -16,13 +16,10 @@ import SidebarLanguageSwitcher from '../../components/SidebarLanguageSwitcher';
 
 export default function BidsDashboard() {
   const router = useRouter();
-  
-  // Η ΑΛΛΑΓΗ ΕΓΙΝΕ ΕΔΩ: language & setLanguage αντί για locale & switchLanguage
   const { t, language } = useLanguage(); 
   
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  
   const [incomingBids, setIncomingBids] = useState<any[]>([]);
   const [outgoingBids, setOutgoingBids] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'incoming' | 'outgoing'>('incoming');
@@ -65,7 +62,6 @@ export default function BidsDashboard() {
         setIncomingBids(enrichedOffers.filter(o => o.receiver_id === session.user.id));
         setOutgoingBids(enrichedOffers.filter(o => o.sender_id === session.user.id));
       }
-
       setLoading(false);
     };
 
@@ -80,21 +76,16 @@ export default function BidsDashboard() {
     return new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
-  const formatDate = (isoString: string) => {
-    return new Date(isoString).toLocaleDateString('el-GR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  };
-
   const displayBids = activeTab === 'incoming' ? incomingBids : outgoingBids;
 
   return (
-    /* ΣΤΑΘΕΡΟΠΟΙΗΣΗ: w-full και overflow-hidden για να μην κουνιέται η οθόνη */
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
       {/* MASTER SIDEBAR - DESKTOP ONLY */}
-      <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)] relative overflow-hidden">
-        <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none"><Shield size={300} className="text-[#A6947D]" /></div>
+      <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none shrink-0"><Shield size={300} className="text-[#A6947D]" /></div>
         <div className="p-8 pb-12 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
-          <div className="w-16 h-16 border border-[#A6947D]/20 rounded-full flex items-center justify-center relative mb-6 bg-[#01030A]/20 shadow-[0_0_25px_rgba(166,148,125,0.08)]"><Globe size={24} className="text-[#A6947D]"/></div>
+          <div className="w-16 h-16 border border-[#A6947D]/20 rounded-full flex items-center justify-center relative mb-6 bg-[#01030A]/20 shadow-lg"><Globe size={24} className="text-[#A6947D]"/></div>
           <h1 className="text-2xl font-serif uppercase text-[#F8F5EE] tracking-[0.2em] font-light leading-none mb-1">AXON</h1>
           <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">{t('common.institutional_grade')}</p>
         </div>
@@ -120,114 +111,125 @@ export default function BidsDashboard() {
         </div>
         
         <div className="p-4 md:p-12 max-w-6xl mx-auto relative z-10 w-full overflow-x-hidden">
-          <header className="mb-8 md:mb-10 animate-in fade-in duration-700">
-            <div className="flex items-center gap-2 md:gap-3 mb-4"><span className="h-px w-6 md:w-8 bg-[#A6947D]/30"></span><p className="text-[8px] md:text-[10px] text-[#A6947D] uppercase tracking-[0.2em] font-mono">Negotiation Ledger</p></div>
-            <h2 className="text-2xl md:text-5xl font-serif text-[#F8F5EE] uppercase tracking-[0.1em] font-light mb-2">Order Book</h2>
+          
+          {/* HEADER - STABILIZED */}
+          <header className="mb-6 md:mb-10 animate-in fade-in duration-700 w-full">
+            <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4"><span className="h-px w-6 md:w-8 bg-[#A6947D]/30"></span><p className="text-[8px] md:text-[10px] text-[#A6947D] uppercase tracking-[0.2em] font-mono">Negotiation Ledger</p></div>
+            <h2 className="text-3xl md:text-5xl font-serif text-[#F8F5EE] uppercase tracking-[0.1em] font-light mb-1 md:mb-2 truncate">Order Book</h2>
             <p className="text-[9px] md:text-xs text-[#A6947D]/60 uppercase tracking-widest font-mono">Track active bids and proposals</p>
           </header>
 
-          <div className="grid grid-cols-2 gap-3 md:gap-4 mb-10 animate-in fade-in duration-700 delay-100">
-            <div className="bg-[#01030A]/60 border border-emerald-500/20 rounded-2xl p-4 md:p-6 backdrop-blur-sm shadow-sm">
-              <p className="text-[7px] md:text-[10px] font-bold text-emerald-500/80 uppercase tracking-widest mb-2 flex items-center gap-2"><ArrowDownRight size={12}/> {t('dashboard.incoming')}</p>
-              <p className="text-xl md:text-3xl font-mono text-[#F8F5EE] tracking-wider">{incomingBids.length}</p>
+          {/* STATS GRID */}
+          <div className="grid grid-cols-2 gap-3 md:gap-4 mb-8 md:mb-10 animate-in fade-in duration-700 delay-100 w-full">
+            <div className="bg-[#01030A]/60 border border-emerald-500/20 rounded-2xl p-4 md:p-6 backdrop-blur-sm shadow-sm w-full">
+              <p className="text-[8px] md:text-[10px] font-bold text-emerald-500/80 uppercase tracking-widest mb-1.5 md:mb-2 flex items-center gap-2"><ArrowDownRight size={14} className="md:w-3 md:h-3"/> {t('dashboard.incoming')}</p>
+              <p className="text-2xl md:text-3xl font-mono text-[#F8F5EE] tracking-wider">{incomingBids.length}</p>
             </div>
-            <div className="bg-[#01030A]/60 border border-amber-500/20 rounded-2xl p-4 md:p-6 backdrop-blur-sm shadow-sm">
-              <p className="text-[7px] md:text-[10px] font-bold text-amber-500/80 uppercase tracking-widest mb-2 flex items-center gap-2"><ArrowUpRight size={12}/> {t('dashboard.outgoing')}</p>
-              <p className="text-xl md:text-3xl font-mono text-[#F8F5EE] tracking-wider">{outgoingBids.length}</p>
+            <div className="bg-[#01030A]/60 border border-amber-500/20 rounded-2xl p-4 md:p-6 backdrop-blur-sm shadow-sm w-full">
+              <p className="text-[8px] md:text-[10px] font-bold text-amber-500/80 uppercase tracking-widest mb-1.5 md:mb-2 flex items-center gap-2"><ArrowUpRight size={14} className="md:w-3 md:h-3"/> {t('dashboard.outgoing')}</p>
+              <p className="text-2xl md:text-3xl font-mono text-[#F8F5EE] tracking-wider">{outgoingBids.length}</p>
             </div>
           </div>
 
-          <div className="flex gap-4 md:gap-6 border-b border-[#A6947D]/10 mb-8 animate-in fade-in duration-700 delay-200 overflow-x-auto no-scrollbar">
-            <button onClick={() => setActiveTab('incoming')} className={`pb-4 text-[9px] md:text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'incoming' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-[#F8F5EE]/40'}`}>
-              <ArrowDownRight size={14} /> {language === 'el' ? 'Ληφθείσες' : 'Received'} <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full text-[8px]">{incomingBids.length}</span>
+          {/* TAB BUTTONS - FULL WIDTH ON MOBILE */}
+          <div className="flex gap-2 md:gap-6 border-b border-[#A6947D]/10 mb-6 md:mb-8 animate-in fade-in duration-700 delay-200 w-full overflow-hidden">
+            <button onClick={() => setActiveTab('incoming')} className={`flex-1 md:flex-none pb-4 text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-center md:justify-start gap-2 transition-all ${activeTab === 'incoming' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}>
+              <ArrowDownRight size={14} /> {language === 'el' ? 'Ληφθείσες' : 'Received'} <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-md text-[9px]">{incomingBids.length}</span>
             </button>
-            <button onClick={() => setActiveTab('outgoing')} className={`pb-4 text-[9px] md:text-xs font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'outgoing' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-[#F8F5EE]/40'}`}>
-              <ArrowUpRight size={14} /> {language === 'el' ? 'Απεσταλμένες' : 'Submitted'} <span className="bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full text-[8px]">{outgoingBids.length}</span>
+            <button onClick={() => setActiveTab('outgoing')} className={`flex-1 md:flex-none pb-4 text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-center md:justify-start gap-2 transition-all ${activeTab === 'outgoing' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}>
+              <ArrowUpRight size={14} /> {language === 'el' ? 'Απεσταλμένες' : 'Submitted'} <span className="bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-md text-[9px]">{outgoingBids.length}</span>
             </button>
           </div>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-[#A6947D] animate-pulse"><Loader2 size={32} className="animate-spin mb-4" /><p className="font-mono text-[9px] uppercase tracking-[0.3em]">{t('common.syncing')}</p></div>
-          ) : displayBids.length === 0 ? (
-            <div className="bg-[#01030A]/50 border border-[#A6947D]/10 rounded-2xl p-10 md:p-20 text-center flex flex-col items-center w-full">
-              <Gavel size={30} className="text-[#A6947D]/30 mb-4" />
-              <h3 className="text-lg font-serif text-[#F8F5EE] uppercase tracking-[0.15em] mb-2">No Active Bids</h3>
-              <p className="text-[9px] text-[#A6947D]/60 font-mono uppercase tracking-widest">You have zero {activeTab} proposals.</p>
-            </div>
+            <div className="flex flex-col items-center justify-center py-20 text-[#A6947D] animate-pulse w-full"><Loader2 size={32} className="animate-spin mb-4" /><p className="font-mono text-[10px] uppercase tracking-[0.3em]">{t('common.syncing')}</p></div>
           ) : (
-            <div className="space-y-4 animate-in fade-in duration-700 delay-300 w-full overflow-x-hidden">
-              {displayBids.map((bid) => {
-                const isStatusSold = !bid.isAssetAvailable;
-                const isIncoming = activeTab === 'incoming';
-                const themeColor = isIncoming ? 'emerald' : 'amber';
+            <div className="space-y-4 md:space-y-4 animate-in fade-in duration-700 delay-300 w-full overflow-x-hidden">
+              
+              {displayBids.length === 0 ? (
+                <div className="bg-[#01030A]/50 border border-[#A6947D]/10 rounded-2xl p-10 md:p-20 text-center flex flex-col items-center w-full">
+                  <Gavel size={32} className="text-[#A6947D]/30 mb-4" />
+                  <h3 className="text-base md:text-lg font-serif text-[#F8F5EE] uppercase tracking-[0.15em] mb-2">No Active Bids</h3>
+                  <p className="text-[9px] text-[#A6947D]/60 font-mono uppercase tracking-widest">You have zero {activeTab} proposals.</p>
+                </div>
+              ) : (
+                displayBids.map((bid) => {
+                  const isStatusSold = !bid.isAssetAvailable;
+                  const isIncoming = activeTab === 'incoming';
+                  
+                  return (
+                    <div key={bid.id} className="bg-[#01030A]/90 border border-[#A6947D]/15 rounded-2xl p-4 md:p-6 hover:border-[#A6947D]/40 transition-all flex flex-col md:flex-row items-stretch md:items-center gap-4 md:gap-6 relative w-full overflow-hidden shadow-lg group">
+                      
+                      {/* STATUS LINE INDICATOR */}
+                      <div className={`absolute left-0 top-0 w-1 h-full ${isStatusSold ? 'bg-[#A6947D]/30' : isIncoming ? 'bg-emerald-500/50' : 'bg-amber-500/50'}`}></div>
 
-                return (
-                  <div key={bid.id} className="bg-[#01030A]/90 border border-[#A6947D]/15 rounded-2xl p-4 md:p-6 hover:border-[#A6947D]/40 transition-all flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 group relative w-full overflow-hidden">
-                    
-                    <div className={`absolute left-0 top-0 w-1 h-full ${isStatusSold ? 'bg-[#A6947D]/30' : isIncoming ? 'bg-emerald-500/50' : 'bg-amber-500/50'}`}></div>
-
-                    <div className="w-full md:w-24 h-32 md:h-24 rounded-xl bg-[#020509] border border-[#A6947D]/20 flex items-center justify-center flex-none overflow-hidden relative">
-                       {bid.assetImage ? (
-                         <img src={bid.assetImage} alt="Asset" className="w-full h-full object-cover opacity-80" />
-                       ) : (
-                         <Package size={24} className="text-[#A6947D]/40" />
-                       )}
-                       {isStatusSold && (
-                         <div className="absolute inset-0 bg-[#020509]/80 backdrop-blur-[2px] flex items-center justify-center">
-                            <span className="text-[9px] font-bold text-[#F8F5EE] uppercase tracking-widest bg-[#A6947D] px-2 py-1 rounded">SOLD</span>
-                         </div>
-                       )}
-                    </div>
-
-                    <div className="flex-1 w-full space-y-2">
-                      <div className="flex justify-between items-start w-full">
-                        <div>
-                          <p className="text-[8px] text-[#A6947D] font-mono tracking-widest uppercase mb-1">AX-{bid.offer_details?.asset_id?.substring(0,8) || 'OFFER'}</p>
-                          <h3 className="text-base md:text-lg font-serif uppercase tracking-wider text-[#F8F5EE] leading-none mb-1 truncate max-w-[200px] md:max-w-none">{bid.assetMaterial}</h3>
-                          <p className="text-[9px] text-[#A6947D]/80 flex items-center gap-1.5 uppercase font-bold tracking-widest mt-2"><Building2 size={12}/> {bid.counterpartyName}</p>
+                      {/* TOP SECTION (MOBILE) / LEFT SECTION (DESKTOP) */}
+                      <div className="flex items-start gap-4 md:gap-6 w-full md:w-auto overflow-hidden">
+                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl bg-[#020509] border border-[#A6947D]/20 flex items-center justify-center flex-none overflow-hidden relative">
+                          {bid.assetImage ? (
+                            <img src={bid.assetImage} alt="Asset" className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform" />
+                          ) : (
+                            <Package size={24} className="text-[#A6947D]/40" />
+                          )}
+                          {isStatusSold && (
+                            <div className="absolute inset-0 bg-[#020509]/80 backdrop-blur-[2px] flex items-center justify-center">
+                                <span className="text-[9px] font-bold text-[#F8F5EE] uppercase tracking-widest bg-[#A6947D] px-2 py-1 rounded shadow-lg">SOLD</span>
+                            </div>
+                          )}
                         </div>
-                        <div className="text-right">
-                          <div className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[7px] md:text-[8px] font-bold uppercase tracking-widest border ${isStatusSold ? 'bg-[#A6947D]/10 border-[#A6947D]/20 text-[#A6947D]/60' : 'bg-[#020509] border-[#A6947D]/30 text-[#F8F5EE]/60'}`}>
-                            {isStatusSold ? 'Closed' : <><Clock size={10}/> Review</>}
+
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <p className="text-[8px] md:text-[9px] text-[#A6947D] font-mono tracking-widest uppercase">AX-{bid.offer_details?.asset_id?.substring(0,8) || 'OFFER'}</p>
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[7px] font-bold uppercase tracking-widest border ${isStatusSold ? 'bg-[#A6947D]/10 border-[#A6947D]/20 text-[#A6947D]/60' : 'bg-[#020509] border-[#A6947D]/30 text-[#F8F5EE]/60'}`}>
+                              {isStatusSold ? 'Closed' : <><Clock size={8}/> Active</>}
+                            </span>
+                          </div>
+                          <h3 className="text-sm md:text-lg font-serif uppercase tracking-wider text-[#F8F5EE] leading-tight mb-2 truncate">{bid.assetMaterial}</h3>
+                          <p className="text-[9px] text-[#A6947D]/80 flex items-center gap-1.5 uppercase font-bold tracking-widest truncate"><Building2 size={12} className="flex-none"/> {bid.counterpartyName}</p>
+                        </div>
+                      </div>
+
+                      {/* BOTTOM SECTION (MOBILE) / RIGHT SECTION (DESKTOP) */}
+                      <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-6 flex-1 w-full md:border-l border-[#A6947D]/10 md:pl-6 mt-2 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0">
+                        
+                        <div className="flex gap-2 w-full md:w-auto flex-1">
+                          <div className="bg-[#020509] border border-[#A6947D]/15 rounded-xl px-3 py-2 flex-1 md:min-w-[120px] flex flex-col justify-center shadow-inner">
+                            <span className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Value</span>
+                            <span className={`text-sm md:text-base font-mono font-bold ${isIncoming ? 'text-emerald-400' : 'text-amber-400'}`}>€{bid.offer_details?.price || '0'}</span>
+                          </div>
+                          <div className="bg-[#020509] border border-[#A6947D]/15 rounded-xl px-3 py-2 flex-none md:min-w-[80px] flex flex-col justify-center shadow-inner">
+                            <span className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Terms</span>
+                            <span className="text-xs md:text-sm font-sans font-bold text-[#F8F5EE]">{bid.offer_details?.incoterm || 'EXW'}</span>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex flex-wrap gap-2 md:gap-4 pt-3 border-t border-[#A6947D]/10 w-full">
-                        <div className="bg-[#020509] border border-[#A6947D]/10 rounded-lg px-2 md:px-3 py-1.5 flex-1 min-w-[100px]">
-                          <span className="text-[7px] text-[#A6947D]/60 uppercase block mb-0.5">Offered Value</span>
-                          <span className={`text-xs md:text-sm font-mono ${isIncoming ? 'text-emerald-400' : 'text-[#F8F5EE]'}`}>{formatCurrency(bid.offer_details?.price)}</span>
-                        </div>
-                        <div className="bg-[#020509] border border-[#A6947D]/10 rounded-lg px-2 md:px-3 py-1.5">
-                          <span className="text-[7px] text-[#A6947D]/60 uppercase block mb-0.5">Logistics</span>
-                          <span className="text-xs md:text-sm font-sans font-bold text-[#F8F5EE]">{bid.offer_details?.incoterm || 'EXW'}</span>
+                        <div className="w-full md:w-auto flex-none mt-1 md:mt-0">
+                          <button 
+                            onClick={() => router.push(`/inbox?chat=${bid.sender_id === currentUser.id ? bid.receiver_id : bid.sender_id}`)}
+                            className={`w-full md:w-auto text-center px-4 py-3 md:px-6 md:py-3.5 rounded-xl text-[10px] md:text-[9px] font-bold uppercase tracking-widest transition-all border flex justify-center items-center gap-2 shadow-lg ${isStatusSold ? 'bg-[#020509] border-[#A6947D]/20 text-[#A6947D]' : isIncoming ? 'bg-emerald-600/10 hover:bg-emerald-600/20 border-emerald-500/30 text-emerald-400' : 'bg-amber-600/10 hover:bg-amber-600/20 border-amber-500/30 text-amber-400'}`}
+                          >
+                            <MessageSquare size={14} /> {isStatusSold ? 'Archive' : 'Engage'}
+                          </button>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="w-full md:w-auto flex flex-col pt-2 md:pt-0 md:pl-6 md:border-l border-[#A6947D]/10">
-                      <button 
-                        onClick={() => router.push(`/inbox?chat=${bid.sender_id === currentUser.id ? bid.receiver_id : bid.sender_id}`)}
-                        className={`w-full text-center px-6 py-3 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all border flex justify-center items-center gap-2 ${isStatusSold ? 'bg-transparent border-[#A6947D]/20 text-[#A6947D]' : isIncoming ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400' : 'bg-amber-600/10 border-amber-500/30 text-amber-400'}`}
-                      >
-                        <MessageSquare size={14} /> {isStatusSold ? 'Archive' : 'Comms'}
-                      </button>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           )}
         </div>
       </main>
 
       {/* MOBILE BOTTOM NAVIGATION - STABILIZED */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/90 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] w-full">
-        <Link href="/dashboard" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><BarChart3 size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.portfolio').substring(0,4)}</span></Link>
-        <Link href="/network" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><Users size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.network').substring(0,3)}</span></Link>
-        <Link href="/trading" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><Globe size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.floor').substring(0,5)}</span></Link>
-        <Link href="/dashboard/bids" className="text-[#A6947D] p-2 flex flex-col items-center gap-1 relative flex-1"><Gavel size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">Offers</span></Link>
-        <Link href="/me" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative flex-1"><User size={18} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.profile').substring(0,4)}</span></Link>
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.7rem+env(safe-area-inset-bottom))] shadow-2xl w-full">
+        <Link href="/dashboard" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.portfolio').substring(0,4)}</span></Link>
+        <Link href="/network" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><Users size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.network').substring(0,3)}</span></Link>
+        <Link href="/trading" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 flex-1"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.floor').substring(0,5)}</span></Link>
+        <Link href="/dashboard/bids" className="text-[#A6947D] p-2 flex flex-col items-center gap-1 relative flex-1"><Gavel size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Offers</span></Link>
+        <Link href="/me" className="text-[#A6947D]/40 p-2 flex flex-col items-center gap-1 relative flex-1"><User size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">{t('menu.profile').substring(0,4)}</span></Link>
       </nav>
     </div>
   );
