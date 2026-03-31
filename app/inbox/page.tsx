@@ -184,9 +184,13 @@ function SecureCommsContent() {
     if (error) { alert(`${t('common.error')}: ${error.message}`); }
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if ((!newMessage.trim() && attachments.length === 0 && !draftContextAsset) || !selectedContact || isUploading) return;
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    // ΑΥΣΤΗΡΟΣ ΕΛΕΓΧΟΣ: Αφαίρεση κενών spaces και νέων γραμμών
+    const safeText = newMessage.trim();
+    
+    if ((!safeText && attachments.length === 0 && !draftContextAsset) || !selectedContact || isUploading) return;
 
     setIsUploading(true);
     let uploadedFiles: any[] = [];
@@ -209,7 +213,7 @@ function SecureCommsContent() {
     let newMsgObj: any = { 
       sender_id: currentUser.id, 
       receiver_id: selectedContact.id, 
-      text: newMessage || (draftContextAsset && attachments.length === 0 ? 'Inquiring about this asset.' : ''), 
+      text: safeText || (draftContextAsset && attachments.length === 0 ? 'Inquiring about this asset.' : ''), 
       is_offer: false, 
       attachments: uploadedFiles.length > 0 ? uploadedFiles : null 
     };
@@ -388,7 +392,7 @@ function SecureCommsContent() {
       {isOfferModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-md animate-in fade-in duration-200 overflow-x-hidden">
           <div className="bg-[#01030A] border border-amber-500/30 rounded-2xl w-full max-w-lg relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 md:p-6 border-b border-amber-500/20 bg-[#020509] flex-none">
+            <div className="flex justify-between items-center p-5 md:p-6 border-b border-[#A6947D]/20 bg-[#020509] flex-none">
               <div className="flex items-center gap-3 text-amber-500"><Handshake size={20} /><h2 className="text-lg font-serif uppercase tracking-widest text-[#F8F5EE]">{language === 'el' ? 'Πρωτόκολλο OTC' : 'OTC Protocol'}</h2></div>
               <button onClick={() => {setIsOfferModalOpen(false); router.replace('/inbox', { scroll: false });}} className="text-[#F8F5EE]/40 hover:text-red-500 transition-colors p-2"><X size={20} /></button>
             </div>
@@ -508,7 +512,28 @@ function SecureCommsContent() {
                         <div key={msg.id} className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
                           {!msg.is_offer ? (
                             <div className={`max-w-[90%] md:max-w-[75%] p-3 md:p-4 rounded-2xl flex flex-col gap-1.5 shadow-lg ${isMine ? 'bg-[#A6947D]/15 border border-[#A6947D]/30 text-[#F8F5EE]' : 'bg-[#01030A] border border-[#A6947D]/15 text-[#F8F5EE]/90'}`}>
-                              <p className="text-xs md:text-sm font-sans leading-relaxed break-words">{msg.text}</p>
+                              
+                              {/* DISPLAY TEXT IF EXISTS */}
+                              {msg.text && (
+                                <p className="text-xs md:text-sm font-sans leading-relaxed break-words whitespace-pre-wrap">{msg.text}</p>
+                              )}
+                              
+                              {/* DISPLAY ATTACHMENTS IF EXIST (FIXED THE GHOST BUG) */}
+                              {msg.attachments && msg.attachments.length > 0 && (
+                                <div className="flex flex-col gap-2 mt-2">
+                                  {msg.attachments.map((file: any, idx: number) => (
+                                    file.isImage || file.url?.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                                      <img key={idx} src={file.url} alt="attachment" className="w-full max-w-[200px] h-auto rounded-lg border border-[#A6947D]/30 object-cover" />
+                                    ) : (
+                                      <a key={idx} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-[#020509]/50 rounded border border-[#A6947D]/20 hover:text-amber-500 transition-colors w-max max-w-full">
+                                        <Paperclip size={14} className="shrink-0 text-[#A6947D]" />
+                                        <span className="text-[10px] truncate text-[#A6947D]">{file.name || 'Secure Attachment'}</span>
+                                      </a>
+                                    )
+                                  ))}
+                                </div>
+                              )}
+
                               <p className={`text-[7px] font-mono tracking-widest text-right mt-1 ${isMine ? 'text-[#A6947D]/60' : 'text-[#A6947D]/40'}`}>{formatTime(msg.created_at)}</p>
                             </div>
                           ) : (
@@ -531,6 +556,20 @@ function SecureCommsContent() {
 
                   {/* INPUT AREA - BULLETPROOF CHAT BAR */}
                   <div className="p-2 md:p-4 border-t border-[#A6947D]/10 bg-[#01030A] relative z-20 w-full flex-none">
+                    
+                    {/* FILES PREVIEW (New: shows files before sending) */}
+                    {attachments.length > 0 && (
+                      <div className="flex items-center gap-2 mb-2 max-w-4xl mx-auto w-full overflow-x-auto custom-scrollbar pb-1">
+                        {attachments.map((file, idx) => (
+                          <div key={idx} className="flex items-center gap-1 bg-[#A6947D]/20 text-[#A6947D] px-2 py-1 rounded-md border border-[#A6947D]/40 text-[9px] whitespace-nowrap">
+                            <Paperclip size={10} />
+                            <span className="max-w-[100px] truncate">{file.name}</span>
+                            <button onClick={() => removeAttachment(idx)} className="ml-1 hover:text-red-400"><X size={10} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     {draftContextAsset && (
                       <div className="bg-[#A6947D]/10 border border-[#A6947D]/20 rounded-xl p-2 flex items-center justify-between mb-2 max-w-4xl mx-auto w-full">
                         <div className="flex items-center gap-2 overflow-hidden px-2"><Package size={14} className="text-[#A6947D] shrink-0"/><p className="text-[9px] text-[#F8F5EE] truncate uppercase tracking-widest">{draftContextAsset.material}</p></div>
@@ -559,7 +598,14 @@ function SecureCommsContent() {
                         placeholder="Transmission..." 
                         className="flex-1 bg-transparent px-2 py-2.5 md:px-3 md:py-3 text-xs md:text-sm text-[#F8F5EE] outline-none resize-none max-h-[80px] min-w-0" 
                         rows={1} 
-                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }} 
+                        onKeyDown={(e) => { 
+                          if (e.key === 'Enter' && !e.shiftKey) { 
+                            e.preventDefault(); 
+                            // Αποτροπή αποστολής αν το πεδίο έχει μόνο κενά
+                            if (!newMessage.trim() && attachments.length === 0 && !draftContextAsset) return;
+                            handleSendMessage(); 
+                          } 
+                        }} 
                       />
 
                       {/* SEND BUTTON */}
