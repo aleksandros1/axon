@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { 
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   LogOut, Search, Send, Building2, ShieldCheck, Users, Gavel, 
-  Loader2, Paperclip, X, FileText, ImageIcon, Handshake, Layers, CheckCircle2, Trash2, Anchor, Factory, MapPin, User, Package, AlertOctagon
+  Loader2, Paperclip, X, FileText, ImageIcon, Handshake, Layers, CheckCircle2, Trash2, Anchor, Factory, MapPin, User, Package, AlertOctagon, ArrowLeft
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -42,6 +42,10 @@ function SecureCommsContent() {
   const [draftContextAsset, setDraftContextAsset] = useState<any>(null);
   const [lastActivity, setLastActivity] = useState<Record<string, number>>({});
   const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
+
+  // VERIFICATION LOGIC STATES
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationStep, setVerificationStep] = useState(0);
 
   useEffect(() => {
     const initComms = async () => {
@@ -246,90 +250,111 @@ function SecureCommsContent() {
     }
   };
 
+  const runVerificationProtocol = (callback: () => void) => {
+    setIsVerifying(true);
+    setVerificationStep(1); 
+    setTimeout(() => {
+      setVerificationStep(2); 
+      setTimeout(() => {
+        setVerificationStep(3); 
+        setTimeout(() => {
+          setIsVerifying(false);
+          callback();
+        }, 1000);
+      }, 1000);
+    }, 1000);
+  };
+
   const handleSendOffer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!offerAssetId || !offerPrice.trim() || !selectedContact) return;
 
     const targetAsset = mySlabs.find(s => s.id === offerAssetId);
-    const tempId = `temp_offer_${Date.now()}`;
-    const newMsgObj = { 
-      sender_id: currentUser.id, 
-      receiver_id: selectedContact.id, 
-      text: offerText, 
-      is_offer: true, 
-      offer_details: { 
-        asset_id: offerAssetId, 
-        price: offerPrice,
-        incoterm: offerIncoterm,
-        material: targetAsset?.material || 'Private Asset' 
-      } 
-    };
+    
+    runVerificationProtocol(async () => {
+      const tempId = `temp_offer_${Date.now()}`;
+      const newMsgObj = { 
+        sender_id: currentUser.id, 
+        receiver_id: selectedContact.id, 
+        text: offerText, 
+        is_offer: true, 
+        offer_details: { 
+          asset_id: offerAssetId, 
+          price: offerPrice,
+          incoterm: offerIncoterm,
+          material: targetAsset?.material || 'Private Asset' 
+        } 
+      };
 
-    const displayMsg = { ...newMsgObj, id: tempId, created_at: new Date().toISOString() };
-    setMessages(prev => [...prev, displayMsg]);
-    setLastActivity(prev => ({ ...prev, [selectedContact.id]: Date.now() }));
+      const displayMsg = { ...newMsgObj, id: tempId, created_at: new Date().toISOString() };
+      setMessages(prev => [...prev, displayMsg]);
+      setLastActivity(prev => ({ ...prev, [selectedContact.id]: Date.now() }));
 
-    setIsOfferModalOpen(false); setOfferAssetId(''); setOfferPrice(''); setSlabSearchQuery(''); setOfferText('Here is my final offer for this asset.');
-    router.replace('/inbox', { scroll: false });
+      setIsOfferModalOpen(false); setOfferAssetId(''); setOfferPrice(''); setSlabSearchQuery(''); setOfferText('Here is my final offer for this asset.');
+      router.replace('/inbox', { scroll: false });
 
-    const { data: insertedData, error: insertError } = await supabase.from('messages').insert([newMsgObj]).select().single();
-    if (insertError) {
-      alert(`Deal Protocol Failed: ${insertError.message}`);
-      setMessages(prev => prev.filter(m => m.id !== tempId));
-    } else if (insertedData) {
-      setMessages(prev => prev.map(m => m.id === tempId ? insertedData : m));
-      await supabase.from('notifications').insert([{
-        user_id: selectedContact.id,
-        title: 'OTC Protocol Engaged',
-        message: `A new private proposal has been registered for your asset.`,
-        type: 'offer',
-        link: '/inbox'
-      }]);
-    }
+      const { data: insertedData, error: insertError } = await supabase.from('messages').insert([newMsgObj]).select().single();
+      if (insertError) {
+        alert(`Deal Protocol Failed: ${insertError.message}`);
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+      } else if (insertedData) {
+        setMessages(prev => prev.map(m => m.id === tempId ? insertedData : m));
+        await supabase.from('notifications').insert([{
+          user_id: selectedContact.id,
+          title: 'OTC Protocol Engaged',
+          message: `A new private proposal has been registered for your asset.`,
+          type: 'offer',
+          link: '/inbox'
+        }]);
+      }
+    });
   };
 
   const handleAcceptOffer = async (msg: any) => {
     if (!currentUser || isAcceptingOffer) return;
-    setIsAcceptingOffer(true);
+    
+    runVerificationProtocol(async () => {
+      setIsAcceptingOffer(true);
 
-    try {
-      const contractPayload = {
-        asset_id: msg.offer_details.asset_id,
-        buyer_id: currentUser.id, 
-        vendor_id: msg.sender_id, 
-        price: msg.offer_details.price,
-        incoterms: msg.offer_details.incoterm || 'EXW',
-        deposit_percentage: '30', 
-        inspection_days: '7',     
-        status: 'pending'
-      };
+      try {
+        const contractPayload = {
+          asset_id: msg.offer_details.asset_id,
+          buyer_id: currentUser.id, 
+          vendor_id: msg.sender_id, 
+          price: msg.offer_details.price,
+          incoterms: msg.offer_details.incoterm || 'EXW',
+          deposit_percentage: '30', 
+          inspection_days: '7',     
+          status: 'pending'
+        };
 
-      const { error: contractError } = await supabase.from('contracts').insert([contractPayload]);
-      if (contractError) throw contractError;
+        const { error: contractError } = await supabase.from('contracts').insert([contractPayload]);
+        if (contractError) throw contractError;
 
-      const { error: slabUpdateError } = await supabase
-        .from('slabs')
-        .update({ is_available: false })
-        .eq('id', msg.offer_details.asset_id);
-        
-      if (slabUpdateError) throw slabUpdateError;
+        const { error: slabUpdateError } = await supabase
+          .from('slabs')
+          .update({ is_available: false })
+          .eq('id', msg.offer_details.asset_id);
+          
+        if (slabUpdateError) throw slabUpdateError;
 
-      await supabase.from('notifications').insert([{
-        user_id: msg.sender_id,
-        title: 'Deal Accepted!',
-        message: `The terms for Asset AX-${msg.offer_details.asset_id.substring(0,6)} have been accepted. Check your Contracts Vault.`,
-        type: 'contract',
-        link: '/contracts'
-      }]);
+        await supabase.from('notifications').insert([{
+          user_id: msg.sender_id,
+          title: 'Deal Accepted!',
+          message: `The terms for Asset AX-${msg.offer_details.asset_id.substring(0,6)} have been accepted. Check your Contracts Vault.`,
+          type: 'contract',
+          link: '/contracts'
+        }]);
 
-      router.push('/contracts');
+        router.push('/contracts');
 
-    } catch (error: any) {
-      console.error('Escrow Execution Failed:', error);
-      alert('Failed to initialize contract. Database error.');
-    } finally {
-      setIsAcceptingOffer(false);
-    }
+      } catch (error: any) {
+        console.error('Escrow Execution Failed:', error);
+        alert('Failed to initialize contract. Database error.');
+      } finally {
+        setIsAcceptingOffer(false);
+      }
+    });
   };
 
   const formatTime = (isoString: string) => {
@@ -341,7 +366,26 @@ function SecureCommsContent() {
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
-      {/* MODAL: OFFER - STABILIZED */}
+      {/* VERIFICATION OVERLAY */}
+      {isVerifying && (
+        <div className="fixed inset-0 z-[200] bg-[#020509]/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6">
+          <div className="relative mb-8">
+            <div className="w-24 h-24 border border-[#A6947D]/20 rounded-full flex items-center justify-center animate-spin-slow">
+              <Shield size={40} className="text-[#A6947D] animate-pulse" />
+            </div>
+            <div className="absolute inset-0 border-2 border-emerald-500/50 rounded-full animate-ping opacity-20"></div>
+          </div>
+          <h2 className="text-xl font-serif uppercase tracking-[0.3em] text-[#F8F5EE] mb-4">
+            {verificationStep === 1 ? 'Encrypting Transmission' : verificationStep === 2 ? 'synchronizing ledger' : 'Finalizing Settlement'}
+          </h2>
+          <div className="w-48 h-1 bg-[#01040E] rounded-full overflow-hidden border border-[#A6947D]/10">
+            <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${(verificationStep / 3) * 100}%` }}></div>
+          </div>
+          <p className="mt-6 text-[9px] font-mono text-[#A6947D] uppercase tracking-widest animate-pulse">End-to-End Encryption Active</p>
+        </div>
+      )}
+
+      {/* MODAL: OFFER */}
       {isOfferModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-md animate-in fade-in duration-200 overflow-x-hidden">
           <div className="bg-[#01030A] border border-amber-500/30 rounded-2xl w-full max-w-lg relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
@@ -373,12 +417,12 @@ function SecureCommsContent() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[9px] text-[#A6947D] uppercase font-bold">Logistics Protocol</label>
+                  <label className="text-[9px] text-[#A6947D] uppercase font-bold">Incoterm</label>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => setOfferIncoterm('EXW')} className={`flex-1 py-3.5 md:py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${offerIncoterm === 'EXW' ? 'bg-amber-500 border-amber-500 text-[#020509]' : 'bg-[#020509] border-amber-500/30 text-amber-500/60'}`}>EXW</button>
-                    <button type="button" onClick={() => setOfferIncoterm('FOB')} className={`flex-1 py-3.5 md:py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${offerIncoterm === 'FOB' ? 'bg-amber-500 border-amber-500 text-[#020509]' : 'bg-[#020509] border-amber-500/30 text-amber-500/60'}`}>FOB</button>
+                    <button type="button" onClick={() => setOfferIncoterm('EXW')} className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${offerIncoterm === 'EXW' ? 'bg-amber-500 border-amber-500 text-[#020509]' : 'bg-[#020509] border-amber-500/30 text-amber-500/60'}`}>EXW</button>
+                    <button type="button" onClick={() => setOfferIncoterm('FOB')} className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${offerIncoterm === 'FOB' ? 'bg-amber-500 border-amber-500 text-[#020509]' : 'bg-[#020509] border-amber-500/30 text-amber-500/60'}`}>FOB</button>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -450,7 +494,7 @@ function SecureCommsContent() {
                 <>
                   <div className="p-4 md:p-6 border-b border-[#A6947D]/10 bg-[#01030A]/95 backdrop-blur-md flex items-center justify-between shadow-md z-10 flex-none w-full">
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <button onClick={() => setSelectedContact(null)} className="md:hidden text-[#A6947D] p-2 bg-[#A6947D]/10 rounded-lg flex-none"><LogOut size={16} className="rotate-180" /></button>
+                      <button onClick={() => setSelectedContact(null)} className="md:hidden text-[#A6947D] p-2 bg-[#A6947D]/10 rounded-lg flex-none"><ArrowLeft size={16} /></button>
                       <div className="overflow-hidden">
                         <h3 className="text-sm md:text-lg font-serif tracking-widest text-[#F8F5EE] uppercase truncate">{selectedContact.company_name || selectedContact.email}</h3>
                         <div className="flex items-center gap-1.5 mt-0.5 text-emerald-500/80"><Lock size={10} /><span className="text-[7px] md:text-[9px] font-mono tracking-widest uppercase">{t('inbox.encryption_active')}</span></div>
@@ -497,7 +541,7 @@ function SecureCommsContent() {
                     <form onSubmit={handleSendMessage} className="flex items-center gap-2 md:gap-3 max-w-4xl mx-auto w-full overflow-hidden">
                       <input type="file" multiple hidden ref={fileInputRef} onChange={handleFileSelect} />
                       <button type="button" onClick={() => fileInputRef.current?.click()} className="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl bg-[#020509] border border-[#A6947D]/20 text-[#A6947D]/40 flex-none"><Paperclip size={18} /></button>
-                      <button type="button" onClick={() => setIsOfferModalOpen(true)} className="h-10 w-10 md:h-12 md:w-12 flex sm:hidden md:flex items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex-none"><Gavel size={18} /></button>
+                      <button type="button" onClick={() => setIsOfferModalOpen(true)} className="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex-none"><Gavel size={18} /></button>
                       <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type Transmission..." className="flex-1 bg-[#020509] border border-[#A6947D]/20 rounded-xl px-4 py-2.5 md:py-3.5 text-xs md:text-sm text-[#F8F5EE] focus:outline-none focus:border-[#A6947D]/60 transition-colors shadow-inner placeholder:text-[#A6947D]/20 max-h-[100px] custom-scrollbar resize-none" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }} />
                       <button type="submit" disabled={(!newMessage.trim() && attachments.length === 0 && !draftContextAsset) || isUploading} className="bg-[#A6947D] text-[#020509] h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl flex-none disabled:opacity-30"><Send size={16} /></button>
                     </form>
