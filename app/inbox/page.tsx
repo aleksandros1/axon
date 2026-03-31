@@ -15,7 +15,6 @@ import { useLanguage } from '../../lib/i18n/LanguageContext';
 function SecureCommsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
   const { t, language, setLanguage } = useLanguage(); 
   
   const [loading, setLoading] = useState(true);
@@ -42,7 +41,6 @@ function SecureCommsContent() {
 
   const [draftContextAsset, setDraftContextAsset] = useState<any>(null);
   const [lastActivity, setLastActivity] = useState<Record<string, number>>({});
-
   const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
 
   useEffect(() => {
@@ -341,15 +339,14 @@ function SecureCommsContent() {
   const formatCurrencyLocal = (val: any) => new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(parseFloat(val) || 0);
 
   return (
-    /* ΣΤΑΘΕΡΟΠΟΙΗΣΗ: w-full και overflow-hidden για να μην κουνιέται η οθόνη */
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
       {/* MODAL: OFFER - STABILIZED */}
       {isOfferModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-[#01030A] border border-[#A6947D]/30 rounded-2xl w-full max-w-lg relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 md:p-6 border-b border-[#A6947D]/20 bg-[#020509] flex-none">
-              <div className="flex items-center gap-3 text-[#A6947D]"><Handshake size={20} /><h2 className="text-lg font-serif uppercase tracking-widest text-[#F8F5EE]">{language === 'el' ? 'Πρωτόκολλο OTC Deal' : 'OTC Deal Protocol'}</h2></div>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-md animate-in fade-in duration-200 overflow-x-hidden">
+          <div className="bg-[#01030A] border border-amber-500/30 rounded-2xl w-full max-w-lg relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-5 md:p-6 border-b border-amber-500/20 bg-[#020509] flex-none">
+              <div className="flex items-center gap-3 text-amber-500"><Handshake size={20} /><h2 className="text-lg font-serif uppercase tracking-widest text-[#F8F5EE]">{language === 'el' ? 'Πρωτόκολλο OTC' : 'OTC Protocol'}</h2></div>
               <button onClick={() => {setIsOfferModalOpen(false); router.replace('/inbox', { scroll: false });}} className="text-[#F8F5EE]/40 hover:text-red-500 transition-colors p-2"><X size={20} /></button>
             </div>
             
@@ -365,32 +362,35 @@ function SecureCommsContent() {
                 <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest flex items-center gap-2"><Layers size={12}/> Inventory Selection</label>
                 <div className="bg-[#020509] border border-[#A6947D]/30 rounded-xl max-h-56 overflow-y-auto p-2 space-y-1 custom-scrollbar shadow-inner">
                   {mySlabs.length === 0 ? <div className="text-center py-6 text-[#A6947D]/50 text-[10px] uppercase font-mono tracking-widest">{t('trading.no_assets')}</div> : filteredMySlabs.map(slab => (
-                    <div key={slab.id} onClick={() => setOfferAssetId(slab.id)} className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all border ${offerAssetId === slab.id ? 'bg-[#A6947D]/15 border-[#A6947D]/50' : 'bg-transparent border-transparent hover:bg-[#A6947D]/5'}`}>
+                    <div key={slab.id} onClick={() => setOfferAssetId(slab.id)} className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-all border ${offerAssetId === slab.id ? 'bg-amber-500/10 border-amber-500/50' : 'bg-transparent border-transparent hover:bg-[#A6947D]/5'}`}>
                       <div className="w-10 h-10 rounded bg-[#01030A] flex-none border border-[#A6947D]/20 overflow-hidden">
                         {slab.image_url ? <img src={slab.image_url} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="w-full h-full p-2 text-[#A6947D]/30" />}
                       </div>
                       <div className="flex-1 overflow-hidden"><p className="text-[10px] font-bold uppercase truncate">{slab.material}</p><p className="text-[8px] font-mono text-[#A6947D]/60 tracking-widest">ID: {slab.id.substring(0,8)}</p></div>
-                      {offerAssetId === slab.id && <CheckCircle2 size={14} className="text-[#A6947D]" />}
+                      {offerAssetId === slab.id && <CheckCircle2 size={14} className="text-amber-500" />}
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[9px] text-[#A6947D] uppercase font-bold">Incoterm</label>
-                  <select value={offerIncoterm} onChange={(e) => setOfferIncoterm(e.target.value)} className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-3 py-3 text-xs text-[#F8F5EE] focus:outline-none">
-                    <option value="EXW">EXW</option>
-                    <option value="FOB">FOB</option>
-                  </select>
+                  <label className="text-[9px] text-[#A6947D] uppercase font-bold">Logistics Protocol</label>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setOfferIncoterm('EXW')} className={`flex-1 py-3.5 md:py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${offerIncoterm === 'EXW' ? 'bg-amber-500 border-amber-500 text-[#020509]' : 'bg-[#020509] border-amber-500/30 text-amber-500/60'}`}>EXW</button>
+                    <button type="button" onClick={() => setOfferIncoterm('FOB')} className={`flex-1 py-3.5 md:py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${offerIncoterm === 'FOB' ? 'bg-amber-500 border-amber-500 text-[#020509]' : 'bg-[#020509] border-amber-500/30 text-amber-500/60'}`}>FOB</button>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-[9px] text-[#A6947D] uppercase font-bold">Value (€)</label>
-                  <input type="number" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-3 py-3 text-xs font-mono text-[#A6947D] focus:outline-none" required />
+                  <div className="relative">
+                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500 font-mono">€</span>
+                     <input type="number" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} className="w-full bg-[#020509] border border-amber-500/30 rounded-xl pl-8 pr-4 py-3.5 text-sm font-mono text-amber-500 focus:outline-none focus:border-amber-500 shadow-inner" placeholder="0.00" required />
+                  </div>
                 </div>
               </div>
               
-              <button type="submit" disabled={!offerAssetId || !offerPrice.trim() || !selectedContact} className="w-full bg-[#A6947D] text-[#020509] font-bold uppercase tracking-widest py-4 rounded-xl transition-all text-[10px] disabled:opacity-50">Transmit Secure Offer</button>
+              <button type="submit" disabled={!offerAssetId || !offerPrice.trim() || !selectedContact} className="w-full bg-amber-500 text-[#020509] font-bold uppercase tracking-widest py-4 rounded-xl transition-all text-[10px] shadow-lg disabled:opacity-50">Transmit Secure Offer</button>
             </form>
           </div>
         </div>
@@ -411,32 +411,32 @@ function SecureCommsContent() {
         <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><LogOut size={16} /> {t('common.disconnect')}</button></div>
       </aside>
 
-      {/* MAIN COMMS AREA: LOCKED & STABILIZED */}
-      <main className="flex-1 flex overflow-hidden bg-[#020509] pb-24 md:pb-0 w-full relative">
+      {/* MAIN COMMS AREA */}
+      <main className="flex-1 flex overflow-hidden bg-[#020509] pb-[56px] md:pb-0 w-full relative">
         {loading ? (
           <div className="flex w-full items-center justify-center text-[#A6947D] animate-pulse font-mono text-[10px] uppercase tracking-[0.3em]">{t('common.syncing')}</div>
         ) : (
           <div className="flex flex-1 overflow-hidden w-full relative">
             
-            {/* RADAR (CONTACTS) - FIXED WIDTH LOCK */}
+            {/* RADAR (CONTACTS) */}
             <div className={`w-full md:w-80 lg:w-96 flex-none border-r border-[#A6947D]/10 flex flex-col bg-[#01030A]/50 backdrop-blur-md z-10 overflow-hidden ${selectedContact ? 'hidden md:flex' : 'flex'}`}>
-              <div className="p-6 border-b border-[#A6947D]/10 flex-none">
+              <div className="p-4 md:p-6 border-b border-[#A6947D]/10 flex-none">
                 <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#A6947D] mb-4">Radar Intelligence</h2>
                 <div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A6947D]/50" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Nodes..." className="w-full bg-[#020509] border border-[#A6947D]/20 rounded-xl pl-11 pr-4 py-3 text-xs text-[#F8F5EE] focus:border-[#A6947D]/60 focus:outline-none transition-all placeholder:text-[#A6947D]/30 shadow-inner" /></div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar overflow-x-hidden">
+              <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-1 custom-scrollbar overflow-x-hidden">
                 {filteredContacts.map(contact => (
                   <button key={contact.id} onClick={() => setSelectedContact(contact)} className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all border text-left overflow-hidden ${selectedContact?.id === contact.id ? 'bg-[#A6947D]/10 border-[#A6947D]/30' : 'bg-transparent border-transparent hover:bg-[#A6947D]/5'}`}>
                     <div className="flex-1 overflow-hidden">
-                      <h3 className="text-xs font-serif uppercase tracking-wider truncate">{contact.company_name || contact.email}</h3>
-                      <p className="text-[9px] font-mono tracking-widest text-[#A6947D]/40 mt-1 uppercase">Active Node</p>
+                      <h3 className="text-xs md:text-sm font-serif uppercase tracking-wider truncate">{contact.company_name || contact.email}</h3>
+                      <p className="text-[8px] md:text-[9px] font-mono tracking-widest text-[#A6947D]/40 mt-1 uppercase">Active Node</p>
                     </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* CHAT WINDOW - NO OVERFLOW-X */}
+            {/* CHAT WINDOW */}
             <div className={`flex-1 flex flex-col relative w-full overflow-hidden ${!selectedContact ? 'hidden md:flex' : 'flex'}`}>
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0 overflow-hidden"><Shield size={600} className="text-[#A6947D] shrink-0" /></div>
 
@@ -448,35 +448,35 @@ function SecureCommsContent() {
                 </div>
               ) : (
                 <>
-                  <div className="p-5 md:p-6 border-b border-[#A6947D]/10 bg-[#01030A]/95 backdrop-blur-md flex items-center justify-between shadow-md z-10 flex-none w-full">
-                    <div className="flex items-center gap-4 overflow-hidden">
-                      <button onClick={() => setSelectedContact(null)} className="md:hidden text-[#A6947D] p-2 bg-[#A6947D]/10 rounded-lg"><LogOut size={16} className="rotate-180" /></button>
+                  <div className="p-4 md:p-6 border-b border-[#A6947D]/10 bg-[#01030A]/95 backdrop-blur-md flex items-center justify-between shadow-md z-10 flex-none w-full">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <button onClick={() => setSelectedContact(null)} className="md:hidden text-[#A6947D] p-2 bg-[#A6947D]/10 rounded-lg flex-none"><LogOut size={16} className="rotate-180" /></button>
                       <div className="overflow-hidden">
                         <h3 className="text-sm md:text-lg font-serif tracking-widest text-[#F8F5EE] uppercase truncate">{selectedContact.company_name || selectedContact.email}</h3>
-                        <div className="flex items-center gap-2 mt-1 text-emerald-500/80"><Lock size={10} /><span className="text-[8px] md:text-[9px] font-mono tracking-widest uppercase">{t('inbox.encryption_active')}</span></div>
+                        <div className="flex items-center gap-1.5 mt-0.5 text-emerald-500/80"><Lock size={10} /><span className="text-[7px] md:text-[9px] font-mono tracking-widest uppercase">{t('inbox.encryption_active')}</span></div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 flex flex-col custom-scrollbar overflow-x-hidden relative z-10 bg-[#020509] w-full">
+                  <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 md:space-y-6 flex flex-col custom-scrollbar overflow-x-hidden relative z-10 bg-[#020509] w-full">
                     {messages.map((msg) => {
                       const isMine = msg.sender_id === currentUser.id;
                       return (
                         <div key={msg.id} className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
                           {!msg.is_offer ? (
-                            <div className={`max-w-[90%] md:max-w-[75%] p-4 rounded-2xl flex flex-col gap-2 shadow-lg ${isMine ? 'bg-[#A6947D]/15 border border-[#A6947D]/30 text-[#F8F5EE]' : 'bg-[#01030A] border border-[#A6947D]/15 text-[#F8F5EE]/90'}`}>
-                              <p className="text-sm font-sans leading-relaxed break-words">{msg.text}</p>
+                            <div className={`max-w-[90%] md:max-w-[75%] p-3 md:p-4 rounded-2xl flex flex-col gap-1.5 shadow-lg ${isMine ? 'bg-[#A6947D]/15 border border-[#A6947D]/30 text-[#F8F5EE]' : 'bg-[#01030A] border border-[#A6947D]/15 text-[#F8F5EE]/90'}`}>
+                              <p className="text-xs md:text-sm font-sans leading-relaxed break-words">{msg.text}</p>
                               <p className={`text-[7px] font-mono tracking-widest text-right mt-1 ${isMine ? 'text-[#A6947D]/60' : 'text-[#A6947D]/40'}`}>{formatTime(msg.created_at)}</p>
                             </div>
                           ) : (
-                            <div className={`w-[260px] sm:w-[320px] p-5 rounded-2xl border shadow-2xl bg-[#01030A] ${isMine ? 'border-[#A6947D]/60' : 'border-[#A6947D]/20'}`}>
-                                <div className="flex items-center gap-3 mb-4 border-b border-[#A6947D]/10 pb-3"><Handshake size={16} className="text-[#A6947D]" /><div><p className="text-[8px] text-[#A6947D] uppercase font-bold tracking-widest">Protocol Attached</p><p className="text-[10px] text-[#F8F5EE] uppercase truncate">{msg.offer_details?.material}</p></div></div>
+                            <div className={`w-[280px] sm:w-[320px] p-4 md:p-5 rounded-2xl border shadow-2xl bg-[#01030A] ${isMine ? 'border-[#A6947D]/60' : 'border-[#A6947D]/20'}`}>
+                                <div className="flex items-center gap-3 mb-3 md:mb-4 border-b border-[#A6947D]/10 pb-3"><Handshake size={16} className="text-amber-500" /><div><p className="text-[8px] text-[#A6947D] uppercase font-bold tracking-widest">Protocol Attached</p><p className="text-[10px] text-[#F8F5EE] uppercase truncate">{msg.offer_details?.material}</p></div></div>
                                 <div className="space-y-2 mb-4">
                                   <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/10"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Terms</span><span className="text-[9px] font-bold text-amber-500">{msg.offer_details?.incoterm}</span></div>
-                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/20"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Value</span><span className="text-[11px] font-mono text-[#A6947D]">{typeof msg.offer_details.price === 'number' ? formatCurrencyLocal(msg.offer_details.price) : msg.offer_details.price}</span></div>
+                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/20"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Value</span><span className="text-[11px] font-mono text-amber-500">{typeof msg.offer_details.price === 'number' ? formatCurrencyLocal(msg.offer_details.price) : `€${msg.offer_details.price}`}</span></div>
                                 </div>
                                 {!isMine && msg.offer_details.price !== 'Inquiry' && (
-                                  <button onClick={() => handleAcceptOffer(msg)} disabled={isAcceptingOffer} className="w-full bg-emerald-600 text-[#020509] font-bold uppercase tracking-widest py-2.5 rounded-xl text-[9px] shadow-lg disabled:opacity-50">Accept & Escrow</button>
+                                  <button onClick={() => handleAcceptOffer(msg)} disabled={isAcceptingOffer} className="w-full bg-emerald-600 text-[#020509] font-bold uppercase tracking-widest py-3 rounded-xl text-[9px] shadow-lg disabled:opacity-50">Accept & Escrow</button>
                                 )}
                             </div>
                           )}
@@ -486,8 +486,8 @@ function SecureCommsContent() {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* INPUT AREA - STABILIZED FOOTER */}
-                  <div className="p-4 border-t border-[#A6947D]/10 bg-[#01030A]/95 backdrop-blur-md relative z-20 w-full flex-none">
+                  {/* INPUT AREA - STABILIZED */}
+                  <div className="p-3 md:p-4 border-t border-[#A6947D]/10 bg-[#01030A]/95 backdrop-blur-md relative z-20 w-full flex-none">
                     {draftContextAsset && (
                       <div className="bg-[#A6947D]/10 border border-[#A6947D]/20 rounded-xl p-2 flex items-center justify-between mb-3 max-w-4xl mx-auto w-full">
                         <div className="flex items-center gap-2 overflow-hidden px-2"><Package size={14} className="text-[#A6947D]"/><p className="text-[9px] text-[#F8F5EE] truncate uppercase tracking-widest">{draftContextAsset.material}</p></div>
@@ -496,10 +496,10 @@ function SecureCommsContent() {
                     )}
                     <form onSubmit={handleSendMessage} className="flex items-center gap-2 md:gap-3 max-w-4xl mx-auto w-full overflow-hidden">
                       <input type="file" multiple hidden ref={fileInputRef} onChange={handleFileSelect} />
-                      <button type="button" onClick={() => fileInputRef.current?.click()} className="h-12 w-12 flex items-center justify-center rounded-xl bg-[#020509] border border-[#A6947D]/20 text-[#A6947D]/40 flex-none"><Paperclip size={18} /></button>
-                      <button type="button" onClick={() => setIsOfferModalOpen(true)} className="h-12 w-12 hidden sm:flex items-center justify-center rounded-xl bg-[#A6947D]/10 border border-[#A6947D]/30 text-[#A6947D] flex-none"><Gavel size={18} /></button>
-                      <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type Transmission..." className="flex-1 bg-[#020509] border border-[#A6947D]/20 rounded-xl px-4 py-3.5 text-sm text-[#F8F5EE] focus:outline-none focus:border-[#A6947D]/60 transition-colors shadow-inner placeholder:text-[#A6947D]/20 max-h-[100px] custom-scrollbar resize-none" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }} />
-                      <button type="submit" disabled={(!newMessage.trim() && attachments.length === 0 && !draftContextAsset) || isUploading} className="bg-[#A6947D] text-[#020509] h-12 w-12 flex items-center justify-center rounded-xl flex-none disabled:opacity-30"><Send size={18} /></button>
+                      <button type="button" onClick={() => fileInputRef.current?.click()} className="h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl bg-[#020509] border border-[#A6947D]/20 text-[#A6947D]/40 flex-none"><Paperclip size={18} /></button>
+                      <button type="button" onClick={() => setIsOfferModalOpen(true)} className="h-10 w-10 md:h-12 md:w-12 flex sm:hidden md:flex items-center justify-center rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 flex-none"><Gavel size={18} /></button>
+                      <textarea value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type Transmission..." className="flex-1 bg-[#020509] border border-[#A6947D]/20 rounded-xl px-4 py-2.5 md:py-3.5 text-xs md:text-sm text-[#F8F5EE] focus:outline-none focus:border-[#A6947D]/60 transition-colors shadow-inner placeholder:text-[#A6947D]/20 max-h-[100px] custom-scrollbar resize-none" rows={1} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }} />
+                      <button type="submit" disabled={(!newMessage.trim() && attachments.length === 0 && !draftContextAsset) || isUploading} className="bg-[#A6947D] text-[#020509] h-10 w-10 md:h-12 md:w-12 flex items-center justify-center rounded-xl flex-none disabled:opacity-30"><Send size={16} /></button>
                     </form>
                   </div>
                 </>
@@ -509,12 +509,12 @@ function SecureCommsContent() {
         )}
       </main>
 
-      {/* MOBILE BOTTOM NAV - STABILIZED */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-4 py-3 flex justify-between items-center z-50 pb-[calc(0.7rem+env(safe-area-inset-bottom))] w-full">
-        <Link href="/dashboard" className="text-[#A6947D]/40 flex flex-col items-center gap-1 flex-1"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Port</span></Link>
-        <Link href="/trading" className="text-[#A6947D]/40 flex flex-col items-center gap-1 flex-1"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Floor</span></Link>
-        <Link href="/inbox" className="text-[#A6947D] flex flex-col items-center gap-1 flex-1"><MessageSquare size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Comms</span></Link>
-        <Link href="/me" className="text-[#A6947D]/40 flex flex-col items-center gap-1 flex-1"><User size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Self</span></Link>
+      {/* MOBILE BOTTOM NAV - SAFE AREA LOCKED */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-1 flex justify-between items-center z-50 shadow-2xl w-full h-[56px] pb-[env(safe-area-inset-bottom)]">
+        <Link href="/dashboard" className="text-[#A6947D]/40 flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><BarChart3 size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Port</span></Link>
+        <Link href="/trading" className="text-[#A6947D]/40 flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><Globe size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Floor</span></Link>
+        <Link href="/inbox" className="text-[#A6947D] flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><MessageSquare size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Comms</span></Link>
+        <Link href="/me" className="text-[#A6947D]/40 flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><User size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Self</span></Link>
       </nav>
     </div>
   );
