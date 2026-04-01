@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-// Η ΣΥΝΔΕΣΗ ΜΕ ΤΟΝ ΕΓΚΕΦΑΛΟ ΓΛΩΣΣΑΣ
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 
 export default function KYCVerification() {
@@ -24,7 +23,7 @@ export default function KYCVerification() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStep, setVerificationStep] = useState(0);
 
-  // Φόρμα Data
+  // Form Data
   const [companyName, setCompanyName] = useState('');
   const [vatNumber, setVatNumber] = useState('');
   const [country, setCountry] = useState('');
@@ -60,14 +59,13 @@ export default function KYCVerification() {
     }
   };
 
-  // TRUST ENGINE: ΠΡΩΤΟΚΟΛΛΟ ΕΠΑΛΗΘΕΥΣΗΣ
   const runVerificationProtocol = (callback: () => void) => {
     setIsVerifying(true);
-    setVerificationStep(1); // Encrypting Payload
+    setVerificationStep(1); 
     setTimeout(() => {
-      setVerificationStep(2); // Synchronizing Ledger
+      setVerificationStep(2); 
       setTimeout(() => {
-        setVerificationStep(3); // Finalizing
+        setVerificationStep(3); 
         setTimeout(() => {
           setIsVerifying(false);
           callback();
@@ -124,139 +122,188 @@ export default function KYCVerification() {
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] w-full bg-[#020509] flex items-center justify-center">
+      <div className="min-h-[100dvh] w-full bg-[#000000] flex items-center justify-center">
         <div className="w-12 h-12 border border-[#A6947D]/30 border-t-[#A6947D] rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] font-sans selection:bg-[#A6947D]/30 relative overflow-x-hidden">
+    <div className="min-h-[100dvh] w-full bg-[#000000] text-[#F8F5EE] font-sans selection:bg-[#A6947D]/30 relative overflow-x-hidden antialiased">
       
-      {/* VERIFICATION OVERLAY (CONFIRMATION LOGIC) */}
+      {/* VERIFICATION OVERLAY */}
       {isVerifying && (
-        <div className="fixed inset-0 z-[100] bg-[#020509]/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6">
+        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center text-center p-6">
           <div className="relative mb-8">
-            <div className="w-24 h-24 border border-[#A6947D]/20 rounded-full flex items-center justify-center animate-spin-slow">
-              <Shield size={40} className="text-[#A6947D] animate-pulse" />
+            <div className="w-24 h-24 border border-[#A6947D]/30 rounded-full flex items-center justify-center animate-spin-slow shadow-[0_0_30px_rgba(166,148,125,0.1)]">
+              <Shield size={32} className="text-[#A6947D] animate-pulse" />
             </div>
-            <div className="absolute inset-0 border-2 border-emerald-500/50 rounded-full animate-ping opacity-20"></div>
+            <div className="absolute inset-0 border-[0.5px] border-[#A6947D]/50 rounded-full animate-ping opacity-20"></div>
           </div>
-          <h2 className="text-xl font-serif uppercase tracking-[0.3em] text-[#F8F5EE] mb-4">
-            {verificationStep === 1 ? 'Encrypting Payload' : verificationStep === 2 ? 'ledger synchronization' : 'Finalizing Protocol'}
+          <h2 className="text-lg md:text-xl font-serif uppercase tracking-[0.3em] text-white mb-6 font-light">
+            {verificationStep === 1 ? 'Encrypting Payload' : verificationStep === 2 ? 'Synchronizing Ledger' : 'Finalizing Protocol'}
           </h2>
-          <div className="w-48 h-1 bg-[#01040E] rounded-full overflow-hidden border border-[#A6947D]/10">
-            <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${(verificationStep / 3) * 100}%` }}></div>
+          <div className="w-56 h-px bg-gray-900 relative overflow-hidden">
+            <div className="absolute top-0 left-0 h-full bg-[#A6947D] transition-all duration-1000 shadow-[0_0_10px_#A6947D]" style={{ width: `${(verificationStep / 3) * 100}%` }}></div>
           </div>
-          <p className="mt-6 text-[9px] font-mono text-[#A6947D] uppercase tracking-widest animate-pulse">Institutional-Grade Security Sync</p>
+          <p className="mt-6 text-[9px] font-mono text-[#A6947D]/60 uppercase tracking-widest animate-pulse">Institutional-Grade Security Sync</p>
         </div>
       )}
 
       {/* TOP NAVIGATION */}
-      <nav className="border-b border-[#A6947D]/10 bg-[#01030A]/80 backdrop-blur-md sticky top-0 z-20 w-full">
-        <div className="max-w-4xl mx-auto px-4 md:px-6 h-16 md:h-20 flex items-center justify-between">
-          <div className="flex items-center gap-4 md:gap-6">
-            <Link href="/dashboard" className="w-8 h-8 md:w-10 md:h-10 border border-[#A6947D]/30 rounded-full flex items-center justify-center text-[#A6947D] hover:bg-[#A6947D]/10 transition-colors">
-              <ArrowLeft size={16} />
+      <nav className="border-b border-gray-900 bg-[#000000]/80 backdrop-blur-xl sticky top-0 z-20 w-full">
+        <div className="max-w-3xl mx-auto px-5 md:px-8 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-5">
+            <Link href="/dashboard" className="w-10 h-10 border border-gray-800 rounded-sm flex items-center justify-center text-gray-400 hover:text-white hover:bg-gray-900 transition-all">
+              <ArrowLeft size={18} strokeWidth={1.5} />
             </Link>
-            <div>
-              <h1 className="text-sm md:text-xl font-serif uppercase tracking-[0.2em] text-[#F8F5EE] flex items-center gap-2">
-                <ShieldCheck size={18} className="text-[#A6947D]" /> KYC Protocol
+            <div className="flex flex-col justify-center">
+              <h1 className="text-sm md:text-base font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                <ShieldCheck size={16} className="text-[#A6947D]" /> KYC Protocol
               </h1>
-              <p className="text-[#A6947D]/60 text-[8px] md:text-[10px] font-mono uppercase tracking-widest mt-0.5">Institutional Verification</p>
+              <p className="text-gray-500 text-[9px] font-mono uppercase tracking-[0.2em] mt-1">Entity Verification Vault</p>
             </div>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-4xl mx-auto px-4 md:px-6 py-8 md:py-12 relative z-10 w-full">
+      <main className="max-w-3xl mx-auto px-5 md:px-8 py-10 md:py-16 relative z-10 w-full">
         
-        {/* STATUS BANNER */}
-        <div className={`mb-8 md:mb-10 rounded-2xl p-5 md:p-6 border flex items-start md:items-center gap-4 ${
-          profile?.status === 'verified' ? 'bg-emerald-900/10 border-emerald-500/30 text-emerald-400' :
-          profile?.status === 'pending' ? 'bg-amber-900/10 border-amber-500/30 text-amber-500' :
-          'bg-red-900/10 border-red-500/30 text-red-400'
+        {/* STATUS BANNER - REDESIGNED FOR LUXURY */}
+        <div className={`mb-12 relative overflow-hidden bg-[#030303] border border-gray-800 p-6 md:p-8 rounded-sm shadow-2xl flex items-start md:items-center gap-5 transition-all ${
+          profile?.status === 'verified' ? 'border-l-2 border-l-emerald-500' :
+          profile?.status === 'pending' ? 'border-l-2 border-l-amber-500' :
+          'border-l-2 border-l-red-500'
         }`}>
-          <div className="shrink-0 mt-1 md:mt-0">
-            {profile?.status === 'verified' && <CheckCircle2 size={28} />}
-            {profile?.status === 'pending' && <Clock size={28} />}
-            {(profile?.status === 'unverified' || !profile?.status) && <AlertOctagon size={28} />}
+          {/* Subtle Background Glow */}
+          <div className={`absolute top-0 left-0 w-32 h-full opacity-5 blur-2xl pointer-events-none ${
+             profile?.status === 'verified' ? 'bg-emerald-500' : profile?.status === 'pending' ? 'bg-amber-500' : 'bg-red-500'
+          }`}></div>
+
+          <div className="shrink-0 mt-1 md:mt-0 relative z-10">
+            {profile?.status === 'verified' && <CheckCircle2 size={28} className="text-emerald-500" strokeWidth={1.5} />}
+            {profile?.status === 'pending' && <Clock size={28} className="text-amber-500" strokeWidth={1.5} />}
+            {(profile?.status === 'unverified' || !profile?.status) && <AlertOctagon size={28} className="text-red-500" strokeWidth={1.5} />}
           </div>
           
-          <div>
-            <h2 className="text-sm md:text-lg font-bold uppercase tracking-widest">
+          <div className="relative z-10">
+            <h2 className={`text-xs md:text-sm font-bold uppercase tracking-[0.2em] ${
+              profile?.status === 'verified' ? 'text-emerald-500' : profile?.status === 'pending' ? 'text-amber-500' : 'text-red-500'
+            }`}>
               {profile?.status === 'verified' ? 'Entity Verified' : profile?.status === 'pending' ? 'Verification Pending' : 'Action Required'}
             </h2>
-            <p className="text-[10px] md:text-xs font-mono opacity-80 mt-1 leading-relaxed">
-              {profile?.status === 'verified' ? 'Approved. You have full network access.' : 
-               profile?.status === 'pending' ? 'Documents under review by AXON Compliance.' : 
-               'Submit details to unlock trading capabilities.'}
+            <p className="text-[10px] md:text-[11px] font-mono text-gray-400 uppercase tracking-widest mt-2 leading-relaxed max-w-lg">
+              {profile?.status === 'verified' ? 'Approved. You have full network access to the global trading floor.' : 
+               profile?.status === 'pending' ? 'Documents under review by AXON Compliance Protocol.' : 
+               'Submit institutional details to unlock trading capabilities and escrow terminal.'}
             </p>
           </div>
         </div>
 
-        {/* KYC FORM */}
+        {/* KYC FORM - BANKING AESTHETIC */}
         {profile?.status !== 'verified' && (
-          <div className="bg-[#01030A] border border-[#A6947D]/20 rounded-2xl p-6 md:p-8 shadow-2xl relative overflow-hidden w-full">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#A6947D]/5 rounded-full blur-[40px] pointer-events-none shrink-0"></div>
-            
-            <form onSubmit={handleSubmit} className="space-y-6 relative z-10 w-full">
+          <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <form onSubmit={handleSubmit} className="space-y-8 relative z-10 w-full">
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                <div className="space-y-2">
-                  <label className="text-[9px] md:text-[10px] text-[#A6947D] uppercase font-bold tracking-widest">{t('auth.corporate_entity')}</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+                {/* Corporate Entity */}
+                <div className="space-y-3">
+                  <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.2em]">{t('auth.corporate_entity')}</label>
                   <div className="relative">
-                    <Building2 size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A6947D]/60" />
-                    <input type="text" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required disabled={profile?.status === 'pending'} className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl pl-12 pr-4 py-4 text-sm text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all" placeholder="Entity Name" />
+                    <Building2 size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
+                    <input 
+                      type="text" 
+                      value={companyName} 
+                      onChange={(e) => setCompanyName(e.target.value)} 
+                      required 
+                      disabled={profile?.status === 'pending'} 
+                      className="w-full h-14 bg-[#050505] border border-gray-800 rounded-sm pl-12 pr-4 text-xs md:text-sm text-white focus:outline-none focus:border-[#A6947D]/60 focus:bg-[#080808] transition-all placeholder:text-gray-700 shadow-inner" 
+                      placeholder="e.g. Pavlidis S.A." 
+                    />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[9px] md:text-[10px] text-[#A6947D] uppercase font-bold tracking-widest">{t('auth.tax_id')}</label>
+                {/* VAT Number */}
+                <div className="space-y-3">
+                  <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.2em]">{t('auth.tax_id')}</label>
                   <div className="relative">
-                    <FileText size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A6947D]/60" />
-                    <input type="text" value={vatNumber} onChange={(e) => setVatNumber(e.target.value)} required disabled={profile?.status === 'pending'} className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl pl-12 pr-4 py-4 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all" placeholder="VAT Number" />
+                    <FileText size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
+                    <input 
+                      type="text" 
+                      value={vatNumber} 
+                      onChange={(e) => setVatNumber(e.target.value)} 
+                      required 
+                      disabled={profile?.status === 'pending'} 
+                      className="w-full h-14 bg-[#050505] border border-gray-800 rounded-sm pl-12 pr-4 text-xs md:text-sm font-mono text-white focus:outline-none focus:border-[#A6947D]/60 focus:bg-[#080808] transition-all placeholder:text-gray-700 shadow-inner uppercase" 
+                      placeholder="VAT / TAX ID" 
+                    />
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] md:text-[10px] text-[#A6947D] uppercase font-bold tracking-widest">Incorporation Region</label>
-                <select value={country} onChange={(e) => setCountry(e.target.value)} required disabled={profile?.status === 'pending'} className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-4 text-sm text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] appearance-none cursor-pointer transition-all">
-                  <option value="" disabled>{language === 'el' ? 'Επιλέξτε Χώρα' : 'Select Country'}</option>
+              {/* Country Selection */}
+              <div className="space-y-3">
+                <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.2em]">Incorporation Region</label>
+                <select 
+                  value={country} 
+                  onChange={(e) => setCountry(e.target.value)} 
+                  required 
+                  disabled={profile?.status === 'pending'} 
+                  className="w-full h-14 bg-[#050505] border border-gray-800 rounded-sm px-4 text-xs md:text-sm text-white focus:outline-none focus:border-[#A6947D]/60 focus:bg-[#080808] appearance-none cursor-pointer transition-all uppercase tracking-widest shadow-inner"
+                >
+                  <option value="" disabled className="text-gray-700">{language === 'el' ? 'ΕΠΙΛΕΞΤΕ ΧΩΡΑ' : 'SELECT COUNTRY'}</option>
                   <option value="Greece">Greece</option>
                   <option value="Italy">Italy</option>
                   <option value="Turkey">Turkey</option>
                   <option value="UAE">United Arab Emirates</option>
-                  <option value="Other">Other</option>
+                  <option value="Other">Other Region</option>
                 </select>
               </div>
 
-              <div className="space-y-2 pt-4 border-t border-[#A6947D]/10 w-full">
-                <label className="text-[9px] md:text-[10px] text-[#A6947D] uppercase font-bold tracking-widest">Corporate Documentation</label>
-                <div className="relative border-2 border-dashed border-[#A6947D]/30 rounded-xl p-6 md:p-8 text-center hover:border-[#A6947D]/60 transition-colors bg-[#020509]/50 overflow-hidden w-full">
-                  <input type="file" onChange={handleFileChange} disabled={profile?.status === 'pending'} accept=".pdf,.jpg,.jpeg,.png" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" />
-                  <UploadCloud size={32} className="mx-auto text-[#A6947D]/60 mb-3" />
-                  <p className="text-xs md:text-sm font-serif text-[#F8F5EE] truncate px-4">
-                    {file ? file.name : "Tap to upload Cert. of Incorporation"}
+              {/* File Upload - Secure Vault Style */}
+              <div className="space-y-3 pt-4 w-full">
+                <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.2em]">Corporate Documentation</label>
+                <div className="relative border border-dashed border-gray-700 bg-[#030303] rounded-sm p-8 text-center hover:border-[#A6947D]/50 hover:bg-[#050505] transition-all overflow-hidden w-full group">
+                  <input 
+                    type="file" 
+                    onChange={handleFileChange} 
+                    disabled={profile?.status === 'pending'} 
+                    accept=".pdf,.jpg,.jpeg,.png" 
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20" 
+                  />
+                  <UploadCloud size={28} strokeWidth={1.5} className="mx-auto text-gray-600 group-hover:text-[#A6947D] transition-colors mb-4" />
+                  <p className="text-xs font-bold uppercase tracking-widest text-white truncate px-4">
+                    {file ? file.name : "UPLOAD CERT. OF INCORPORATION"}
                   </p>
-                  <p className="text-[8px] md:text-[9px] font-mono text-[#A6947D]/40 uppercase tracking-widest mt-2">Max Size: 5MB</p>
+                  <p className="text-[9px] font-mono text-gray-500 uppercase tracking-[0.2em] mt-3">PDF / JPG / PNG (MAX 5MB)</p>
                 </div>
               </div>
 
-              <div className="bg-[#020509] border border-[#A6947D]/10 rounded-xl p-4 flex gap-3 items-start w-full">
-                <input type="checkbox" id="terms" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} disabled={profile?.status === 'pending'} className="mt-1 w-4 h-4 shrink-0 accent-[#A6947D] cursor-pointer" />
-                <label htmlFor="terms" className="text-[9px] md:text-[10px] text-[#F8F5EE]/50 font-mono leading-relaxed cursor-pointer select-none">
-                  I declare accuracy of info. AXON is a Software Provider & Escrow Facilitator. No liability for physical quality or logistics. <span className="text-[#A6947D]">Terms & Conditions apply.</span>
+              {/* Terms Checkbox - Minimalist */}
+              <div className="pt-4 flex gap-4 items-start w-full">
+                <div className="relative flex items-center justify-center w-5 h-5 shrink-0 mt-0.5">
+                  <input 
+                    type="checkbox" 
+                    id="terms" 
+                    checked={acceptedTerms} 
+                    onChange={(e) => setAcceptedTerms(e.target.checked)} 
+                    disabled={profile?.status === 'pending'} 
+                    className="w-full h-full appearance-none border border-gray-600 rounded-[2px] checked:bg-[#A6947D] checked:border-[#A6947D] transition-colors cursor-pointer peer" 
+                  />
+                  <CheckCircle2 size={12} className="absolute text-black pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" strokeWidth={3} />
+                </div>
+                <label htmlFor="terms" className="text-[10px] text-gray-400 font-mono uppercase tracking-widest leading-[1.6] cursor-pointer select-none">
+                  I declare accuracy of information. AXON is a Software & Escrow Provider. No liability for physical logistics. <span className="text-[#A6947D]">Terms Apply.</span>
                 </label>
               </div>
 
+              {/* Submit Button */}
               <button 
                 type="submit" 
                 disabled={submitting || profile?.status === 'pending' || !acceptedTerms}
-                className="w-full bg-[#A6947D] text-[#020509] font-bold uppercase tracking-[0.2em] py-4 md:py-5 rounded-xl transition-all text-[10px] md:text-xs flex items-center justify-center gap-2 disabled:opacity-50 mt-6 shadow-xl"
+                className="w-full h-16 bg-white text-black font-extrabold uppercase tracking-[0.3em] rounded-sm hover:bg-gray-200 transition-all text-[10px] md:text-xs flex items-center justify-center gap-3 disabled:opacity-20 disabled:hover:bg-white mt-8 shadow-[0_0_20px_rgba(255,255,255,0.05)]"
               >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Lock size={16}/> Synchronize Verification</>}
+                {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Lock size={16} strokeWidth={2}/> Synchronize Verification</>}
               </button>
 
             </form>
