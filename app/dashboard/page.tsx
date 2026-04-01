@@ -22,7 +22,7 @@ const stripePromise = loadStripe('pk_test_51TBwXT1RTGOC3MKLvHSA6uyyLoE1PaPGVb46o
 export default function PortfolioDashboard() {
   const router = useRouter();
   
-  const { t, language } = useLanguage(); 
+  const { t, language, setLanguage } = useLanguage(); 
   
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -33,7 +33,7 @@ export default function PortfolioDashboard() {
   const [incomingOffers, setIncomingOffers] = useState<any[]>([]);
   const [outgoingOffers, setOutgoingOffers] = useState<any[]>([]);
   const [trackedSlabs, setTrackedSlabs] = useState<any[]>([]);
-  const [escrowTotal, setEscrowTotal] = useState(0); // ΠΡΟΣΤΕΘΗΚΕ ΤΟ STATE ΓΙΑ ΤΟΝ ΤΖΙΡΟ
+  const [escrowTotal, setEscrowTotal] = useState(0);
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -110,7 +110,7 @@ export default function PortfolioDashboard() {
         setOutgoingOffers(out.map(o => ({ ...o, contactName: getContactName(o.receiver_id) })));
       }
 
-      // Fetch Contracts for Escrow Total (ΠΡΟΣΤΕΘΗΚΕ ΓΙΑ ΤΟ BUG)
+      // Fetch Contracts for Escrow Total
       const { data: contractsData } = await supabase
         .from('contracts')
         .select('price, status')
@@ -815,13 +815,17 @@ export default function PortfolioDashboard() {
         </div>
       </main>
 
-      {/* MOBILE BOTTOM NAVIGATION - PRECISION INSTRUMENT STYLE */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#020202]/95 backdrop-blur-2xl border-t border-gray-900 px-2 py-2 flex justify-between items-center z-50 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] h-[64px]">
-        <Link href="/dashboard" className="text-[#A6947D] flex flex-col items-center gap-1 flex-1 transition-colors"><BarChart3 size={20} strokeWidth={2} /><span className="text-[7px] font-mono uppercase tracking-[0.2em]">{t('menu.portfolio').substring(0,4)}</span></Link>
-        <Link href="/network" className="text-gray-600 hover:text-white flex flex-col items-center gap-1 flex-1 transition-colors"><Users size={20} strokeWidth={1.5} /><span className="text-[7px] font-mono uppercase tracking-[0.2em]">{t('menu.network').substring(0,3)}</span></Link>
-        <Link href="/trading" className="text-gray-600 hover:text-white flex flex-col items-center gap-1 flex-1 transition-colors"><Globe size={20} strokeWidth={1.5} /><span className="text-[7px] font-mono uppercase tracking-[0.2em]">{t('menu.floor').substring(0,5)}</span></Link>
-        <Link href="/inbox" className="text-gray-600 hover:text-white flex flex-col items-center gap-1 relative flex-1 transition-colors"><MessageSquare size={20} strokeWidth={1.5} /><span className="text-[7px] font-mono uppercase tracking-[0.2em]">{t('menu.comms').substring(0,5)}</span></Link>
-        <Link href="/me" className="text-gray-600 hover:text-white flex flex-col items-center gap-1 relative flex-1 transition-colors"><User size={20} strokeWidth={1.5} /><span className="text-[7px] font-mono uppercase tracking-[0.2em]">{t('menu.profile').substring(0,4)}</span></Link>
+      {/* MOBILE BOTTOM NAVIGATION - SCROLLABLE RIBBON */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#020202]/95 backdrop-blur-2xl border-t border-gray-900 z-50 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-8 px-6 py-3 overflow-x-auto no-scrollbar pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <Link href="/dashboard" className="text-[#A6947D] flex flex-col items-center gap-1.5 flex-none transition-colors"><BarChart3 size={20} strokeWidth={2} /><span className="text-[8px] font-mono uppercase tracking-[0.2em]">PORT</span></Link>
+          <Link href="/scanner" className="text-gray-600 hover:text-white flex flex-col items-center gap-1.5 flex-none transition-colors"><Crosshair size={20} strokeWidth={1.5} /><span className="text-[8px] font-mono uppercase tracking-[0.2em]">SCAN</span></Link>
+          <Link href="/trading" className="text-gray-600 hover:text-white flex flex-col items-center gap-1.5 flex-none transition-colors"><Globe size={20} strokeWidth={1.5} /><span className="text-[8px] font-mono uppercase tracking-[0.2em]">FLOOR</span></Link>
+          <Link href="/network" className="text-gray-600 hover:text-white flex flex-col items-center gap-1.5 flex-none transition-colors"><Users size={20} strokeWidth={1.5} /><span className="text-[8px] font-mono uppercase tracking-[0.2em]">NET</span></Link>
+          <Link href="/contracts" className="text-gray-600 hover:text-white flex flex-col items-center gap-1.5 flex-none transition-colors"><FileSignature size={20} strokeWidth={1.5} /><span className="text-[8px] font-mono uppercase tracking-[0.2em]">DEALS</span></Link>
+          <Link href="/inbox" className="text-gray-600 hover:text-white flex flex-col items-center gap-1.5 flex-none transition-colors"><MessageSquare size={20} strokeWidth={1.5} /><span className="text-[8px] font-mono uppercase tracking-[0.2em]">COMMS</span></Link>
+          <Link href="/me" className="text-gray-600 hover:text-white flex flex-col items-center gap-1.5 flex-none transition-colors"><User size={20} strokeWidth={1.5} /><span className="text-[8px] font-mono uppercase tracking-[0.2em]">SELF</span></Link>
+        </div>
       </nav>
     </div>
   );
