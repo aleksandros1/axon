@@ -22,7 +22,7 @@ const stripePromise = loadStripe('pk_test_51TBwXT1RTGOC3MKLvHSA6uyyLoE1PaPGVb46o
 export default function PortfolioDashboard() {
   const router = useRouter();
   
-  const { t, language, setLanguage } = useLanguage(); 
+  const { t, language } = useLanguage(); 
   
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -33,6 +33,7 @@ export default function PortfolioDashboard() {
   const [incomingOffers, setIncomingOffers] = useState<any[]>([]);
   const [outgoingOffers, setOutgoingOffers] = useState<any[]>([]);
   const [trackedSlabs, setTrackedSlabs] = useState<any[]>([]);
+  const [escrowTotal, setEscrowTotal] = useState(0); // ΠΡΟΣΤΕΘΗΚΕ ΤΟ STATE ΓΙΑ ΤΟΝ ΤΖΙΡΟ
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -108,6 +109,25 @@ export default function PortfolioDashboard() {
         setIncomingOffers(inc.map(o => ({ ...o, contactName: getContactName(o.sender_id) })));
         setOutgoingOffers(out.map(o => ({ ...o, contactName: getContactName(o.receiver_id) })));
       }
+
+      // Fetch Contracts for Escrow Total (ΠΡΟΣΤΕΘΗΚΕ ΓΙΑ ΤΟ BUG)
+      const { data: contractsData } = await supabase
+        .from('contracts')
+        .select('price, status')
+        .or(`buyer_id.eq.${user.id},vendor_id.eq.${user.id}`);
+
+      if (contractsData) {
+        const activeStatuses = ['pending', 'funded', 'shipped'];
+        const total = contractsData
+          .filter(c => activeStatuses.includes(c.status))
+          .reduce((acc, curr) => {
+            const priceString = curr.price?.toString() || '0';
+            const cleanPrice = parseFloat(priceString.replace(/\./g, '').replace(/,/g, '.'));
+            return acc + (cleanPrice || 0);
+          }, 0);
+        setEscrowTotal(total);
+      }
+
       setLoading(false);
     };
     fetchDashboardData();
@@ -492,7 +512,7 @@ export default function PortfolioDashboard() {
       )}
 
       {/* MASTER SIDEBAR - DESKTOP ONLY */}
-      <aside className="w-[280px] flex-none bg-[#030303] border-r border-gray-900 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
+      <aside className="w-[280px] flex-none bg-[#030303] border-r border-gray-900 hidden md:flex flex-col z-20 shadow-[10px_0_30px_rgba(0,0,0,0.5)] relative overflow-hidden">
         <div className="absolute top-10 left-[-40%] opacity-5 pointer-events-none"><Shield size={300} className="text-[#A6947D]" /></div>
         
         <div className="p-8 pb-10 relative z-10 flex flex-col items-center border-b border-gray-900 mb-6">
@@ -503,12 +523,7 @@ export default function PortfolioDashboard() {
           <p className="text-[#A6947D] text-[7px] font-mono uppercase tracking-[0.4em]">{t('common.institutional_grade')}</p>
         </div>
 
-        <div className="px-5 mb-6 relative z-10">
-          <div className="flex items-center justify-between bg-[#000000] border border-gray-800 p-1 rounded-sm shadow-inner">
-            <button onClick={() => setLanguage('en')} className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest rounded-sm transition-all ${language === 'en' ? 'bg-[#A6947D] text-black' : 'text-gray-500 hover:text-white'}`}>EN</button>
-            <button onClick={() => setLanguage('el')} className={`flex-1 py-1.5 text-[9px] font-bold tracking-widest rounded-sm transition-all ${language === 'el' ? 'bg-[#A6947D] text-black' : 'text-gray-500 hover:text-white'}`}>EL</button>
-          </div>
-        </div>
+        <SidebarLanguageSwitcher />
 
         <nav className="flex-1 px-5 space-y-1.5 relative z-10">
           <Link href="/dashboard" className="flex items-center gap-4 px-4 py-3.5 bg-[#050505] text-[#A6947D] rounded-sm text-[10px] font-bold uppercase tracking-[0.2em] border border-gray-800 shadow-inner"><BarChart3 size={16} /> {t('menu.portfolio')}</Link>
@@ -519,10 +534,10 @@ export default function PortfolioDashboard() {
           <Link href="/me" className="flex items-center gap-4 px-4 py-3.5 text-gray-500 hover:text-white hover:bg-gray-900 rounded-sm text-[10px] font-bold uppercase tracking-[0.2em] transition-all"><User size={16} /> {t('menu.profile')}</Link>
         </nav>
 
-        <div className="p-6 border-t border-gray-900 relative z-10"><button onClick={handleLogout} className="text-red-500/80 hover:text-red-400 text-[9px] font-bold uppercase tracking-[0.2em] flex items-center gap-3 transition-colors"><LogOut size={16} /> DISCONNECT</button></div>
+        <div className="p-6 border-t border-gray-900 relative z-10"><button onClick={handleLogout} className="text-red-500/80 hover:text-red-400 text-[9px] font-bold uppercase tracking-[0.2em] flex items-center gap-3 transition-colors"><LogOut size={16} /> {t('common.disconnect')}</button></div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
+      {/* MAIN CONTENT AREA: FIXED WIDTH & NO OVERFLOW-X */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#000000] pb-[80px] md:pb-0 custom-scrollbar w-full">
         {/* BACKGROUND ICON - CONTAINED */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#111_1px,transparent_1px),linear-gradient(to_bottom,#111_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-30 z-0"></div>
@@ -597,7 +612,7 @@ export default function PortfolioDashboard() {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-[40px] pointer-events-none group-hover:bg-emerald-500/20 transition-all"></div>
                 <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:scale-110 transition-transform duration-700"><FileSignature size={80} className="text-emerald-500" strokeWidth={1}/></div>
                 <p className="text-[8px] font-mono text-gray-500 uppercase tracking-[0.3em] mb-4 flex items-center gap-2"><ShieldCheck size={12} className="text-emerald-500"/> Escrow Contracts</p>
-                <p className="text-2xl md:text-3xl font-mono text-white tracking-widest mb-4">{formatCurrency(0)}</p>
+                <p className="text-2xl md:text-3xl font-mono text-white tracking-widest mb-4">{formatCurrency(escrowTotal)}</p>
                 <div className="flex items-center justify-between text-[9px] font-mono tracking-widest pt-4 border-t border-gray-900">
                   <div className="flex items-center gap-2"><Handshake size={12} className="text-emerald-400"/><span className="text-emerald-400">Secured Funds</span></div>
                   <span className="text-gray-600 group-hover:text-emerald-400 transition-colors flex items-center gap-1">ACCESS <ArrowRight size={10}/></span>
