@@ -68,7 +68,9 @@ export default function ContractsDashboard() {
 
   // Υπολογισμός Τζίρου Ενεργών Συμβολαίων
   const totalActiveVolume = activeContracts.reduce((acc, curr) => {
-    return acc + (parseFloat(curr.price) || 0);
+    const priceString = curr.price?.toString() || '0';
+    const cleanPrice = parseFloat(priceString.replace(/\./g, '').replace(/,/g, '.'));
+    return acc + (cleanPrice || 0);
   }, 0);
 
   // Οπτική αναπαράσταση των σταδίων

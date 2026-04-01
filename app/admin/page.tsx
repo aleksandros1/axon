@@ -203,7 +203,11 @@ export default function AdminOverwatch() {
   };
 
   const totalGMV = allSlabs.reduce((acc, curr) => acc + (parseFloat(curr.price?.toString().replace(/\./g, '').replace(/,/g, '.')) || 0), 0);
-  const totalEscrowValue = allDeals.reduce((acc, curr) => acc + (parseFloat(curr.offer_details?.price?.toString().replace(/\./g, '').replace(/,/g, '.')) || 0), 0);
+  const totalEscrowValue = allContracts.reduce((acc, curr) => {
+    const priceString = curr.price?.toString() || '0';
+    const cleanPrice = parseFloat(priceString.replace(/\./g, '').replace(/,/g, '.'));
+    return acc + (cleanPrice || 0);
+  }, 0);
 
   const filteredProfiles = profiles.filter(p => {
     const matchesSearch = (p.company_name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || (p.email?.toLowerCase() || '').includes(searchQuery.toLowerCase());
