@@ -7,7 +7,7 @@ import {
   Shield, Globe, BarChart3, Crosshair, MessageSquare, 
   LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
   Trash2, Handshake, ExternalLink, Calendar, AlertOctagon, RotateCcw, X, Loader2,
-  Bell, Check, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send
+  Bell, Check, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send, Menu
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -59,6 +59,9 @@ export default function PortfolioDashboard() {
   const [editForm, setEditForm] = useState({
     material: '', price: '', origin: '', location: '', thickness: '', quantity: '', incoterm: 'EXW', description: '', visibility: 'public', pricing_model: 'PUBLIC'
   });
+
+  // --- STATE ΓΙΑ ΤΟ SMART MENU ---
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -304,6 +307,48 @@ export default function PortfolioDashboard() {
     /* FIXED OVERFLOW-X: Κλειδώνουμε το πλάτος για να μην κουνιέται δεξιά-αριστερά */
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
+      {/* --------------------------------------------------------- */}
+      {/* EXECUTIVE COMMAND OVERLAY (THE SMART MENU) */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-[100] bg-[#01030A]/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-5 duration-300">
+          <div className="flex justify-between items-center p-6 border-b border-[#A6947D]/20 bg-[#020509]">
+            <div className="flex items-center gap-3">
+              <Shield size={20} className="text-[#A6947D]" />
+              <h2 className="text-lg font-serif uppercase tracking-[0.3em] text-[#F8F5EE]">Command Center</h2>
+            </div>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 p-2"><X size={24} /></button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">Core Modules</p>
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <Link href="/contracts" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                <FileSignature size={24} className="text-[#A6947D]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Deals Vault</span>
+              </Link>
+              <Link href="/scanner" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                <Crosshair size={24} className="text-[#A6947D]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">AI Scanner</span>
+              </Link>
+              <Link href="/network" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                <Users size={24} className="text-[#A6947D]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Network</span>
+              </Link>
+              <Link href="/me" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                <User size={24} className="text-[#A6947D]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Profile</span>
+              </Link>
+            </div>
+
+            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">System</p>
+            <button onClick={handleLogout} className="w-full bg-[#020509] border border-red-900/30 text-red-500 p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px] tracking-widest">
+              <LogOut size={16} /> Disconnect Session
+            </button>
+          </div>
+        </div>
+      )}
+      {/* --------------------------------------------------------- */}
+
       {/* --- MODAL: EDIT ASSET --- */}
       {isEditModalOpen && editingSlab && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-xl animate-in fade-in duration-300">
@@ -540,7 +585,7 @@ export default function PortfolioDashboard() {
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020509] pb-[80px] md:pb-0 custom-scrollbar w-full">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020509] pb-[80px] md:pb-0 custom-scrollbar w-full z-10">
         {/* BACKGROUND ICON - CONTAINED */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0 overflow-hidden">
           <Globe size={800} className="text-[#A6947D] shrink-0" />
@@ -785,17 +830,17 @@ export default function PortfolioDashboard() {
         </div>
       </main>
 
-      {/* MOBILE BOTTOM NAVIGATION - SCROLLABLE */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 z-50 shadow-2xl w-full">
-        <div className="flex items-center gap-6 px-4 py-3 overflow-x-auto no-scrollbar pb-[calc(0.7rem+env(safe-area-inset-bottom))]">
-          <Link href="/dashboard" className="text-[#A6947D] flex flex-col items-center gap-1 flex-none"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold">Port</span></Link>
-          <Link href="/scanner" className="text-[#A6947D]/40 hover:text-[#A6947D] flex flex-col items-center gap-1 flex-none"><Crosshair size={20} /><span className="text-[8px] uppercase font-bold">Scan</span></Link>
-          <Link href="/trading" className="text-[#A6947D]/40 hover:text-[#A6947D] flex flex-col items-center gap-1 flex-none"><Globe size={20} /><span className="text-[8px] uppercase font-bold">Floor</span></Link>
-          <Link href="/network" className="text-[#A6947D]/40 hover:text-[#A6947D] flex flex-col items-center gap-1 flex-none"><Users size={20} /><span className="text-[8px] uppercase font-bold">Net</span></Link>
-          <Link href="/contracts" className="text-[#A6947D]/40 hover:text-[#A6947D] flex flex-col items-center gap-1 flex-none"><FileSignature size={20} /><span className="text-[8px] uppercase font-bold">Deals</span></Link>
-          <Link href="/inbox" className="text-[#A6947D]/40 hover:text-[#A6947D] flex flex-col items-center gap-1 flex-none"><MessageSquare size={20} /><span className="text-[8px] uppercase font-bold">Comms</span></Link>
-          <Link href="/me" className="text-[#A6947D]/40 hover:text-[#A6947D] flex flex-col items-center gap-1 flex-none"><User size={20} /><span className="text-[8px] uppercase font-bold">Profile</span></Link>
-        </div>
+      {/* FIXED BOTTOM NAVIGATION (THE STRICT 4-BUTTON BAR) */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] w-full">
+        <Link href="/dashboard" className="text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Port</span></Link>
+        <Link href="/trading" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Floor</span></Link>
+        <Link href="/inbox" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 relative flex-1 transition-colors">
+          <MessageSquare size={20} />
+          {notifications.length > 0 && <span className="absolute top-1 right-1/4 w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>}
+          <span className="text-[8px] uppercase font-bold tracking-widest">Comms</span>
+        </Link>
+        {/* THE TRIGGER FOR THE COMMAND OVERLAY */}
+        <button onClick={() => setIsMobileMenuOpen(true)} className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Menu size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Menu</span></button>
       </nav>
     </div>
   );

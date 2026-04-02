@@ -1,133 +1,130 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { supabase } from '../../../lib/supabase';
+import { ShieldCheck, Activity, Lock, ArrowRight, Shield } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
-import { 
-  Shield, Lock, Globe, BarChart3, Gavel, MessageSquare, 
-  Activity, Crosshair, User, Users, LogOut, Package, ArrowRight 
-} from 'lucide-react';
-import Link from 'next/link';
 
-export default function PrivateVault() {
+export default function SharedVaultItem({ params }: { params: { token: string } }) {
   const router = useRouter();
-  const [slabs, setSlabs] = useState<any[]>([]);
+  const [slab, setSlab] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchVaultAssets();
-  }, []);
+    const fetchSharedSlab = async () => {
+      const { data, error } = await supabase
+        .from('slabs')
+        .select(`
+          *,
+          profiles:user_id (company_name)
+        `)
+        .eq('share_token', params.token)
+        .single();
 
-  const fetchVaultAssets = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { router.push('/auth'); return; }
+      if (data) setSlab(data);
+      setLoading(false);
+    };
 
-    const { data } = await supabase.from('slabs').select('*').eq('user_id', session.user.id).eq('is_vault', true);
-    if (data) setSlabs(data);
-    setLoading(false);
+    fetchSharedSlab();
+  }, [params.token]);
+
+  const handleSecureAcquisition = () => {
+    // Στέλνουμε τον VIP πελάτη να κάνει εγγραφή/είσοδο για να κλειδώσει τη συναλλαγή
+    router.push('/auth');
   };
 
-  const handleLogout = async () => { await supabase.auth.signOut(); router.push('/auth'); };
+  if (loading) {
+    return (
+      <div className="min-h-[100dvh] w-full bg-[#020509] flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border border-[#A6947D]/30 border-t-[#A6947D] rounded-full animate-spin mb-6"></div>
+        <p className="text-[#A6947D] font-mono text-[9px] uppercase tracking-[0.4em] animate-pulse">Decrypting Protocol</p>
+      </div>
+    );
+  }
+
+  if (!slab) {
+    return (
+      <div className="min-h-[100dvh] w-full bg-[#020509] flex flex-col items-center justify-center p-6 text-center antialiased">
+        <Lock size={40} className="mb-6 text-red-500 stroke-1" />
+        <h1 className="text-xl md:text-2xl font-serif text-[#F8F5EE] uppercase tracking-[0.3em] mb-3">Clearance Denied</h1>
+        <p className="text-[9px] md:text-[10px] font-mono text-[#A6947D]/60 uppercase tracking-[0.3em] max-w-sm leading-relaxed">
+          This secure transmission link is invalid, expired, or the asset has been acquired by another entity.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#000000] text-gray-200 overflow-hidden font-sans selection:bg-[#A6947D]/30 relative antialiased">
+    <div className="min-h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] font-sans flex flex-col md:flex-row selection:bg-[#A6947D]/30 overflow-x-hidden antialiased">
       
-      {/* MASTER SIDEBAR - DESKTOP ONLY */}
-      <aside className="w-[280px] flex-none bg-[#030303] border-r border-gray-900 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-10 left-[-40%] opacity-5 pointer-events-none shrink-0"><Shield size={300} className="text-[#A6947D]" /></div>
-        <div className="p-8 pb-10 relative z-10 flex flex-col items-center border-b border-gray-900 mb-6">
-          <div className="w-10 h-10 border border-[#A6947D]/50 rounded-sm flex items-center justify-center relative mb-5 bg-[#000000] shadow-[0_0_15px_rgba(166,148,125,0.1)]">
-            <Lock size={18} className="text-[#A6947D]"/>
+      {/* Αριστερό Πάνελ: Η Εικόνα του Υλικού - DRAMATIC LIGHTING */}
+      <div className="w-full md:w-1/2 h-[45vh] md:h-screen relative bg-[#01030A] flex-none border-b md:border-b-0 md:border-r border-[#A6947D]/10 overflow-hidden">
+        {slab.image_url ? (
+          <img src={slab.image_url} alt="Secure Asset" className="w-full h-full object-cover grayscale-[10%]" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center"><Lock size={64} className="text-[#A6947D]/20 stroke-1" /></div>
+        )}
+        
+        {/* Σκοτεινό Overlay για αντίθεση */}
+        <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-[#020509] via-[#020509]/40 to-transparent opacity-90"></div>
+        
+        {/* VIP BADGE & BRANDING */}
+        <div className="absolute top-6 left-6 md:top-10 md:left-10 z-20">
+          <div className="flex items-center gap-3 mb-4">
+            <Shield size={20} className="text-[#A6947D]" />
+            <h1 className="text-xl md:text-2xl font-serif uppercase tracking-[0.3em] text-[#F8F5EE]">AXON</h1>
           </div>
-          <h1 className="text-xl font-serif uppercase text-white tracking-[0.3em] font-light leading-none mb-2">AXON</h1>
-          <p className="text-[#A6947D] text-[7px] font-mono uppercase tracking-[0.4em]">Institutional Grade</p>
+          <div className="inline-flex items-center gap-2 text-[8px] md:text-[9px] font-bold uppercase tracking-widest text-amber-400 bg-amber-500/10 backdrop-blur-md px-3 py-2 rounded-lg border border-amber-500/30 shadow-lg">
+            <ShieldCheck size={14} strokeWidth={2} /> Secure VIP Gateway
+          </div>
         </div>
+      </div>
 
-        <nav className="flex-1 px-5 space-y-1.5 relative z-10">
-          <Link href="/dashboard" className="flex items-center gap-4 px-4 py-3.5 text-gray-500 hover:text-white hover:bg-gray-900 rounded-sm text-[10px] font-bold uppercase tracking-[0.2em] transition-all"><BarChart3 size={16} /> Portfolio</Link>
-          <Link href="/trading" className="flex items-center gap-4 px-4 py-3.5 text-gray-500 hover:text-white hover:bg-gray-900 rounded-sm text-[10px] font-bold uppercase tracking-[0.2em] transition-all"><Globe size={16} /> Public Floor</Link>
-          <Link href="/vault" className="flex items-center gap-4 px-4 py-3.5 bg-[#050505] text-[#A6947D] rounded-sm text-[10px] font-bold uppercase tracking-[0.2em] border border-gray-800 shadow-inner"><Lock size={16} /> Private Vault</Link>
-          <Link href="/dashboard/bids" className="flex items-center gap-4 px-4 py-3.5 text-gray-500 hover:text-white hover:bg-gray-900 rounded-sm text-[10px] font-bold uppercase tracking-[0.2em] transition-all"><Gavel size={16} /> My Offers</Link>
-          <Link href="/inbox" className="flex items-center gap-4 px-4 py-3.5 text-gray-500 hover:text-white hover:bg-gray-900 rounded-sm text-[10px] font-bold uppercase tracking-[0.2em] transition-all"><MessageSquare size={16} /> Secure Comms</Link>
-        </nav>
-        <div className="p-6 border-t border-gray-900 relative z-10"><button onClick={handleLogout} className="text-red-500/80 hover:text-red-400 text-[9px] font-bold uppercase tracking-[0.2em] flex items-center gap-3 transition-colors"><LogOut size={16} /> DISCONNECT</button></div>
-      </aside>
-
-      {/* MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#000000] pb-[80px] md:pb-0 custom-scrollbar w-full">
+      {/* Δεξί Πάνελ: Τα Στοιχεία & Το Κλείδωμα - VAULT AESTHETIC */}
+      <div className="w-full md:w-1/2 min-h-[55vh] md:h-screen flex flex-col justify-center p-6 md:p-16 lg:p-24 bg-[#020509] relative overflow-hidden">
         
-        {/* BACKGROUND SUBTLE GRID & ICON */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#111_1px,transparent_1px),linear-gradient(to_bottom,#111_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-30 z-0"></div>
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 z-0 overflow-hidden">
-          <Lock size={600} className="text-gray-700 shrink-0" strokeWidth={1} />
-        </div>
-        
-        <div className="p-5 md:p-12 max-w-6xl mx-auto relative z-10 w-full overflow-x-hidden">
-          
-          <header className="mb-10 animate-in fade-in duration-500">
-            <div className="flex items-center gap-4 mb-4">
-              <Lock className="text-[#A6947D]" size={20} strokeWidth={1.5} />
-              <p className="text-[9px] text-[#A6947D] uppercase tracking-[0.4em] font-mono">Dark Pool Intelligence</p>
-            </div>
-            <h2 className="text-3xl md:text-5xl font-serif uppercase tracking-[0.2em] text-white leading-tight font-light">Private <span className="text-gray-500">Vault</span></h2>
-          </header>
-          
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-24 text-[#A6947D] animate-pulse">
-               <div className="w-10 h-10 border border-[#A6947D]/30 border-t-[#A6947D] rounded-full animate-spin mb-6"></div>
-               <span className="font-mono text-[9px] uppercase tracking-[0.4em]">Accessing Ledger...</span>
-            </div>
-          ) : slabs.length === 0 ? (
-            <div className="py-24 text-center border border-gray-900 rounded-sm bg-[#050505] w-full shadow-2xl">
-              <Package size={32} className="mx-auto text-gray-800 mb-5" strokeWidth={1} />
-              <p className="text-gray-500 uppercase text-[10px] font-mono tracking-[0.3em] px-6">Vault Empty. Digitize off-market assets to store here.</p>
-            </div>
-          ) : (
-            
-            /* ASSET GRID - VAULT LAYOUT */
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6 w-full overflow-hidden pb-10">
-              {slabs.map(slab => (
-                <div key={slab.id} className="bg-[#050505] rounded-sm overflow-hidden border border-gray-900 hover:border-[#A6947D]/50 transition-all duration-500 group flex flex-col shadow-xl relative w-full">
-                  
-                  {/* Lock Badge */}
-                  <div className="absolute top-3 right-3 z-20 bg-black/60 border border-gray-700 px-2.5 py-1.5 rounded-sm backdrop-blur-md">
-                    <Lock size={12} className="text-gray-400" strokeWidth={2} />
-                  </div>
-                  
-                  <Link href={`/trading/${slab.id}`} className="block aspect-[4/3] relative bg-[#020202] overflow-hidden border-b border-gray-900">
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#050505] to-transparent z-10 opacity-80"></div>
-                    {slab.image_url ? (
-                      <img src={slab.image_url} className="w-full h-full object-cover grayscale-[40%] group-hover:grayscale-0 transition-all duration-700 transform group-hover:scale-105" alt="" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center opacity-5"><Package size={48} className="text-gray-500" strokeWidth={1}/></div>
-                    )}
-                  </Link>
-                  
-                  <div className="p-6 flex flex-col flex-1 relative z-10">
-                    <p className="text-[8px] font-mono text-gray-500 uppercase tracking-[0.3em] mb-2">AX-{slab.id.substring(0,8)}</p>
-                    <h3 className="text-base md:text-lg font-serif uppercase mb-6 text-white truncate tracking-widest">{slab.material}</h3>
-                    
-                    <div className="mt-auto flex items-center justify-between pt-5 border-t border-gray-900">
-                      <span className="text-[9px] font-mono text-gray-400 uppercase tracking-[0.3em]">Secured OTC</span>
-                      <Link href={`/trading/${slab.id}`} className="text-[#A6947D] hover:text-white transition-colors group-hover:translate-x-1 duration-300">
-                        <ArrowRight size={16} strokeWidth={1.5} />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
+        {/* GLOW EFFECT */}
+        <div className="absolute top-0 right-0 w-[60%] h-[60%] bg-[#A6947D] rounded-full blur-[180px] opacity-[0.03] pointer-events-none"></div>
 
-      {/* MOBILE NAV - PRECISION INSTRUMENT STYLE */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#020202]/95 backdrop-blur-2xl border-t border-gray-900 px-2 py-2 flex justify-between items-center z-50 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] h-[64px]">
-        <Link href="/dashboard" className="text-gray-600 hover:text-white flex flex-col items-center gap-1 flex-1 transition-colors"><BarChart3 size={20} strokeWidth={1.5} /><span className="text-[7px] font-mono uppercase tracking-[0.2em]">Port</span></Link>
-        <Link href="/trading" className="text-gray-600 hover:text-white flex flex-col items-center gap-1 flex-1 transition-colors"><Globe size={20} strokeWidth={1.5} /><span className="text-[7px] font-mono uppercase tracking-[0.2em]">Floor</span></Link>
-        <Link href="/vault" className="text-[#A6947D] flex flex-col items-center gap-1 flex-1"><Lock size={20} strokeWidth={2} /><span className="text-[7px] font-mono uppercase tracking-[0.2em]">Vault</span></Link>
-        <Link href="/inbox" className="text-gray-600 hover:text-white flex flex-col items-center gap-1 relative flex-1 transition-colors"><MessageSquare size={20} strokeWidth={1.5} /><span className="text-[7px] font-mono uppercase tracking-[0.2em]">Comms</span></Link>
-      </nav>
+        <div className="relative z-10 w-full max-w-lg mx-auto md:mx-0">
+          
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <p className="text-[8px] md:text-[9px] text-[#A6947D] uppercase font-bold tracking-widest mb-4 flex items-center gap-2">
+              <span className="w-8 h-px bg-[#A6947D]/50"></span> Classified Asset
+            </p>
+            <h2 className="text-3xl md:text-5xl font-serif mb-10 text-[#F8F5EE] leading-tight uppercase tracking-wider">{slab.material}</h2>
+          </div>
+          
+          <div className="space-y-6 mb-12 border-y border-[#A6947D]/10 py-8 w-full animate-in fade-in duration-700 delay-100">
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-[#A6947D]/60">Origin Entity</span>
+              <span className="text-xs md:text-sm font-serif uppercase tracking-widest text-[#F8F5EE] truncate text-right">
+                {slab.profiles?.company_name || 'Verified Partner'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center gap-4">
+              <span className="text-[9px] md:text-[10px] font-bold uppercase tracking-widest text-[#A6947D]/60">Valuation</span>
+              <span className="text-xl md:text-3xl font-mono text-[#F8F5EE] tracking-tighter">
+                €{parseInt(slab.price?.toString().replace(/,/g, '') || '0').toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-6 animate-in fade-in duration-700 delay-200">
+            <button 
+              onClick={handleSecureAcquisition}
+              className="w-full h-16 bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all shadow-[0_4px_20px_rgba(166,148,125,0.2)] group"
+            >
+              Authenticate to Acquire <ArrowRight size={16} strokeWidth={2.5} className="group-hover:translate-x-1 transition-transform" />
+            </button>
+            <p className="text-[7px] md:text-[8px] text-[#A6947D]/40 font-bold uppercase tracking-widest text-center leading-relaxed">
+              Institutional encryption active. Funds held securely in <span className="text-[#A6947D]/80">AXON Escrow Ledger</span> until cryptographic delivery confirmation.
+            </p>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   );
 }
