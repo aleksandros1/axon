@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { 
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   LogOut, Building2, ShieldCheck, Gavel, FileSignature, Menu, X, User, Users,
-  UploadCloud, FileText, CheckCircle2, ArrowRight, Package, Ship, Landmark, Activity
+  UploadCloud, FileText, CheckCircle2, ArrowRight, Package, Ship, Landmark, Activity, Loader2
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -23,39 +23,49 @@ export default function DealsVault() {
   const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // ΔΙΑΔΡΑΣΤΙΚΟ DEMO STATE (Για να δεις το action χωρίς να περιμένεις τη βάση)
-  const [deals, setDeals] = useState<any[]>([
-    {
-      id: 'CTR-884A9B2',
-      asset_name: 'Sivec Premium Extra',
-      price: 125000,
-      role: 'vendor', // Είσαι ο πωλητής
-      status: 'funded', // Βήμα 1: Τα λεφτά είναι στο Escrow
-      counterparty: 'Dubai Royal Marble LLC',
-      date: '2026-04-02'
-    },
-    {
-      id: 'CTR-392F1C4',
-      asset_name: 'Thassos Snow White',
-      price: 84000,
-      role: 'buyer', // Είσαι ο αγοραστής
-      status: 'shipped', // Βήμα 2: Ο πωλητής έχει φορτώσει
-      counterparty: 'Pavlidis S.A.',
-      date: '2026-04-01'
-    }
-  ]);
+  // REAL DATA STATE
+  const [deals, setDeals] = useState<any[]>([]);
+  const [isProcessingAction, setIsProcessingAction] = useState<string | null>(null);
 
   useEffect(() => {
-    const init = async () => {
+    const fetchRealDeals = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) setCurrentUser(session.user);
+      if (!session) { router.push('/auth'); return; }
       
-      // Σε κανονικές συνθήκες εδώ τραβάμε από το Supabase:
-      // const { data } = await supabase.from('contracts').select('*').or(`buyer_id.eq.${session.user.id},vendor_id.eq.${session.user.id}`);
-      
-      setTimeout(() => setLoading(false), 800); // Fake loading για το demo
+      setCurrentUser(session.user);
+      const userId = session.user.id;
+
+      // Φέρνουμε πλάκες που ΕΧΟΥΝ αγοραστή (buyer_id is not null) 
+      // και είτε τις πουλάς εσύ (user_id), είτε τις αγόρασες εσύ (buyer_id)
+      const { data: slabsData, error } = await supabase
+        .from('slabs')
+        .select(`
+          id, material, price, user_id, buyer_id, created_at, escrow_status,
+          vendor:profiles!slabs_user_id_fkey(company_name),
+          buyer:profiles!slabs_buyer_id_fkey(company_name)
+        `)
+        .not('buyer_id', 'is', null)
+        .or(`user_id.eq.${userId},buyer_id.eq.${userId}`);
+
+      if (slabsData) {
+        const mappedDeals = slabsData.map((s: any) => {
+          const isVendor = s.user_id === userId;
+          return {
+            id: s.id,
+            asset_name: s.material,
+            price: s.price,
+            role: isVendor ? 'vendor' : 'buyer',
+            status: s.escrow_status || 'funded', // Default 'funded'
+            counterparty: isVendor ? (s.buyer?.company_name || 'Verified Buyer') : (s.vendor?.company_name || 'Verified Vendor'),
+            date: s.created_at
+          };
+        });
+        setDeals(mappedDeals);
+      }
+      setLoading(false);
     };
-    init();
+
+    fetchRealDeals();
   }, []);
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/auth'); };
@@ -64,20 +74,40 @@ export default function DealsVault() {
     return new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
   };
 
-  // ACTIONS ΠΟΥ ΑΛΛΑΖΟΥΝ ΤΟ STATE ΖΩΝΤΑΝΑ ΓΙΑ ΝΑ ΔΕΙΣ ΤΟ UX
-  const handleUploadBoL = (dealId: string) => {
-    setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'shipped' } : d));
+  // REAL DATABASE ACTIONS
+  const handleUploadBoL = async (dealId: string) => {
+    setIsProcessingAction(dealId);
+    // Ενημερώνουμε τη βάση ότι το εμπόρευμα φορτώθηκε
+    const { error } = await supabase.from('slabs').update({ escrow_status: 'shipped' }).eq('id', dealId);
+    
+    if (!error) {
+      setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'shipped' } : d));
+    }
+    setIsProcessingAction(null);
   };
 
-  const handleReleaseFunds = (dealId: string) => {
-    setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'completed' } : d));
+  const handleReleaseFunds = async (dealId: string) => {
+    setIsProcessingAction(dealId);
+    
+    // 1. Ενημερώνουμε τη βάση ότι ολοκληρώθηκε
+    const { error } = await supabase.from('slabs').update({ escrow_status: 'completed' }).eq('id', dealId);
+    
+    if (!error) {
+      // 2. ΕΔΩ ΘΑ ΜΠΕΙ ΤΟ STRIPE BACKEND CALL ΣΤΟ ΜΕΛΛΟΝ:
+      // await fetch('/api/release-funds', { method: 'POST', body: JSON.stringify({ dealId }) });
+      
+      setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'completed' } : d));
+    } else {
+      alert("Error synchronizing ledger.");
+    }
+    setIsProcessingAction(null);
   };
 
   if (loading) {
     return (
       <div className="h-[100dvh] w-full bg-[#020509] flex flex-col items-center justify-center text-[#A6947D] animate-pulse">
         <Shield size={48} className="mb-6 opacity-50" />
-        <p className="font-mono text-[9px] uppercase tracking-[0.4em]">Accessing Secure Vault</p>
+        <p className="font-mono text-[9px] uppercase tracking-[0.4em]">Accessing Secure Ledger</p>
       </div>
     );
   }
@@ -89,7 +119,6 @@ export default function DealsVault() {
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative antialiased">
       
-      {/* --------------------------------------------------------- */}
       {/* EXECUTIVE COMMAND OVERLAY (THE SMART MENU) */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-[100] bg-[#01030A]/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-5 duration-300">
@@ -104,7 +133,7 @@ export default function DealsVault() {
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">Core Modules</p>
             <div className="grid grid-cols-2 gap-4 mb-8">
-              <Link href="/dashboard/bids" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+              <Link href="/dashboard/bids" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
                 <Gavel size={24} className="text-[#A6947D]" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Offers</span>
               </Link>
@@ -112,15 +141,15 @@ export default function DealsVault() {
                 <FileSignature size={24} className="text-[#A6947D]" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Deals Vault</span>
               </Link>
-              <Link href="/scanner" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+              <Link href="/scanner" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
                 <Crosshair size={24} className="text-[#A6947D]" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">AI Scanner</span>
               </Link>
-              <Link href="/network" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+              <Link href="/network" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
                 <Users size={24} className="text-[#A6947D]" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Network</span>
               </Link>
-              <Link href="/me" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner col-span-2">
+              <Link href="/me" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner col-span-2">
                 <User size={24} className="text-[#A6947D]" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Profile Settings</span>
               </Link>
@@ -133,7 +162,6 @@ export default function DealsVault() {
           </div>
         </div>
       )}
-      {/* --------------------------------------------------------- */}
 
       {/* MASTER SIDEBAR - DESKTOP ONLY */}
       <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
@@ -151,7 +179,6 @@ export default function DealsVault() {
         <nav className="flex-1 px-4 space-y-2 relative z-10">
           <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><BarChart3 size={16} /> {t('menu.portfolio')}</Link>
           <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> {t('menu.floor')}</Link>
-          <Link href="/contracts" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><FileSignature size={16} /> Deals Vault</Link>
           <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> {t('menu.network')}</Link>
           <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> {t('menu.comms')}</Link>
         </nav>
@@ -190,7 +217,7 @@ export default function DealsVault() {
             {displayDeals.length === 0 ? (
               <div className="bg-[#01030A] border border-[#A6947D]/10 rounded-2xl p-12 text-center shadow-lg">
                 <FileSignature size={32} className="mx-auto text-[#A6947D]/30 mb-4" />
-                <p className="text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-widest">No contracts in this status.</p>
+                <p className="text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-widest">No active contracts found.</p>
               </div>
             ) : (
               displayDeals.map((deal) => (
@@ -203,7 +230,7 @@ export default function DealsVault() {
                         <span className={`text-[7px] font-bold uppercase tracking-widest px-2 py-1 rounded-md border ${deal.role === 'vendor' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
                           {deal.role === 'vendor' ? 'You are Vendor' : 'You are Buyer'}
                         </span>
-                        <span className="text-[8px] text-[#A6947D]/60 font-mono uppercase tracking-widest">{deal.id}</span>
+                        <span className="text-[8px] text-[#A6947D]/60 font-mono uppercase tracking-widest">AX-{deal.id.substring(0,8)}</span>
                       </div>
                       <h3 className="text-lg md:text-xl font-serif text-[#F8F5EE] uppercase tracking-widest">{deal.asset_name}</h3>
                       <p className="text-[9px] text-[#A6947D]/80 font-bold uppercase tracking-widest mt-1 flex items-center gap-1.5">
@@ -283,14 +310,14 @@ export default function DealsVault() {
 
                     <div className="w-full sm:w-auto">
                       {deal.role === 'vendor' && deal.status === 'funded' && (
-                        <button onClick={() => handleUploadBoL(deal.id)} className="w-full sm:w-auto bg-blue-500 hover:bg-blue-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(59,130,246,0.2)] flex items-center justify-center gap-2">
-                          <UploadCloud size={14} /> Upload BoL
+                        <button onClick={() => handleUploadBoL(deal.id)} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-blue-500 hover:bg-blue-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(59,130,246,0.2)] disabled:opacity-50 flex items-center justify-center gap-2">
+                          {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Upload BoL
                         </button>
                       )}
                       
                       {deal.role === 'buyer' && deal.status === 'shipped' && (
-                        <button onClick={() => handleReleaseFunds(deal.id)} className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2">
-                          <ShieldCheck size={14} /> Release Funds
+                        <button onClick={() => handleReleaseFunds(deal.id)} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(16,185,129,0.2)] disabled:opacity-50 flex items-center justify-center gap-2">
+                          {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Release Funds
                         </button>
                       )}
 
@@ -322,7 +349,7 @@ export default function DealsVault() {
         </div>
       </main>
 
-      {/* MOBILE NAV - 4 BUTTON STRICT BAR W/ RED DOT */}
+      {/* MOBILE NAV */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] w-full">
         <Link href="/dashboard" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Port</span></Link>
         <Link href="/trading" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Floor</span></Link>
