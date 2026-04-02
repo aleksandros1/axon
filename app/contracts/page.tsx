@@ -6,13 +6,13 @@ import { supabase } from '../../lib/supabase';
 import { 
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   LogOut, Building2, ShieldCheck, Gavel, FileSignature, Menu, X, User, Users,
-  UploadCloud, FileText, CheckCircle2, ArrowRight, Package, Ship, Landmark, Activity, Loader2
+  UploadCloud, FileText, CheckCircle2, Activity, Loader2, AlertTriangle, Ship, Landmark
 } from 'lucide-react';
-import Link from 'next/link';
+import Link from 'next/link'; // <--- ΑΥΤΟ ΕΙΧΕ ΣΒΗΣΤΕΙ!
 
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher';
-import InboxBadge from '../components/InboxBadge'; 
+import InboxBadge from '../components/InboxBadge';
 
 export default function DealsVault() {
   const router = useRouter();
@@ -25,6 +25,9 @@ export default function DealsVault() {
 
   const [deals, setDeals] = useState<any[]>([]);
   const [isProcessingAction, setIsProcessingAction] = useState<string | null>(null);
+  
+  // DIAGNOSTIC STATE (Για να δούμε τι ακριβώς φέρνει το Supabase)
+  const [debugData, setDebugData] = useState<any[]>([]);
 
   useEffect(() => {
     fetchRealDeals();
@@ -38,11 +41,10 @@ export default function DealsVault() {
     setCurrentUser(session.user);
     const userId = session.user.id;
 
-    // ΠΙΟ ΑΠΛΟ QUERY ΓΙΑ ΝΑ ΜΗΝ ΥΠΑΡΧΕΙ ΠΕΡΙΠΤΩΣΗ ΣΦΑΛΜΑΤΟΣ ΣΤΑ JOIN
+    // ΠΙΟ ΑΠΛΟ QUERY: Φέρε τα ΠΑΝΤΑ όπου ο χρήστης εμπλέκεται (είτε ως vendor, είτε ως buyer)
     const { data: slabsData, error: slabError } = await supabase
       .from('slabs')
       .select('*')
-      .not('buyer_id', 'is', null)
       .or(`user_id.eq.${userId},buyer_id.eq.${userId}`);
 
     if (slabError) {
@@ -51,27 +53,31 @@ export default function DealsVault() {
       return;
     }
 
-    if (slabsData && slabsData.length > 0) {
-      // Φέρνουμε όλα τα προφίλ για να αντιστοιχίσουμε τα ονόματα των εταιρειών
-      const { data: profiles } = await supabase.from('profiles').select('id, company_name, email');
-      
-      const mappedDeals = slabsData.map((s: any) => {
-        const isVendor = s.user_id === userId;
-        const counterpartyProfile = profiles?.find(p => p.id === (isVendor ? s.buyer_id : s.user_id));
+    if (slabsData) {
+      setDebugData(slabsData); // Αποθηκεύουμε τα raw data για το diagnostic tool
+
+      // Φιλτράρουμε τοπικά με JS (είναι πιο αξιόπιστο) τις πλάκες που έχουν buyer_id
+      const validDealsData = slabsData.filter(s => s.buyer_id && s.buyer_id.toString().trim() !== '');
+
+      if (validDealsData.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('id, company_name, email');
         
-        return {
-          id: s.id,
-          asset_name: s.material,
-          price: s.price,
-          role: isVendor ? 'vendor' : 'buyer',
-          status: s.escrow_status || 'funded',
-          counterparty: counterpartyProfile?.company_name || counterpartyProfile?.email || 'Global Entity',
-          date: s.created_at
-        };
-      });
-      setDeals(mappedDeals);
-    } else {
-      console.log("No deals found for user:", userId);
+        const mappedDeals = validDealsData.map((s: any) => {
+          const isVendor = s.user_id === userId;
+          const counterpartyProfile = profiles?.find(p => p.id === (isVendor ? s.buyer_id : s.user_id));
+          
+          return {
+            id: s.id,
+            asset_name: s.material,
+            price: s.price,
+            role: isVendor ? 'vendor' : 'buyer',
+            status: s.escrow_status || 'funded',
+            counterparty: counterpartyProfile?.company_name || counterpartyProfile?.email || 'Global Entity',
+            date: s.created_at
+          };
+        });
+        setDeals(mappedDeals);
+      }
     }
     setLoading(false);
   };
@@ -210,13 +216,42 @@ export default function DealsVault() {
 
           <div className="space-y-6 md:space-y-8 pb-10">
             {displayDeals.length === 0 ? (
-              <div className="bg-[#01030A] border border-[#A6947D]/10 rounded-2xl p-12 text-center shadow-lg animate-in fade-in duration-700">
-                <FileSignature size={32} className="mx-auto text-[#A6947D]/30 mb-4" />
-                <p className="text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-widest">No active contracts found in ledger.</p>
+              <div className="animate-in fade-in duration-700">
+                <div className="bg-[#01030A] border border-[#A6947D]/10 rounded-2xl p-12 text-center shadow-lg mb-8">
+                  <FileSignature size={32} className="mx-auto text-[#A6947D]/30 mb-4" />
+                  <p className="text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-widest">No active contracts found in ledger.</p>
+                </div>
+
+                {/* DIAGNOSTIC TOOL (Βγαίνει ΜΟΝΟ αν είναι άδειο το vault) */}
+                <div className="bg-[#020509] border border-amber-500/30 rounded-xl p-6 shadow-inner text-left">
+                  <div className="flex items-center gap-2 mb-4 text-amber-500">
+                    <AlertTriangle size={18} />
+                    <h3 className="text-xs font-bold uppercase tracking-widest">Diagnostic Info (Admin Only)</h3>
+                  </div>
+                  <p className="text-[10px] text-gray-400 font-mono mb-4">Αν το Vault είναι άδειο ενώ έχεις βάλει buyer_id, δες τι βλέπει η βάση παρακάτω:</p>
+                  
+                  <div className="space-y-2 mb-6">
+                    <div className="bg-[#01030A] p-3 rounded-lg border border-gray-800 text-[10px] font-mono">
+                      <span className="text-[#A6947D]">Your User ID:</span> <span className="text-emerald-400">{currentUser?.id}</span>
+                    </div>
+                    <div className="bg-[#01030A] p-3 rounded-lg border border-gray-800 text-[10px] font-mono">
+                      <span className="text-[#A6947D]">Total Slabs you own/bought:</span> <span className="text-emerald-400">{debugData.length}</span>
+                    </div>
+                  </div>
+
+                  <div className="max-h-64 overflow-y-auto bg-black p-4 rounded-lg border border-gray-800 text-[9px] font-mono text-blue-300 custom-scrollbar">
+                    {debugData.length === 0 ? (
+                      <p className="text-red-400">Η βάση δεδομένων δεν επέστρεψε καμία απολύτως πλάκα για το ID σου. Έλεγξε το Supabase.</p>
+                    ) : (
+                      <pre>{JSON.stringify(debugData.map(d => ({ id: d.id, material: d.material, user_id: d.user_id, buyer_id: d.buyer_id, escrow_status: d.escrow_status })), null, 2)}</pre>
+                    )}
+                  </div>
+                </div>
               </div>
             ) : (
               displayDeals.map((deal) => (
                 <div key={deal.id} className="bg-[#01030A] border border-[#A6947D]/20 rounded-2xl overflow-hidden shadow-2xl flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  
                   <div className="p-5 md:p-6 border-b border-[#A6947D]/10 bg-[#020509] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                       <div className="flex items-center gap-3 mb-2">
@@ -279,7 +314,7 @@ export default function DealsVault() {
                       )}
 
                       {deal.status === 'completed' && (
-                        <button className="w-full sm:w-auto border border-[#A6947D]/30 text-[#A6947D] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                        <button className="w-full sm:w-auto border border-[#A6947D]/30 text-[#A6947D] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 hover:bg-[#A6947D]/10">
                           <FileText size={14} /> View Invoice
                         </button>
                       )}
