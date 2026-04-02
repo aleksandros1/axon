@@ -1,5 +1,6 @@
 import './globals.css';
 import { LanguageProvider } from '../lib/i18n/LanguageContext';
+import LiveNotifications from './components/LiveNotifications'; // <-- Διορθωμένο Path! (μια τελεία αντί για δύο)
 
 export const metadata = {
   title: 'AXON | Institutional B2B Marketplace',
@@ -21,6 +22,9 @@ export default function RootLayout({
             3. selection: Ενιαίο institutional χρώμα επιλογής κειμένου.
         */}
         <LanguageProvider>
+          {/* ΤΟ ΡΑΝΤΑΡ ΜΑΣ: Τρέχει αθόρυβα σε κάθε σελίδα και πετάει το popup όταν έρθει μήνυμα */}
+          <LiveNotifications />
+          
           {children}
         </LanguageProvider>
       </body>
