@@ -4,288 +4,337 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { 
-  Shield, Globe, FileSignature, Handshake, Ship, 
-  ShieldCheck, CheckCircle2, Clock, ArrowLeft, 
-  History, Activity, FileText, Package, Building2,
-  Lock, Eye, ChevronRight, UploadCloud, AlertOctagon 
+  Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
+  LogOut, Building2, ShieldCheck, Gavel, FileSignature, Menu, X, User, Users,
+  UploadCloud, FileText, CheckCircle2, ArrowRight, Package, Ship, Landmark, Activity
 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function ContractsDashboard() {
+import { useLanguage } from '../../lib/i18n/LanguageContext';
+import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher';
+import InboxBadge from '../components/InboxBadge'; 
+
+export default function DealsVault() {
   const router = useRouter();
+  const { t, language } = useLanguage(); 
+  
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  
-  // State για τα συμβόλαια
-  const [contracts, setContracts] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'completed'>('active');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // ΔΙΑΔΡΑΣΤΙΚΟ DEMO STATE (Για να δεις το action χωρίς να περιμένεις τη βάση)
+  const [deals, setDeals] = useState<any[]>([
+    {
+      id: 'CTR-884A9B2',
+      asset_name: 'Sivec Premium Extra',
+      price: 125000,
+      role: 'vendor', // Είσαι ο πωλητής
+      status: 'funded', // Βήμα 1: Τα λεφτά είναι στο Escrow
+      counterparty: 'Dubai Royal Marble LLC',
+      date: '2026-04-02'
+    },
+    {
+      id: 'CTR-392F1C4',
+      asset_name: 'Thassos Snow White',
+      price: 84000,
+      role: 'buyer', // Είσαι ο αγοραστής
+      status: 'shipped', // Βήμα 2: Ο πωλητής έχει φορτώσει
+      counterparty: 'Pavlidis S.A.',
+      date: '2026-04-01'
+    }
+  ]);
 
   useEffect(() => {
-    const fetchContracts = async () => {
-      setLoading(true);
+    const init = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/auth'); return; }
+      if (session) setCurrentUser(session.user);
       
-      setCurrentUser(session.user);
-
-      // Τραβάμε τα συμβόλαια και τα στοιχεία του αγοραστή, πωλητή και του μαρμάρου
-      const { data, error } = await supabase
-        .from('contracts')
-        .select(`
-          *,
-          slabs ( material, image_url ),
-          buyer:profiles!contracts_buyer_id_fkey ( company_name, email ),
-          vendor:profiles!contracts_vendor_id_fkey ( company_name, email )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching contracts:', error);
-      } else if (data) {
-        setContracts(data);
-      }
+      // Σε κανονικές συνθήκες εδώ τραβάμε από το Supabase:
+      // const { data } = await supabase.from('contracts').select('*').or(`buyer_id.eq.${session.user.id},vendor_id.eq.${session.user.id}`);
       
-      setLoading(false);
+      setTimeout(() => setLoading(false), 800); // Fake loading για το demo
     };
+    init();
+  }, []);
 
-    fetchContracts();
-  }, [router]);
+  const handleLogout = async () => { await supabase.auth.signOut(); router.push('/auth'); };
 
-  const formatCurrency = (amount: string | number) => {
-    const val = typeof amount === 'string' ? parseFloat(amount.replace(/\./g, '').replace(/,/g, '.')) : amount;
-    return new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val || 0);
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
   };
 
-  const formatDate = (isoString: string) => {
-    return new Date(isoString).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+  // ACTIONS ΠΟΥ ΑΛΛΑΖΟΥΝ ΤΟ STATE ΖΩΝΤΑΝΑ ΓΙΑ ΝΑ ΔΕΙΣ ΤΟ UX
+  const handleUploadBoL = (dealId: string) => {
+    setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'shipped' } : d));
   };
 
-  // Φιλτράρισμα Συμβολαίων
-  const activeContracts = contracts.filter(c => ['pending', 'funded', 'shipped'].includes(c.status));
-  const historyContracts = contracts.filter(c => ['released', 'cancelled', 'disputed'].includes(c.status));
-
-  const displayContracts = activeTab === 'active' ? activeContracts : historyContracts;
-
-  // Υπολογισμός Τζίρου Ενεργών Συμβολαίων
-  const totalActiveVolume = activeContracts.reduce((acc, curr) => {
-    const priceString = curr.price?.toString() || '0';
-    const cleanPrice = parseFloat(priceString.replace(/\./g, '').replace(/,/g, '.'));
-    return acc + (cleanPrice || 0);
-  }, 0);
-
-  // Οπτική αναπαράσταση των σταδίων
-  const getStageProgress = (status: string) => {
-    switch (status) {
-      case 'pending': return 1; // Term Sheet Accepted
-      case 'funded': return 2;  // Escrow Funded
-      case 'shipped': return 3; // BL Uploaded
-      case 'released': return 4; // Completed
-      default: return 0;
-    }
+  const handleReleaseFunds = (dealId: string) => {
+    setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'completed' } : d));
   };
+
+  if (loading) {
+    return (
+      <div className="h-[100dvh] w-full bg-[#020509] flex flex-col items-center justify-center text-[#A6947D] animate-pulse">
+        <Shield size={48} className="mb-6 opacity-50" />
+        <p className="font-mono text-[9px] uppercase tracking-[0.4em]">Accessing Secure Vault</p>
+      </div>
+    );
+  }
+
+  const activeDeals = deals.filter(d => d.status !== 'completed');
+  const completedDeals = deals.filter(d => d.status === 'completed');
+  const displayDeals = activeTab === 'active' ? activeDeals : completedDeals;
 
   return (
-    <div className="min-h-[100dvh] w-full bg-[#000000] text-gray-200 font-sans selection:bg-[#A6947D]/30 relative pb-20 md:pb-0 overflow-x-hidden antialiased">
+    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative antialiased">
       
-      {/* BACKGROUND GRID & WATERMARK */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#111_1px,transparent_1px),linear-gradient(to_bottom,#111_1px,transparent_1px)] bg-[size:40px_40px] pointer-events-none opacity-30 z-0"></div>
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-5 z-0 overflow-hidden">
-        <FileSignature size={800} className="text-[#A6947D] shrink-0" strokeWidth={1} />
-      </div>
-      
-      {/* TOP NAVIGATION - INSTITUTIONAL LAYOUT */}
-      <nav className="relative z-20 border-b border-gray-900 bg-[#020202]/90 backdrop-blur-xl sticky top-0 w-full pt-8 pb-6">
-        <div className="max-w-6xl mx-auto px-5 md:px-12 flex items-center justify-between">
-          <div className="flex items-center gap-5 md:gap-8">
-            <Link href="/dashboard" className="w-10 h-10 border border-gray-800 rounded-sm flex items-center justify-center text-gray-500 hover:text-white transition-colors bg-[#050505] shadow-inner group">
-              <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" strokeWidth={1.5} />
-            </Link>
-            <div className="flex items-center gap-4">
-              <Lock size={20} className="text-[#A6947D] hidden sm:block" strokeWidth={1.5} />
-              <div>
-                <h1 className="text-xl md:text-2xl font-serif uppercase tracking-[0.2em] text-white leading-none mb-1.5">Escrow Contracts</h1>
-                <p className="text-gray-500 text-[8px] md:text-[9px] font-mono uppercase tracking-[0.4em]">Smart Ledger Protocol</p>
-              </div>
+      {/* --------------------------------------------------------- */}
+      {/* EXECUTIVE COMMAND OVERLAY (THE SMART MENU) */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-[100] bg-[#01030A]/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-5 duration-300">
+          <div className="flex justify-between items-center p-6 border-b border-[#A6947D]/20 bg-[#020509]">
+            <div className="flex items-center gap-3">
+              <Shield size={20} className="text-[#A6947D]" />
+              <h2 className="text-lg font-serif uppercase tracking-[0.3em] text-[#F8F5EE]">Command Center</h2>
             </div>
+            <button onClick={() => setIsMobileMenuOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 p-2"><X size={24} /></button>
           </div>
-          <div className="text-right">
-            <p className="text-[7px] md:text-[9px] text-gray-500 uppercase font-mono tracking-[0.3em] mb-1.5">Active Volume</p>
-            <p className="text-lg md:text-2xl font-mono text-[#A6947D] tracking-widest">{formatCurrency(totalActiveVolume)}</p>
+          
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">Core Modules</p>
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <Link href="/dashboard/bids" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                <Gavel size={24} className="text-[#A6947D]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Offers</span>
+              </Link>
+              <Link href="/contracts" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#A6947D]/10 border border-[#A6947D]/30 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/20 transition-colors shadow-inner">
+                <FileSignature size={24} className="text-[#A6947D]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Deals Vault</span>
+              </Link>
+              <Link href="/scanner" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                <Crosshair size={24} className="text-[#A6947D]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">AI Scanner</span>
+              </Link>
+              <Link href="/network" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                <Users size={24} className="text-[#A6947D]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Network</span>
+              </Link>
+              <Link href="/me" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner col-span-2">
+                <User size={24} className="text-[#A6947D]" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Profile Settings</span>
+              </Link>
+            </div>
+
+            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">System</p>
+            <button onClick={handleLogout} className="w-full bg-[#020509] border border-red-900/30 text-red-500 p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px] tracking-widest">
+              <LogOut size={16} /> Disconnect Session
+            </button>
           </div>
         </div>
-      </nav>
+      )}
+      {/* --------------------------------------------------------- */}
 
-      <main className="max-w-6xl mx-auto px-5 md:px-12 py-10 md:py-16 relative z-10 w-full overflow-x-hidden">
+      {/* MASTER SIDEBAR - DESKTOP ONLY */}
+      <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none shrink-0"><Shield size={300} className="text-[#A6947D]" /></div>
+        <div className="p-8 pb-10 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
+          <div className="w-12 h-12 border border-[#A6947D]/30 rounded-full flex items-center justify-center relative mb-4 bg-[#01030A] shadow-[0_0_15px_rgba(166,148,125,0.05)]">
+            <FileSignature size={20} className="text-[#A6947D]"/>
+          </div>
+          <h1 className="text-2xl font-serif uppercase text-[#F8F5EE] tracking-[0.2em] font-light leading-none mb-2">AXON</h1>
+          <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">{t('common.institutional_grade')}</p>
+        </div>
+
+        <SidebarLanguageSwitcher />
+
+        <nav className="flex-1 px-4 space-y-2 relative z-10">
+          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><BarChart3 size={16} /> {t('menu.portfolio')}</Link>
+          <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> {t('menu.floor')}</Link>
+          <Link href="/contracts" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><FileSignature size={16} /> Deals Vault</Link>
+          <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> {t('menu.network')}</Link>
+          <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> {t('menu.comms')}</Link>
+        </nav>
+        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-colors"><LogOut size={16} /> {t('common.disconnect')}</button></div>
+      </aside>
+
+      {/* MAIN CONTENT */}
+      <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020509] pb-[80px] md:pb-0 custom-scrollbar w-full">
         
-        {/* TABS - SHARP GEOMETRY */}
-        <div className="flex gap-8 border-b border-gray-900 mb-10 overflow-x-auto no-scrollbar pb-px">
-          <button 
-            onClick={() => setActiveTab('active')} 
-            className={`pb-5 px-1 text-[9px] md:text-[10px] font-mono uppercase tracking-[0.3em] flex items-center gap-3 transition-all whitespace-nowrap ${activeTab === 'active' ? 'text-[#A6947D] border-b-2 border-[#A6947D]' : 'text-gray-600 hover:text-gray-400'}`}
-          >
-            <Activity size={14} strokeWidth={1.5}/> Active Deals 
-            <span className={`px-2.5 py-1 rounded-sm text-[8px] font-mono border ${activeTab === 'active' ? 'bg-[#A6947D]/10 border-[#A6947D]/30 text-[#A6947D]' : 'bg-gray-900 border-gray-800 text-gray-500'}`}>
-              {activeContracts.length}
-            </span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('history')} 
-            className={`pb-5 px-1 text-[9px] md:text-[10px] font-mono uppercase tracking-[0.3em] flex items-center gap-3 transition-all whitespace-nowrap ${activeTab === 'history' ? 'text-[#A6947D] border-b-2 border-[#A6947D]' : 'text-gray-600 hover:text-gray-400'}`}
-          >
-            <History size={14} strokeWidth={1.5}/> Settled / History
-          </button>
+        {/* BACKGROUND SUBTLE WATERMARK */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0 overflow-hidden">
+          <FileSignature size={800} className="text-[#A6947D] shrink-0" />
         </div>
+        
+        <div className="p-4 md:p-12 max-w-5xl mx-auto relative z-10 w-full overflow-x-hidden">
+          
+          <header className="mb-8 md:mb-12 animate-in fade-in duration-500">
+            <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
+              <span className="h-px w-6 md:w-8 bg-[#A6947D]/30"></span>
+              <p className="text-[8px] md:text-[10px] text-[#A6947D] uppercase tracking-[0.2em] font-mono flex items-center gap-2">Escrow Execution Ledger</p>
+            </div>
+            <h2 className="text-3xl md:text-5xl font-serif text-[#F8F5EE] uppercase truncate font-light tracking-wide mb-6">Deals Vault</h2>
+            
+            {/* TABS */}
+            <div className="flex gap-4 md:gap-8 border-b border-[#A6947D]/10">
+              <button onClick={() => setActiveTab('active')} className={`pb-4 text-[9px] md:text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all ${activeTab === 'active' ? 'text-[#A6947D] border-b-2 border-[#A6947D]' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}>
+                <Activity size={14} /> Active Deals <span className="bg-[#A6947D]/20 text-[#A6947D] px-2 py-0.5 rounded-lg ml-1">{activeDeals.length}</span>
+              </button>
+              <button onClick={() => setActiveTab('completed')} className={`pb-4 text-[9px] md:text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all ${activeTab === 'completed' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}>
+                <CheckCircle2 size={14} /> Settled <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-lg ml-1">{completedDeals.length}</span>
+              </button>
+            </div>
+          </header>
 
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 text-[#A6947D] animate-pulse">
-            <div className="w-12 h-12 border-[0.5px] border-[#A6947D]/30 border-t-[#A6947D] rounded-full animate-spin mb-6"></div>
-            <p className="text-[9px] uppercase font-mono tracking-[0.4em]">Querying Secure Ledger</p>
-          </div>
-        ) : displayContracts.length === 0 ? (
-          <div className="bg-[#050505] border border-gray-900 rounded-sm p-16 md:p-32 text-center flex flex-col items-center w-full shadow-2xl">
-            <div className="w-20 h-20 rounded-full border border-gray-800 flex items-center justify-center mb-8 bg-[#020202] shadow-inner"><FileSignature size={32} className="text-gray-700 stroke-1" /></div>
-            <h3 className="text-xl md:text-2xl font-serif text-white uppercase tracking-[0.3em] mb-4">No {activeTab === 'active' ? 'Active' : 'Settled'} Contracts</h3>
-            <p className="text-[10px] md:text-[11px] text-gray-500 font-mono uppercase tracking-[0.3em] max-w-md">
-              {activeTab === 'active' 
-                ? "Initiate a deal from the trading floor to establish a contract." 
-                : "Your historical ledger is empty."}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-8 md:space-y-12 w-full animate-in fade-in duration-500 delay-100">
-            {displayContracts.map((contract) => {
-              const stage = getStageProgress(contract.status);
-              const isBuyer = contract.buyer_id === currentUser?.id;
-              const counterparty = isBuyer ? contract.vendor : contract.buyer;
-
-              return (
-                <div key={contract.id} className="bg-[#050505] border border-gray-900 rounded-sm overflow-hidden shadow-2xl relative w-full group hover:border-[#A6947D]/50 transition-colors">
+          <div className="space-y-6 md:space-y-8 pb-10">
+            {displayDeals.length === 0 ? (
+              <div className="bg-[#01030A] border border-[#A6947D]/10 rounded-2xl p-12 text-center shadow-lg">
+                <FileSignature size={32} className="mx-auto text-[#A6947D]/30 mb-4" />
+                <p className="text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-widest">No contracts in this status.</p>
+              </div>
+            ) : (
+              displayDeals.map((deal) => (
+                <div key={deal.id} className="bg-[#01030A] border border-[#A6947D]/20 rounded-2xl overflow-hidden shadow-2xl flex flex-col w-full animate-in fade-in slide-in-from-bottom-4 duration-500">
                   
-                  {/* Status Indicator Bar */}
-                  <div className="absolute top-0 left-0 w-1.5 h-full bg-[#020509]">
-                    <div className={`w-full h-full transition-all duration-1000 ${stage === 4 ? 'bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.5)]' : 'bg-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.5)]'}`}></div>
+                  {/* HEADER CARD */}
+                  <div className="p-5 md:p-6 border-b border-[#A6947D]/10 bg-[#020509] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className={`text-[7px] font-bold uppercase tracking-widest px-2 py-1 rounded-md border ${deal.role === 'vendor' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
+                          {deal.role === 'vendor' ? 'You are Vendor' : 'You are Buyer'}
+                        </span>
+                        <span className="text-[8px] text-[#A6947D]/60 font-mono uppercase tracking-widest">{deal.id}</span>
+                      </div>
+                      <h3 className="text-lg md:text-xl font-serif text-[#F8F5EE] uppercase tracking-widest">{deal.asset_name}</h3>
+                      <p className="text-[9px] text-[#A6947D]/80 font-bold uppercase tracking-widest mt-1 flex items-center gap-1.5">
+                        <Building2 size={12}/> Counterparty: <span className="text-[#F8F5EE]">{deal.counterparty}</span>
+                      </p>
+                    </div>
+                    <div className="text-left md:text-right">
+                      <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Contract Value</p>
+                      <p className="text-2xl font-mono text-[#F8F5EE] tracking-tighter">{formatCurrency(deal.price)}</p>
+                    </div>
                   </div>
 
-                  <div className="p-6 md:p-10 pl-8 md:pl-12 w-full">
-                    <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-8 mb-10 border-b border-gray-900 pb-8">
-                      <div className="flex-1 w-full overflow-hidden">
-                        <div className="flex flex-wrap items-center gap-4 mb-4">
-                          <span className={`px-3 py-1.5 rounded-sm text-[8px] font-mono uppercase tracking-[0.3em] border shadow-inner ${stage === 4 ? 'bg-emerald-950/30 border-emerald-900/50 text-emerald-500' : 'bg-amber-950/30 border-amber-900/50 text-amber-500'}`}>
-                            {stage === 4 ? 'Contract Settled' : 'Active Deal'}
-                          </span>
-                          <span className="text-[9px] font-mono text-gray-500 uppercase flex items-center gap-2 tracking-[0.2em]"><Clock size={12} className="text-[#A6947D]"/> {formatDate(contract.created_at)}</span>
-                        </div>
-                        <h2 className="text-xl md:text-3xl font-serif uppercase tracking-widest text-white truncate max-w-[280px] md:max-w-none mb-2">{contract.slabs?.material || 'Premium Asset'}</h2>
-                        <p className="text-[9px] text-[#A6947D] font-mono tracking-[0.3em] uppercase">AX-{contract.id.substring(0,8)}</p>
-                      </div>
-
-                      <div className="bg-[#020202] border border-gray-800 rounded-sm p-5 md:p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5 md:gap-8 shadow-inner w-full xl:w-auto flex-none">
-                        <div className="flex-1 min-w-[120px]">
-                          <p className="text-[8px] text-gray-500 uppercase font-mono tracking-[0.3em] mb-2">{isBuyer ? 'Vendor Entity' : 'Buyer Entity'}</p>
-                          <p className="text-xs md:text-sm font-serif uppercase text-white flex items-center gap-2 truncate tracking-widest"><Building2 size={12} className="text-gray-600"/> {counterparty?.company_name || 'Verified Entity'}</p>
-                        </div>
-                        <div className="hidden sm:block h-10 w-px bg-gray-800 mx-2"></div>
-                        <div className="mt-4 sm:mt-0 w-full sm:w-auto border-t sm:border-t-0 border-gray-800 pt-4 sm:pt-0">
-                          <p className="text-[8px] text-gray-500 uppercase font-mono tracking-[0.3em] mb-2">Contract Value</p>
-                          <p className="text-xl md:text-2xl font-mono text-white tracking-widest">{formatCurrency(contract.price)}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* PROGRESS BAR - HIGH TECH */}
-                    <div className="mb-10 w-full">
-                      <p className="text-[9px] text-[#A6947D] font-mono uppercase tracking-[0.4em] mb-8 border-l-2 border-[#A6947D] pl-3">Execution Status</p>
+                  {/* 4-STEP PROTOCOL VISUALIZATION */}
+                  <div className="p-6 md:p-8 bg-[#01030A]">
+                    <div className="relative">
+                      {/* Tracking Line */}
+                      <div className="absolute top-4 left-4 right-4 h-0.5 bg-[#020509] border-t border-[#A6947D]/10 z-0"></div>
                       
-                      <div className="relative mt-8 md:mt-12 px-2 md:px-8 w-full max-w-4xl mx-auto">
-                        {/* Base Line */}
-                        <div className="absolute top-[19px] left-[5%] right-[5%] h-px bg-gray-900"></div>
-                        {/* Active Line */}
-                        <div className="absolute top-[19px] left-[5%] h-px bg-emerald-500 shadow-[0_0_10px_#10b981] transition-all duration-1000" style={{ width: `calc(${(stage / 4) * 90}%)` }}></div>
-                        
-                        <div className="relative z-10 flex justify-between w-full">
-                          
-                          {/* Point 1: Term Sheet */}
-                          <div className="flex flex-col items-center gap-4 relative">
-                            <div className={`w-10 h-10 rounded-sm flex items-center justify-center border transition-all duration-500 bg-[#020202] ${stage >= 1 ? 'border-emerald-500 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'border-gray-800 text-gray-600'}`}>
-                              <FileText size={16} strokeWidth={stage >= 1 ? 2 : 1.5} />
-                            </div>
-                            <div className="text-center absolute top-14 w-32 left-1/2 -translate-x-1/2 hidden sm:block">
-                              <p className={`text-[9px] font-bold uppercase tracking-[0.2em] mb-1 ${stage >= 1 ? 'text-white' : 'text-gray-600'}`}>Term Sheet</p>
-                              <p className="text-[8px] font-mono text-gray-500 uppercase tracking-widest">Accepted</p>
-                            </div>
+                      <div className="flex justify-between relative z-10">
+                        {/* Step 1: Locked */}
+                        <div className="flex flex-col items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${deal.status === 'funded' || deal.status === 'shipped' || deal.status === 'completed' ? 'bg-amber-500 text-[#020509] border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-[#020509] text-[#A6947D]/40 border-[#A6947D]/20'}`}>
+                            <Lock size={14} />
                           </div>
+                          <span className="text-[7px] md:text-[8px] font-bold uppercase tracking-widest text-center text-[#A6947D]">Funds<br/>Locked</span>
+                        </div>
 
-                          {/* Point 2: Escrow */}
-                          <div className="flex flex-col items-center gap-4 relative">
-                            <div className={`w-10 h-10 rounded-sm flex items-center justify-center border transition-all duration-500 bg-[#020202] ${stage >= 2 ? 'border-emerald-500 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'border-gray-800 text-gray-600'}`}>
-                              <ShieldCheck size={16} strokeWidth={stage >= 2 ? 2 : 1.5} />
-                            </div>
-                            <div className="text-center absolute top-14 w-32 left-1/2 -translate-x-1/2 hidden sm:block">
-                              <p className={`text-[9px] font-bold uppercase tracking-[0.2em] mb-1 ${stage >= 2 ? 'text-white' : 'text-gray-600'}`}>Escrow</p>
-                              <p className="text-[8px] font-mono text-gray-500 uppercase tracking-widest">{contract.deposit_percentage}% Funded</p>
-                            </div>
+                        {/* Step 2: BoL */}
+                        <div className="flex flex-col items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${deal.status === 'shipped' || deal.status === 'completed' ? 'bg-blue-500 text-[#020509] border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'bg-[#020509] text-[#A6947D]/40 border-[#A6947D]/20'}`}>
+                            <Ship size={14} />
                           </div>
+                          <span className="text-[7px] md:text-[8px] font-bold uppercase tracking-widest text-center text-[#A6947D]">Logistics<br/>(BoL)</span>
+                        </div>
 
-                          {/* Point 3: Logistics */}
-                          <div className="flex flex-col items-center gap-4 relative">
-                            <div className={`w-10 h-10 rounded-sm flex items-center justify-center border transition-all duration-500 bg-[#020202] ${stage >= 3 ? 'border-emerald-500 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'border-gray-800 text-gray-600'}`}>
-                              <Ship size={16} strokeWidth={stage >= 3 ? 2 : 1.5} />
-                            </div>
-                            <div className="text-center absolute top-14 w-32 left-1/2 -translate-x-1/2 hidden sm:block">
-                              <p className={`text-[9px] font-bold uppercase tracking-[0.2em] mb-1 ${stage >= 3 ? 'text-white' : 'text-gray-600'}`}>Logistics</p>
-                              <p className="text-[8px] font-mono text-gray-500 uppercase tracking-widest">{contract.incoterms} Terms</p>
-                            </div>
+                        {/* Step 3: Verified */}
+                        <div className="flex flex-col items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${deal.status === 'completed' ? 'bg-emerald-500 text-[#020509] border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-[#020509] text-[#A6947D]/40 border-[#A6947D]/20'}`}>
+                            <ShieldCheck size={14} />
                           </div>
+                          <span className="text-[7px] md:text-[8px] font-bold uppercase tracking-widest text-center text-[#A6947D]">Buyer<br/>Verified</span>
+                        </div>
 
-                          {/* Point 4: Settlement */}
-                          <div className="flex flex-col items-center gap-4 relative">
-                            <div className={`w-10 h-10 rounded-sm flex items-center justify-center border transition-all duration-500 bg-[#020202] ${stage >= 4 ? 'border-emerald-500 text-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : 'border-gray-800 text-gray-600'}`}>
-                              <Handshake size={16} strokeWidth={stage >= 4 ? 2 : 1.5} />
-                            </div>
-                            <div className="text-center absolute top-14 w-32 left-1/2 -translate-x-1/2 hidden sm:block">
-                              <p className={`text-[9px] font-bold uppercase tracking-[0.2em] mb-1 ${stage >= 4 ? 'text-emerald-400' : 'text-gray-600'}`}>Released</p>
-                              <p className="text-[8px] font-mono text-gray-500 uppercase tracking-widest">Settlement</p>
-                            </div>
+                        {/* Step 4: Settled */}
+                        <div className="flex flex-col items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 ${deal.status === 'completed' ? 'bg-emerald-500 text-[#020509] border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-[#020509] text-[#A6947D]/40 border-[#A6947D]/20'}`}>
+                            <Landmark size={14} />
                           </div>
-
+                          <span className="text-[7px] md:text-[8px] font-bold uppercase tracking-widest text-center text-[#A6947D]">Funds<br/>Settled</span>
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* DYNAMIC ACTION AREA */}
+                  <div className="p-5 md:p-6 bg-[#020509] border-t border-[#A6947D]/10 flex flex-col sm:flex-row items-center justify-between gap-4">
                     
-                    <div className="h-8 sm:h-12 w-full"></div> {/* Spacing for absolute text */}
+                    <div className="w-full sm:w-auto">
+                      {deal.status === 'funded' && (
+                        <p className="text-[9px] text-amber-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                          Awaiting {deal.role === 'vendor' ? 'Your Shipment' : 'Vendor Shipment'}
+                        </p>
+                      )}
+                      {deal.status === 'shipped' && (
+                        <p className="text-[9px] text-blue-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                          Awaiting {deal.role === 'buyer' ? 'Your Verification' : 'Buyer Verification'}
+                        </p>
+                      )}
+                      {deal.status === 'completed' && (
+                        <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                          <CheckCircle2 size={12} /> Transaction Settled Successfully
+                        </p>
+                      )}
+                    </div>
 
-                    {/* CONTRACT DETAILS FOOTER */}
-                    <div className="bg-[#020202] border border-gray-900 rounded-sm p-6 flex flex-col md:flex-row justify-between items-center gap-6 w-full shadow-inner mt-4">
-                      <div className="flex flex-wrap items-center gap-6 md:gap-10 w-full md:w-auto">
-                        <div>
-                          <p className="text-[8px] text-gray-500 uppercase font-mono tracking-[0.3em] mb-2">Logistics</p>
-                          <p className="text-[11px] font-mono text-white bg-[#050505] px-3 py-1.5 rounded-sm border border-gray-800 tracking-widest">{contract.incoterms}</p>
-                        </div>
-                        <div>
-                          <p className="text-[8px] text-gray-500 uppercase font-mono tracking-[0.3em] mb-2">Inspection</p>
-                          <p className="text-[11px] font-mono text-white tracking-widest bg-[#050505] px-3 py-1.5 rounded-sm border border-gray-800">{contract.inspection_days} Days</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex gap-4 w-full md:w-auto">
-                        <button className="flex-1 md:flex-none h-12 bg-[#050505] border border-gray-800 text-white hover:border-[#A6947D]/50 hover:bg-[#A6947D]/5 px-6 rounded-sm text-[9px] font-mono uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3">
-                          <Eye size={14} strokeWidth={1.5} className="text-[#A6947D]"/> Docs
+                    <div className="w-full sm:w-auto">
+                      {deal.role === 'vendor' && deal.status === 'funded' && (
+                        <button onClick={() => handleUploadBoL(deal.id)} className="w-full sm:w-auto bg-blue-500 hover:bg-blue-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(59,130,246,0.2)] flex items-center justify-center gap-2">
+                          <UploadCloud size={14} /> Upload BoL
                         </button>
-                        {stage < 4 && !isBuyer && (
-                          <button className="flex-1 md:flex-none h-12 bg-white text-black hover:bg-gray-200 px-6 rounded-sm text-[9px] font-extrabold uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
-                            <UploadCloud size={14} strokeWidth={2}/> Upload B/L
-                          </button>
-                        )}
-                      </div>
+                      )}
+                      
+                      {deal.role === 'buyer' && deal.status === 'shipped' && (
+                        <button onClick={() => handleReleaseFunds(deal.id)} className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(16,185,129,0.2)] flex items-center justify-center gap-2">
+                          <ShieldCheck size={14} /> Release Funds
+                        </button>
+                      )}
+
+                      {deal.status === 'completed' && (
+                        <button className="w-full sm:w-auto border border-[#A6947D]/30 text-[#A6947D] hover:bg-[#A6947D]/10 px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                          <FileText size={14} /> View Invoice
+                        </button>
+                      )}
+
+                      {/* Disabled states for waiting parties */}
+                      {deal.role === 'buyer' && deal.status === 'funded' && (
+                        <div className="px-6 py-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-500/60 text-[9px] font-bold uppercase tracking-widest text-center cursor-not-allowed">
+                          Vendor Action Pending
+                        </div>
+                      )}
+                      {deal.role === 'vendor' && deal.status === 'shipped' && (
+                        <div className="px-6 py-3.5 rounded-xl border border-blue-500/20 bg-blue-500/5 text-blue-500/60 text-[9px] font-bold uppercase tracking-widest text-center cursor-not-allowed">
+                          Buyer Action Pending
+                        </div>
+                      )}
                     </div>
 
                   </div>
+
                 </div>
-              );
-            })}
+              ))
+            )}
           </div>
-        )}
+        </div>
       </main>
+
+      {/* MOBILE NAV - 4 BUTTON STRICT BAR W/ RED DOT */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] w-full">
+        <Link href="/dashboard" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Port</span></Link>
+        <Link href="/trading" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Floor</span></Link>
+        <Link href="/inbox" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 relative flex-1 transition-colors">
+          <div className="relative inline-flex">
+            <MessageSquare size={20} />
+            <InboxBadge />
+          </div>
+          <span className="text-[8px] uppercase font-bold tracking-widest">Comms</span>
+        </Link>
+        <button onClick={() => setIsMobileMenuOpen(true)} className="text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Menu size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Menu</span></button>
+      </nav>
     </div>
   );
 }
