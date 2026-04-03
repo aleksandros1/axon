@@ -39,37 +39,40 @@ export default function DealsVault() {
     setCurrentUser(session.user);
     const userId = session.user.id;
 
-    const { data: slabsData, error: slabError } = await supabase
-      .from('slabs')
+    // --- ΝΕΟ: Διαβάζουμε ΠΛΕΟΝ τον επίσημο πίνακα 'contracts' που φτιάχνει το Inbox! ---
+    const { data: contractsData, error: contractError } = await supabase
+      .from('contracts')
       .select('*')
-      .or(`user_id.eq.${userId},buyer_id.eq.${userId}`);
+      .or(`buyer_id.eq.${userId},vendor_id.eq.${userId}`);
 
-    if (slabError) {
-      console.error("Supabase Error:", slabError);
+    if (contractError) {
+      console.error("Supabase Error:", contractError);
       setLoading(false);
       return;
     }
 
-    if (slabsData) {
-      setDebugData(slabsData);
-      const validDealsData = slabsData.filter(s => s.buyer_id && s.buyer_id.toString().trim() !== '');
+    if (contractsData) {
+      setDebugData(contractsData); // Για το Diagnostic Tool
 
-      if (validDealsData.length > 0) {
+      if (contractsData.length > 0) {
+        // Φέρνουμε ονόματα χρηστών και πλακών (Safe Manual Join)
         const { data: profiles } = await supabase.from('profiles').select('id, company_name, email');
+        const { data: slabs } = await supabase.from('slabs').select('id, material');
         
-        const mappedDeals = validDealsData.map((s: any) => {
-          const isVendor = s.user_id === userId;
-          const counterpartyProfile = profiles?.find(p => p.id === (isVendor ? s.buyer_id : s.user_id));
+        const mappedDeals = contractsData.map((c: any) => {
+          const isVendor = c.vendor_id === userId;
+          const counterpartyProfile = profiles?.find(p => p.id === (isVendor ? c.buyer_id : c.vendor_id));
+          const assetInfo = slabs?.find(s => s.id === c.asset_id);
           
           return {
-            id: s.id,
-            asset_name: s.material,
-            price: s.price,
+            id: c.id,
+            asset_name: assetInfo?.material || 'Institutional Asset',
+            price: c.price,
             role: isVendor ? 'vendor' : 'buyer',
-            status: s.escrow_status || 'funded',
-            counterparty: counterpartyProfile?.company_name || counterpartyProfile?.email || 'Global Entity',
-            date: s.created_at,
-            bol_url: s.bol_url // ΝΕΟ: Τραβάμε το link της φορτωτικής
+            status: c.status === 'pending' ? 'funded' : c.status, // To pending του Inbox το δείχνουμε ως funded
+            counterparty: counterpartyProfile?.company_name || counterpartyProfile?.email || 'Verified Entity',
+            date: c.created_at,
+            bol_url: c.bol_url 
           };
         });
         setDeals(mappedDeals);
@@ -94,25 +97,22 @@ export default function DealsVault() {
       const fileExt = file.name.split('.').pop();
       const fileName = `bol_${dealId}_${Math.random()}.${fileExt}`;
 
-      // 1. Ανέβασμα στο Supabase Storage (στον bucket 'contracts')
       const { error: uploadError } = await supabase.storage
         .from('contracts')
         .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
-      // 2. Πάρε το δημόσιο URL του αρχείου
       const { data: { publicUrl } } = supabase.storage.from('contracts').getPublicUrl(fileName);
 
-      // 3. Ενημέρωσε το συμβόλαιο στη βάση
-      const { error: dbError } = await supabase.from('slabs').update({
-        escrow_status: 'shipped',
+      // ΕΝΗΜΕΡΩΣΗ ΤΟΥ 'contracts' table
+      const { error: dbError } = await supabase.from('contracts').update({
+        status: 'shipped',
         bol_url: publicUrl
       }).eq('id', dealId);
 
       if (dbError) throw dbError;
 
-      // 4. Ενημέρωσε την οθόνη μας
       setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'shipped', bol_url: publicUrl } : d));
 
     } catch (err: any) {
@@ -125,7 +125,8 @@ export default function DealsVault() {
 
   const handleReleaseFunds = async (dealId: string) => {
     setIsProcessingAction(dealId);
-    const { error } = await supabase.from('slabs').update({ escrow_status: 'completed' }).eq('id', dealId);
+    // ΕΝΗΜΕΡΩΣΗ ΤΟΥ 'contracts' table
+    const { error } = await supabase.from('contracts').update({ status: 'completed' }).eq('id', dealId);
     if (!error) {
       setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'completed' } : d));
     }
@@ -254,22 +255,22 @@ export default function DealsVault() {
                     <AlertTriangle size={18} />
                     <h3 className="text-xs font-bold uppercase tracking-widest">Diagnostic Info (Admin Only)</h3>
                   </div>
-                  <p className="text-[10px] text-gray-400 font-mono mb-4">Αν το Vault είναι άδειο ενώ έχεις βάλει buyer_id, δες τι βλέπει η βάση παρακάτω:</p>
+                  <p className="text-[10px] text-gray-400 font-mono mb-4">Official Contracts Table Data:</p>
                   
                   <div className="space-y-2 mb-6">
                     <div className="bg-[#01030A] p-3 rounded-lg border border-gray-800 text-[10px] font-mono">
                       <span className="text-[#A6947D]">Your User ID:</span> <span className="text-emerald-400">{currentUser?.id}</span>
                     </div>
                     <div className="bg-[#01030A] p-3 rounded-lg border border-gray-800 text-[10px] font-mono">
-                      <span className="text-[#A6947D]">Total Slabs you own/bought:</span> <span className="text-emerald-400">{debugData.length}</span>
+                      <span className="text-[#A6947D]">Total Official Contracts:</span> <span className="text-emerald-400">{debugData.length}</span>
                     </div>
                   </div>
 
                   <div className="max-h-64 overflow-y-auto bg-black p-4 rounded-lg border border-gray-800 text-[9px] font-mono text-blue-300 custom-scrollbar">
                     {debugData.length === 0 ? (
-                      <p className="text-red-400">Η βάση δεδομένων δεν επέστρεψε καμία απολύτως πλάκα για το ID σου. Έλεγξε το Supabase.</p>
+                      <p className="text-red-400">Δεν βρέθηκε κανένα deal στον επίσημο πίνακα 'contracts'. Αν έκλεισες deal στο Inbox, βεβαιώσου ότι έγινε σωστά!</p>
                     ) : (
-                      <pre>{JSON.stringify(debugData.map(d => ({ id: d.id, material: d.material, user_id: d.user_id, buyer_id: d.buyer_id, escrow_status: d.escrow_status })), null, 2)}</pre>
+                      <pre>{JSON.stringify(debugData.map(d => ({ id: d.id, asset_id: d.asset_id, buyer_id: d.buyer_id, vendor_id: d.vendor_id, status: d.status })), null, 2)}</pre>
                     )}
                   </div>
                 </div>
