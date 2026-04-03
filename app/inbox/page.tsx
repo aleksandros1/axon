@@ -704,4 +704,12 @@ function SecureCommsContent() {
       </nav>
     </div>
   );
+  
+}
+export default function SecureComms() {
+  return (
+    <Suspense fallback={<div className="flex h-[100dvh] w-full bg-[#020509] items-center justify-center text-[#A6947D] text-[10px] font-mono uppercase tracking-[0.3em] animate-pulse">Establishing Secure Connection...</div>}>
+      <SecureCommsContent />
+    </Suspense>
+  );
 }
