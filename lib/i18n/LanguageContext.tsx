@@ -14,6 +14,19 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 const translations: any = {
   en: {
+    landing: {
+      network_online: 'GLOBAL NETWORK ONLINE',
+      hero_title_1: 'THE',
+      hero_title_2: 'INSTITUTIONAL',
+      hero_title_3: 'MARBLE EXCHANGE',
+      hero_subtitle: 'AXON is the premier B2B trading terminal for natural stone. We connect verified extraction entities directly with global institutional buyers through secure smart-escrow contracts.',
+      hero_btn: 'ENTER TERMINAL',
+      services_btn: 'EXPLORE SERVICES',
+      verified_asset: 'VERIFIED ASSET',
+      slab_bundle: 'SLAB BUNDLE',
+      per_bundle: '/ BUNDLE'
+    },
+    auth: { request_access: 'REQUEST ACCESS' },
     menu: { portfolio: 'PORTFOLIO & DEALS', scanner: 'ASSET SCANNER', floor: 'PUBLIC MARKET', network: 'GLOBAL NETWORK', comms: 'SECURE COMMS', profile: 'CORPORATE PROFILE' },
     common: { institutional_grade: 'INSTITUTIONAL GRADE', disconnect: 'DISCONNECT', syncing: 'Synchronizing...', error: 'Error' },
     trading: { title: 'GLOBAL EXECUTION FLOOR', no_assets: 'Zero Assets Found' },
@@ -23,15 +36,41 @@ const translations: any = {
     network: { title: 'GLOBAL NETWORK', nodes: 'Active Nodes' }
   },
   el: {
+    landing: {
+      network_online: 'ΠΑΓΚΟΣΜΙΟ ΔΙΚΤΥΟ ONLINE',
+      hero_title_1: 'ΤΟ',
+      hero_title_2: 'ΘΕΣΜΙΚΟ',
+      hero_title_3: 'ΧΡΗΜΑΤΙΣΤΗΡΙΟ ΜΑΡΜΑΡΩΝ',
+      hero_subtitle: 'Το AXON είναι το κορυφαίο τερματικό συναλλαγών B2B για φυσικά πετρώματα. Συνδέουμε πιστοποιημένα λατομεία απευθείας με διεθνείς θεσμικούς αγοραστές μέσω ασφαλών συμβολαίων smart-escrow.',
+      hero_btn: 'ΕΙΣΟΔΟΣ ΣΤΟ ΤΕΡΜΑΤΙΚΟ',
+      services_btn: 'ΕΞΕΡΕΥΝΗΣΗ ΥΠΗΡΕΣΙΩΝ',
+      verified_asset: 'ΠΙΣΤΟΠΟΙΗΜΕΝΟ ΥΛΙΚΟ',
+      slab_bundle: 'ΠΑΚΕΤΟ ΠΛΑΚΩΝ',
+      per_bundle: '/ ΠΑΚΕΤΟ'
+    },
+    auth: { request_access: 'ΑΙΤΗΜΑ ΠΡΟΣΒΑΣΗΣ' },
     menu: { portfolio: 'ΧΑΡΤΟΦΥΛΑΚΙΟ & ΣΥΜΦΩΝΙΕΣ', scanner: 'ΣΑΡΩΤΗΣ ΥΛΙΚΩΝ', floor: 'ΔΗΜΟΣΙΑ ΑΓΟΡΑ', network: 'ΠΑΓΚΟΣΜΙΟ ΔΙΚΤΥΟ', comms: 'ΑΣΦΑΛΕΙΣ ΣΥΝΟΜΙΛΙΕΣ', profile: 'ΕΤΑΙΡΙΚΟ ΠΡΟΦΙΛ' },
     common: { institutional_grade: 'ΘΕΣΜΙΚΟΥ ΕΠΙΠΕΔΟΥ', disconnect: 'ΑΠΟΣΥΝΔΕΣΗ', syncing: 'Συγχρονισμός...', error: 'Σφάλμα' },
     trading: { title: 'ΔΗΜΟΣΙΑ ΑΓΟΡΑ', no_assets: 'Δεν βρέθηκαν υλικά' },
     dashboard: { title: 'ΕΠΙΒΛΕΨΗ ΧΑΡΤΟΦΥΛΑΚΙΟΥ', active_supply: 'Ενεργό Απόθεμα', tracked_targets: 'ΣΤΟΧΟΙ (VAULT)', pending_execution: 'Εκκρεμής Εκτέλεση', my_assets: 'ΤΑ ΥΛΙΚΑ ΜΟΥ', tracked_vault: 'ΠΑΡΑΚΟΛΟΥΘΟΥΜΕΝΑ', incoming: 'ΕΙΣΕΡΧΟΜΕΝΕΣ', outgoing: 'ΕΞΕΡΧΟΜΕΝΕΣ' },
-    scanner: { title: 'ΨΗΦΙΟΠΟΙΗΣΗ ΥΛΙΚΟΥ', digitize: 'ΚΑΤΑΧΩΡΗΣΗ ΑΠΟΘΕΜΑΤΟΣ', material: 'ΥΛΙΚΟ', valuation: 'ΑΞΙΑ (€)', origin: 'ΠΡΟΕΛΕΥΣΗ', location: 'ΤΟΠΟΘΕΣΙΑ', thickness: 'ΠΑΧΟΣ (CM)', quantity: 'ΠΟΣΟΤΗТА (M²)', incoterm: 'ΟΡΟΙ ΠΑΡΑΔΟΣΗΣ', visual_data: 'ΟΠΤΙΚΑ ΔΕΔΟΜΕΝΑ', add_photo: 'ΠΡΟΣΘΗΚΗ', publish_btn: 'ΑΝΑΡΤΗΣΗ ΣΤΟ ΔΙΚΤΥΟ', success_title: 'ΕΠΙΤΥΧΗΣ ΨΗΦΙΟΠΟΙΗΣΗ', success_subtitle: 'Το υλικό αναρτήθηκε στο δίκτυο' },
+    scanner: { title: 'ΨΗΦΙΟΠΟΙΗΣΗ ΥΛΙΚΟΥ', digitize: 'ΚΑΤΑΧΩΡΗΣΗ ΑΠΟΘΕΜΑΤΟΣ', material: 'ΥΛΙΚΟ', valuation: 'ΑΞΙΑ (€)', origin: 'ΠΡΟΕΛΕΥΣΗ', location: 'ΤΟΠΟΘΕΣΙΑ', thickness: 'ΠΑΧΟΣ (CM)', quantity: 'ΠΟΣΟΤΗΤΑ (M²)', incoterm: 'ΟΡΟΙ ΠΑΡΑΔΟΣΗΣ', visual_data: 'ΟΠΤΙΚΑ ΔΕΔΟΜΕΝΑ', add_photo: 'ΠΡΟΣΘΗΚΗ', publish_btn: 'ΑΝΑΡΤΗΣΗ ΣΤΟ ΔΙΚΤΥΟ', success_title: 'ΕΠΙΤΥΧΗΣ ΨΗΦΙΟΠΟΙΗΣΗ', success_subtitle: 'Το υλικό αναρτήθηκε στο δίκτυο' },
     inbox: { title: 'ΑΣΦΑΛΕΙΣ ΕΠΙΚΟΙΝΩΝΙΕΣ', encryption_active: 'Κρυπτογράφηση Ενεργή' },
     network: { title: 'ΠΑΓΚΟΣΜΙΟ ΔΙΚΤΥΟ', nodes: 'Ενεργοί Κόμβοι' }
   },
   ru: {
+    landing: {
+      network_online: 'ГЛОБАЛЬНАЯ СЕТЬ ОНЛАЙН',
+      hero_title_1: 'ГЛОБАЛЬНАЯ',
+      hero_title_2: 'ИНСТИТУЦИОНАЛЬНАЯ',
+      hero_title_3: 'БИРЖА МРАМОРА',
+      hero_subtitle: 'AXON — это ведущий торговый терминал B2B для натурального камня. Мы напрямую соединяем проверенные добывающие предприятия с глобальными институциональными покупателями.',
+      hero_btn: 'ВОЙТИ В ТЕРМИНАЛ',
+      services_btn: 'УСЛУГИ',
+      verified_asset: 'ПРОВЕРЕННЫЙ АКТИВ',
+      slab_bundle: 'ПАРТИЯ ПЛИТ',
+      per_bundle: '/ ПАРТИЯ'
+    },
+    auth: { request_access: 'ЗАПРОСИТЬ ДОСТУП' },
     menu: { portfolio: 'ПОРТФЕЛЬ И СДЕЛКИ', scanner: 'СКАНЕР АКТИВОВ', floor: 'ОТКРЫТЫЙ РЫНОК', network: 'ГЛОБАЛЬНАЯ СЕТЬ', comms: 'БЕЗОПАСНАЯ СВЯЗЬ', profile: 'ПРОФИЛЬ КОМПАНИИ' },
     common: { institutional_grade: 'ИНСТИТУЦИОНАЛЬНЫЙ УРОВЕНЬ', disconnect: 'ОТКЛЮЧИТЬСЯ', syncing: 'Синхронизация...', error: 'Ошибка' },
     trading: { title: 'ГЛОБАЛЬНЫЙ РЫНОК', no_assets: 'Активы не найдены' },
@@ -58,7 +97,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   };
 
   const t = (key: string) => {
-    const keys = key.split('.');
+    const keys = key.toLowerCase().split('.'); // Μετατροπή σε πεζά για σιγουριά
     let value: any = translations[language];
     for (const k of keys) {
       if (value && value[k]) { value = value[k]; } 
@@ -84,7 +123,6 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
   if (context === undefined) {
-    // Fallback για το build process
     return { language: 'en', setLanguage: () => {}, t: (s: string) => s };
   }
   return context;
