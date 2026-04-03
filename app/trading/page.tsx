@@ -6,12 +6,17 @@ import { supabase } from '../../lib/supabase';
 import { 
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   LogOut, Search, Building2, ShieldCheck, Users, 
-  Loader2, X, Package, ArrowRight, Layers3, UserCircle, Menu
+  Loader2, X, Package, ArrowRight, Layers3, UserCircle, Menu,
+  MapPin, Layers
 } from 'lucide-react';
 import Link from 'next/link';
 
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher';
+
+// --- ΦΙΛΤΡΑ ΑΓΟΡΑΣ ---
+const ASSET_CATEGORIES = ['All', 'Marble', 'Granite', 'Quartzite', 'Onyx', 'Dolomite', 'Travertine', 'Limestone'];
+const ASSET_COUNTRIES = ['All', 'Greece', 'Italy', 'Brazil', 'Turkey', 'Spain', 'India', 'Portugal'];
 
 export default function TradingFloor() {
   const router = useRouter();
@@ -20,6 +25,11 @@ export default function TradingFloor() {
   const [loading, setLoading] = useState(true);
   const [slabs, setSlabs] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // States για τα φίλτρα
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCountry, setSelectedCountry] = useState('All');
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -31,7 +41,7 @@ export default function TradingFloor() {
       // Φέρνουμε μόνο τα public slabs που είναι διαθέσιμα
       const { data, error } = await supabase
         .from('slabs')
-        .select('*, profiles(company_name, status)')
+        .select('*, profiles(company_name, status, country)')
         .eq('is_available', true)
         .neq('visibility', 'private')
         .order('created_at', { ascending: false });
@@ -48,10 +58,18 @@ export default function TradingFloor() {
 
   const formatCurrencyLocal = (val: any) => new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(parseFloat(val) || 0);
 
-  const filteredSlabs = slabs.filter(slab => 
-    (slab.material?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
-    (slab.profiles?.company_name?.toLowerCase() || '').includes(searchQuery.toLowerCase())
-  );
+  // --- ΛΟΓΙΚΗ ΦΙΛΤΡΑΡΙΣΜΑΤΟΣ ---
+  const filteredSlabs = slabs.filter(slab => {
+    const matchesSearch = (slab.material?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                          (slab.profiles?.company_name?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+    
+    const matchesCategory = selectedCategory === 'All' || (slab.material || '').toLowerCase().includes(selectedCategory.toLowerCase());
+    
+    const slabCountry = slab.origin || slab.location || slab.profiles?.country || '';
+    const matchesCountry = selectedCountry === 'All' || slabCountry.toLowerCase().includes(selectedCountry.toLowerCase());
+
+    return matchesSearch && matchesCategory && matchesCountry;
+  });
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-x-hidden font-sans selection:bg-[#A6947D]/30 relative antialiased">
@@ -125,7 +143,7 @@ export default function TradingFloor() {
           <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> ΑΣΦΑΛΕΙΣ ΣΥΝΟΜΙΛΙΕΣ</Link>
           <Link href="/me" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><UserCircle size={16} /> ΕΤΑΙΡΙΚΟ ΠΡΟΦΙΛ</Link>
         </nav>
-        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-colors"><LogOut size={16} /> ΑΠΟΣΥΝΔΕΣΗ</button></div>
+        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><LogOut size={16} /> ΑΠΟΣΥΝΔΕΣΗ</button></div>
       </aside>
 
       {/* MAIN CONTENT */}
@@ -137,9 +155,13 @@ export default function TradingFloor() {
         
         <div className="p-4 md:p-12 max-w-7xl mx-auto relative z-10 w-full overflow-x-hidden">
           
-          <header className="mb-8 md:mb-12 animate-in fade-in duration-500">
+          <header className="mb-6 md:mb-10 animate-in fade-in duration-500">
             <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4"><span className="h-px w-6 md:w-8 bg-[#A6947D]/30"></span><p className="text-[8px] md:text-[10px] text-[#A6947D] uppercase tracking-[0.2em] font-mono">Global Execution Floor</p></div>
-            <h2 className="text-3xl md:text-5xl font-serif text-[#F8F5EE] uppercase tracking-[0.1em] font-light mb-8 md:mb-10">{t('trading.title')}</h2>
+            
+            {/* ΣΤΑΘΕΡΟΣ ΤΙΤΛΟΣ ΠΟΥ ΔΕΝ ΧΤΥΠΑΕΙ (Αντί για t('trading.title')) */}
+            <h2 className="text-3xl md:text-5xl font-serif text-[#F8F5EE] uppercase tracking-[0.1em] font-light mb-8 md:mb-10">
+              {language === 'el' ? 'ΔΗΜΟΣΙΑ ΑΓΟΡΑ' : 'GLOBAL MARKET'}
+            </h2>
             
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-4 w-full">
               <div className="flex-1 flex items-center bg-[#01030A] border border-[#A6947D]/20 rounded-xl shadow-inner group transition-all focus-within:border-[#A6947D] focus-within:bg-[#020509]">
@@ -154,6 +176,43 @@ export default function TradingFloor() {
               </div>
             </div>
           </header>
+
+          {/* --- ФΙΛΤΡΑ ΚΑΤΗΓΟΡΙΩΝ & ΧΩΡΩΝ --- */}
+          <div className="flex flex-col gap-4 mb-8 md:mb-10 animate-in fade-in duration-500 delay-100">
+            
+            {/* Categories */}
+            <div className="flex items-center gap-3">
+              <Layers size={14} className="text-[#A6947D] flex-none" />
+              <div className="flex-1 overflow-x-auto custom-scrollbar pb-2 flex gap-2">
+                {ASSET_CATEGORIES.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all shadow-sm ${selectedCategory === cat ? 'bg-[#A6947D] text-[#020509]' : 'bg-[#01030A] border border-[#A6947D]/20 text-[#A6947D]/60 hover:text-[#A6947D] hover:border-[#A6947D]/50'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Countries */}
+            <div className="flex items-center gap-3">
+              <MapPin size={14} className="text-[#A6947D] flex-none" />
+              <div className="flex-1 overflow-x-auto custom-scrollbar pb-2 flex gap-2">
+                {ASSET_COUNTRIES.map(country => (
+                  <button
+                    key={country}
+                    onClick={() => setSelectedCountry(country)}
+                    className={`px-4 py-2 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest whitespace-nowrap transition-all shadow-sm ${selectedCountry === country ? 'bg-[#A6947D] text-[#020509]' : 'bg-[#01030A] border border-[#A6947D]/20 text-[#A6947D]/60 hover:text-[#A6947D] hover:border-[#A6947D]/50'}`}
+                  >
+                    {country}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+          </div>
 
           {loading ? (
              <div className="flex flex-col items-center justify-center py-20 text-[#A6947D] animate-pulse">
