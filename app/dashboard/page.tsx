@@ -7,7 +7,8 @@ import {
   Shield, Globe, BarChart3, Crosshair, MessageSquare, 
   LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
   Trash2, Handshake, ExternalLink, Calendar, AlertOctagon, RotateCcw, X, Loader2,
-  Bell, Check, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send, Menu
+  Bell, Check, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send, Menu,
+  Layers3, UserCircle
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -191,7 +192,6 @@ export default function PortfolioDashboard() {
 
       if (error) throw error;
 
-      // Update local state
       setMySlabs(prev => prev.map(s => s.id === editingSlab.id ? { ...s, ...editForm, is_vault: editForm.visibility === 'private' } : s));
       setIsEditModalOpen(false);
       setEditingSlab(null);
@@ -304,7 +304,6 @@ export default function PortfolioDashboard() {
   }, 0);
 
   return (
-    /* FIXED OVERFLOW-X: Κλειδώνουμε το πλάτος για να μην κουνιέται δεξιά-αριστερά */
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
       {/* --------------------------------------------------------- */}
@@ -314,279 +313,77 @@ export default function PortfolioDashboard() {
           <div className="flex justify-between items-center p-6 border-b border-[#A6947D]/20 bg-[#020509]">
             <div className="flex items-center gap-3">
               <Shield size={20} className="text-[#A6947D]" />
-              <h2 className="text-lg font-serif uppercase tracking-[0.3em] text-[#F8F5EE]">Command Center</h2>
+              <h2 className="text-lg font-serif uppercase tracking-[0.3em] text-[#F8F5EE]">ΚΕΝΤΡΟ ΕΠΙΧΕΙΡΗΣΕΩΝ</h2>
             </div>
             <button onClick={() => setIsMobileMenuOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 p-2"><X size={24} /></button>
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">Core Modules</p>
+            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">ΒΑΣΙΚΕΣ ΕΝΟΤΗΤΕΣ</p>
             <div className="grid grid-cols-2 gap-4 mb-8">
-              <Link href="/contracts" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <FileSignature size={24} className="text-[#A6947D]" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Deals Vault</span>
+              <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#A6947D]/10 border border-[#A6947D]/40 p-5 rounded-xl flex flex-col items-center justify-center gap-3 transition-colors shadow-inner">
+                <Layers3 size={24} className="text-[#A6947D]" />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Χαρτοφυλακιο &<br/>Συμφωνιες</span>
               </Link>
               <Link href="/scanner" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
                 <Crosshair size={24} className="text-[#A6947D]" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">AI Scanner</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Σαρωτης<br/>Υλικων</span>
+              </Link>
+              <Link href="/trading" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                <Globe size={24} className="text-[#A6947D]" />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Δημοσια<br/>Αγορα</span>
               </Link>
               <Link href="/network" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
                 <Users size={24} className="text-[#A6947D]" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Network</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Παγκοσμιο<br/>Δικτυο</span>
+              </Link>
+              <Link href="/inbox" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                <MessageSquare size={24} className="text-[#A6947D]" />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Ασφαλεις<br/>Συνομιλιες</span>
               </Link>
               <Link href="/me" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <User size={24} className="text-[#A6947D]" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Profile</span>
+                <UserCircle size={24} className="text-[#A6947D]" />
+                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Εταιρικο<br/>Προφιλ</span>
               </Link>
             </div>
 
-            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">System</p>
+            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">ΣΥΣΤΗΜΑ</p>
             <button onClick={handleLogout} className="w-full bg-[#020509] border border-red-900/30 text-red-500 p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px] tracking-widest">
-              <LogOut size={16} /> Disconnect Session
+              <LogOut size={16} /> ΑΠΟΣΥΝΔΕΣΗ
             </button>
           </div>
         </div>
       )}
       {/* --------------------------------------------------------- */}
 
-      {/* --- MODAL: EDIT ASSET --- */}
-      {isEditModalOpen && editingSlab && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-[#01030A] border border-[#A6947D]/30 rounded-2xl w-full max-w-2xl relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="flex justify-between items-center p-5 md:p-6 border-b border-[#A6947D]/20 bg-[#020509] flex-none">
-              <div className="flex items-center gap-3 text-[#F8F5EE]"><Edit size={20} className="text-[#A6947D]" /><h2 className="text-sm md:text-lg font-serif uppercase tracking-[0.2em]">Modify Asset Parameters</h2></div>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-500/10"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleEditSubmit} className="overflow-y-auto custom-scrollbar flex-1 p-6 md:p-8 space-y-6">
-              
-              <div className="bg-[#020509] p-4 rounded-xl border border-[#A6947D]/20 shadow-inner flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest mb-2 flex items-center gap-1.5"><ShieldCheck size={12}/> Placement Strategy</label>
-                  <div className="flex bg-[#01030A] border border-[#A6947D]/30 rounded-lg p-1">
-                    <button type="button" onClick={() => setEditForm({...editForm, visibility: 'public'})} className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${editForm.visibility === 'public' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-sm' : 'text-[#A6947D]/40 hover:text-[#A6947D]'}`}>Public Floor</button>
-                    <button type="button" onClick={() => setEditForm({...editForm, visibility: 'private'})} className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${editForm.visibility === 'private' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-sm' : 'text-[#A6947D]/40 hover:text-[#A6947D]'}`}>Private Vault</button>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest mb-2 flex items-center gap-1.5"><ShoppingCart size={12}/> Pricing Model</label>
-                  <div className="flex bg-[#01030A] border border-[#A6947D]/30 rounded-lg p-1">
-                    <button type="button" onClick={() => setEditForm({...editForm, pricing_model: 'PUBLIC'})} className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${editForm.pricing_model === 'PUBLIC' ? 'bg-[#A6947D]/10 text-[#A6947D] border border-[#A6947D]/20 shadow-sm' : 'text-[#A6947D]/40 hover:text-[#A6947D]'}`}>Fixed Price</button>
-                    <button type="button" onClick={() => setEditForm({...editForm, pricing_model: 'ROQ'})} className={`flex-1 py-2 rounded-md text-[9px] font-bold uppercase transition-all ${editForm.pricing_model === 'ROQ' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20 shadow-sm' : 'text-[#A6947D]/40 hover:text-[#A6947D]'}`}>Request Quote</button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Material</label>
-                  <input type="text" required value={editForm.material} onChange={(e) => setEditForm({...editForm, material: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex justify-between items-center">
-                    <span>Valuation (€)</span>
-                    {editForm.pricing_model === 'ROQ' && <Lock size={8} className="text-amber-500" />}
-                  </label>
-                  <input type="text" required value={editForm.price} onChange={(e) => setEditForm({...editForm, price: e.target.value})} className={`w-full bg-[#020509] border rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none transition-colors ${editForm.pricing_model === 'ROQ' ? 'border-amber-500/30 focus:border-amber-500' : 'border-[#A6947D]/40 focus:border-amber-500'}`} />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Origin</label>
-                  <input type="text" value={editForm.origin} onChange={(e) => setEditForm({...editForm, origin: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Location</label>
-                  <input type="text" value={editForm.location} onChange={(e) => setEditForm({...editForm, location: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Thickness</label>
-                    <input type="text" value={editForm.thickness} onChange={(e) => setEditForm({...editForm, thickness: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Quantity</label>
-                    <input type="text" value={editForm.quantity} onChange={(e) => setEditForm({...editForm, quantity: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Incoterm</label>
-                  <select value={editForm.incoterm} onChange={(e) => setEditForm({...editForm, incoterm: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 rounded-xl px-4 py-3 text-sm font-sans text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors appearance-none">
-                    <option value="EXW">EXW (Ex Works)</option>
-                    <option value="FOB">FOB (Free on Board)</option>
-                    <option value="CIF">CIF (Cost, Insurance, Freight)</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Description</label>
-                <textarea value={editForm.description} onChange={(e) => setEditForm({...editForm, description: e.target.value})} rows={3} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-5 py-4 text-sm text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors resize-none shadow-inner custom-scrollbar" />
-              </div>
-
-              <div className="pt-4 flex gap-4 border-t border-[#A6947D]/20">
-                <button type="button" onClick={() => setIsEditModalOpen(false)} disabled={isSavingEdit} className="px-6 py-4 rounded-xl border border-[#A6947D]/30 text-[#A6947D] hover:bg-[#A6947D]/10 text-[10px] font-bold uppercase tracking-[0.2em] transition-all">Cancel</button>
-                <button type="submit" disabled={isSavingEdit} className="flex-1 bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all text-[10px] flex items-center justify-center gap-2 shadow-[0_4px_15px_rgba(166,148,125,0.2)] disabled:opacity-50">
-                  {isSavingEdit ? <><Loader2 size={16} className="animate-spin"/> Syncing...</> : <><ShieldCheck size={16}/> Update Parameters</>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* --- MODAL: REFUND --- */}
-      {isRefundModalOpen && selectedDeal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-[#01030A] border border-red-900/50 rounded-2xl w-full max-w-lg relative shadow-[0_0_50px_rgba(239,68,68,0.1)] overflow-hidden">
-            {refundSuccess ? (
-              <div className="p-8 md:p-12 flex flex-col items-center justify-center text-center animate-in zoom-in duration-500">
-                <div className="w-20 h-20 rounded-full border border-emerald-500/30 flex items-center justify-center mb-6 bg-emerald-500/10 relative"><div className="absolute inset-0 border border-emerald-500/20 rounded-full animate-ping"></div><RotateCcw size={40} className="text-emerald-500" /></div>
-                <h2 className="text-xl md:text-2xl font-serif uppercase tracking-[0.2em] text-[#F8F5EE] mb-3">Contract Terminated</h2>
-                <p className="text-[#A6947D] text-[10px] font-mono uppercase tracking-[0.2em]">Escrow Funds Released & Deal Purged.</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center p-5 md:p-6 border-b border-red-900/30 bg-[#020509]">
-                  <div className="flex items-center gap-3 text-red-500"><AlertOctagon size={20} /><h2 className="text-sm md:text-lg font-serif uppercase tracking-[0.2em] text-[#F8F5EE]">Terminate Contract</h2></div>
-                  <button onClick={() => setIsRefundModalOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-500/10"><X size={20} /></button>
-                </div>
-                <div className="p-6 md:p-8 bg-[#020509] text-center relative border-b border-red-900/20">
-                  <p className="text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.3em] mb-2">Asset Value Locked</p>
-                  <p className="text-3xl md:text-4xl font-mono font-light tracking-tighter text-[#F8F5EE]">{formatCurrency(selectedDeal.offer_details?.price)}</p>
-                </div>
-                <div className="p-5 md:p-8 space-y-6 bg-[#01030A] max-h-[50vh] overflow-y-auto custom-scrollbar">
-                  <div className="space-y-4">
-                    <p className="text-[10px] text-[#A6947D] uppercase font-bold tracking-[0.2em] border-b border-[#A6947D]/10 pb-2">Resolution Strategy</p>
-                    <label className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${refundType === 'full' ? 'bg-red-500/10 border-red-500/50' : 'bg-[#020509] border-[#A6947D]/20 hover:border-[#A6947D]/40'}`}>
-                      <input type="radio" name="refundType" checked={refundType === 'full'} onChange={() => setRefundType('full')} className="mt-1" />
-                      <div><p className="text-xs font-bold uppercase tracking-widest text-[#F8F5EE]">Mutual Agreement (Full Refund)</p><p className="text-[9px] text-[#A6947D]/80 mt-1 font-mono uppercase tracking-widest">Return 100% of the escrow funds to the buyer.</p></div>
-                    </label>
-                    <label className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all ${refundType === 'partial' ? 'bg-red-500/10 border-red-500/50' : 'bg-[#020509] border-[#A6947D]/20 hover:border-[#A6947D]/40'}`}>
-                      <input type="radio" name="refundType" checked={refundType === 'partial'} onChange={() => setRefundType('partial')} className="mt-1" />
-                      <div className="w-full"><p className="text-xs font-bold uppercase tracking-widest text-[#F8F5EE]">Breach of Contract (Partial Refund)</p><p className="text-[9px] text-[#A6947D]/80 mt-1 font-mono uppercase tracking-widest mb-3">Hold a penalty fee. Return the remaining balance.</p>
-                        {refundType === 'partial' && (
-                          <div className="relative mt-2"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A6947D] font-mono text-sm">€</span>
-                            <input type="number" placeholder="Amount to refund..." value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} className="w-full bg-[#01030A] border border-red-500/30 rounded-lg py-3 pl-10 pr-4 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-red-500 transition-colors shadow-inner" />
-                          </div>
-                        )}
-                      </div>
-                    </label>
-                  </div>
-                  <div className="pt-4 flex gap-3 md:gap-4">
-                    <button type="button" onClick={() => setIsRefundModalOpen(false)} disabled={isRefunding} className="px-4 md:px-6 py-4 rounded-xl border border-[#A6947D]/30 text-[#A6947D] hover:bg-[#A6947D]/10 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all disabled:opacity-50">Abort</button>
-                    <button onClick={executeRefund} disabled={isRefunding || (refundType === 'partial' && !refundAmount)} className="flex-1 bg-red-600 hover:bg-red-500 text-[#020509] font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all text-[9px] md:text-[10px] flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 shadow-[0_4px_15px_rgba(220,38,38,0.2)]">
-                      {isRefunding ? <><Loader2 size={16} className="animate-spin"/> Releasing...</> : <><RotateCcw size={16}/> Execute Refund</>}
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 2. SMART TERM SHEET MODAL */}
-      {isTermSheetOpen && selectedTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-[#01030A] border border-[#A6947D]/30 rounded-2xl w-full max-w-xl relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
-            
-            {termSuccess ? (
-              <div className="p-12 flex flex-col items-center justify-center text-center animate-in zoom-in duration-500 flex-1">
-                <div className="w-20 h-20 rounded-full border border-emerald-500/30 flex items-center justify-center mb-6 bg-emerald-500/10 relative"><div className="absolute inset-0 border border-emerald-500/20 rounded-full animate-ping"></div><FileSignature size={40} className="text-emerald-500" /></div>
-                <h2 className="text-2xl font-serif uppercase tracking-[0.2em] text-[#F8F5EE] mb-3">Binding Term Sheet Transmitted</h2>
-                <p className="text-[#A6947D] text-[10px] font-mono uppercase tracking-[0.2em]">Awaiting Vendor Escrow Authorization.</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center p-5 md:p-6 border-b border-[#A6947D]/20 bg-[#020509] flex-none">
-                  <div className="flex items-center gap-3 text-[#F8F5EE]"><FileSignature size={20} className="text-[#A6947D]" /><h2 className="text-sm md:text-lg font-serif uppercase tracking-[0.2em]">Escrow Term Sheet</h2></div>
-                  <button onClick={() => setIsTermSheetOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-500/10"><X size={20} /></button>
-                </div>
-
-                <div className="overflow-y-auto custom-scrollbar flex-1 p-6 md:p-8 space-y-6">
-                  <div className="bg-[#020509] border border-[#A6947D]/15 p-4 rounded-xl flex items-center justify-between">
-                    <div>
-                        <p className="text-[8px] text-[#A6947D] font-mono tracking-widest uppercase mb-1">Target Asset ID: AX-{selectedTarget.id.substring(0,8)}</p>
-                        <p className="text-lg font-serif uppercase text-[#F8F5EE]">{selectedTarget.material}</p>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Vendor Entity</p>
-                        <p className="text-[10px] font-bold uppercase text-[#A6947D]">{selectedTarget.profiles?.company_name || 'Verified Vendor'}</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-5">
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Wallet size={12}/> Proposed Valuation (€)</label>
-                      <input type="number" value={termSheet.price} onChange={(e) => setTermSheet({...termSheet, price: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-lg font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Ship size={12}/> Incoterms</label>
-                        <select value={termSheet.incoterms} onChange={(e) => setTermSheet({...termSheet, incoterms: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 rounded-xl px-4 py-3 text-sm font-sans text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors appearance-none cursor-pointer">
-                          <option value="EXW">EXW (Ex Works)</option>
-                          <option value="FOB">FOB (Free on Board)</option>
-                          <option value="CIF">CIF (Cost, Insurance, Freight)</option>
-                          <option value="DAP">DAP (Delivered at Place)</option>
-                        </select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><ShieldCheck size={12}/> Escrow Deposit</label>
-                        <select value={termSheet.deposit} onChange={(e) => setTermSheet({...termSheet, deposit: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors appearance-none cursor-pointer">
-                          <option value="10">10% Deposit</option>
-                          <option value="30">30% Deposit</option>
-                          <option value="50">50% Deposit</option>
-                          <option value="100">100% Full Payment</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Scale size={12}/> Surveyor Inspection Window (Days)</label>
-                      <input type="number" min="1" max="30" value={termSheet.inspection} onChange={(e) => setTermSheet({...termSheet, inspection: e.target.value})} className="w-full bg-[#020509] border border-[#A6947D]/40 hover:border-[#A6947D] rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-amber-500 transition-colors" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-5 md:p-6 border-t border-[#A6947D]/20 bg-[#01030A] flex gap-3 md:gap-4 flex-none">
-                  <button type="button" onClick={() => setIsTermSheetOpen(false)} disabled={isSubmittingTerm} className="px-4 md:px-6 py-4 rounded-xl border border-[#A6947D]/30 text-[#A6947D] hover:bg-[#A6947D]/10 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all disabled:opacity-50">Cancel</button>
-                  <button onClick={submitTermSheet} disabled={isSubmittingTerm || !termSheet.price} className="flex-1 bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all text-[9px] md:text-[10px] flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 shadow-[0_4px_15px_rgba(166,148,125,0.2)]">
-                    {isSubmittingTerm ? <><Loader2 size={16} className="animate-spin"/> Generating...</> : <><FileSignature size={16}/> Transmit Binding Offer</>}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* MASTER SIDEBAR - DESKTOP ONLY */}
       <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
         <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none shrink-0"><Shield size={300} className="text-[#A6947D]" /></div>
         
-        <div className="p-8 pb-12 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
+        <div className="p-8 pb-10 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
           <div className="w-12 h-12 border border-[#A6947D]/30 rounded-full flex items-center justify-center relative mb-4 shadow-[0_0_15px_rgba(166,148,125,0.05)] bg-[#01030A]">
             <Shield size={20} className="text-[#A6947D]"/>
           </div>
           <h1 className="text-2xl font-serif uppercase text-[#F8F5EE] tracking-[0.2em] font-light leading-none mb-1">AXON</h1>
-          <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">{t('common.institutional_grade')}</p>
+          <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">ΘΕΣΜΙΚΟΥ ΕΠΙΠΕΔΟΥ</p>
         </div>
 
         <SidebarLanguageSwitcher />
 
         <nav className="flex-1 px-4 space-y-2 relative z-10">
-          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><BarChart3 size={16} /> {t('menu.portfolio')}</Link>
-          <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Crosshair size={16} /> {t('menu.scanner')}</Link>
-          <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> {t('menu.floor')}</Link>
-          <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> {t('menu.network')}</Link>
-          <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> {t('menu.comms')}</Link>
-          <Link href="/me" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><User size={16} /> {t('menu.profile')}</Link>
+          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><Layers3 size={16} /> ΧΑΡΤΟΦΥΛΑΚΙΟ & ΣΥΜΦΩΝΙΕΣ</Link>
+          <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Crosshair size={16} /> ΣΑΡΩΤΗΣ ΥΛΙΚΩΝ</Link>
+          <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> ΔΗΜΟΣΙΑ ΑΓΟΡΑ</Link>
+          <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> ΠΑΓΚΟΣΜΙΟ ΔΙΚΤΥΟ</Link>
+          <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> ΑΣΦΑΛΕΙΣ ΣΥΝΟΜΙΛΙΕΣ</Link>
+          <Link href="/me" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><UserCircle size={16} /> ΕΤΑΙΡΙΚΟ ΠΡΟΦΙΛ</Link>
         </nav>
 
-        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><LogOut size={16} /> {t('common.disconnect')}</button></div>
+        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><LogOut size={16} /> ΑΠΟΣΥΝΔΕΣΗ</button></div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020509] pb-[80px] md:pb-0 custom-scrollbar w-full z-10">
-        {/* BACKGROUND ICON - CONTAINED */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0 overflow-hidden">
           <Globe size={800} className="text-[#A6947D] shrink-0" />
         </div>
@@ -830,16 +627,14 @@ export default function PortfolioDashboard() {
         </div>
       </main>
 
-      {/* FIXED BOTTOM NAVIGATION (THE STRICT 4-BUTTON BAR) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] w-full">
-        <Link href="/dashboard" className="text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><BarChart3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Port</span></Link>
+        <Link href="/dashboard" className="text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Layers3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Port</span></Link>
         <Link href="/trading" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Floor</span></Link>
         <Link href="/inbox" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 relative flex-1 transition-colors">
           <MessageSquare size={20} />
           {notifications.length > 0 && <span className="absolute top-1 right-1/4 w-2 h-2 bg-amber-500 rounded-full animate-pulse"></span>}
           <span className="text-[8px] uppercase font-bold tracking-widest">Comms</span>
         </Link>
-        {/* THE TRIGGER FOR THE COMMAND OVERLAY */}
         <button onClick={() => setIsMobileMenuOpen(true)} className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Menu size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Menu</span></button>
       </nav>
     </div>
