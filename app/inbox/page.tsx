@@ -12,6 +12,7 @@ import {
 import Link from 'next/link';
 
 import { useLanguage } from '../../lib/i18n/LanguageContext';
+import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher'; // Added SidebarLanguageSwitcher import
 
 function SecureCommsContent() {
   const router = useRouter();
@@ -47,6 +48,8 @@ function SecureCommsContent() {
   const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStep, setVerificationStep] = useState(0);
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const initComms = async () => {
@@ -378,8 +381,6 @@ function SecureCommsContent() {
     </div>
   );
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
@@ -536,6 +537,8 @@ function SecureCommsContent() {
           <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">ΘΕΣΜΙΚΟΥ ΕΠΙΠΕΔΟΥ</p>
         </div>
         
+        <SidebarLanguageSwitcher />
+
         <nav className="flex-1 px-4 space-y-2 relative z-10">
           <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Layers3 size={16} /> ΧΑΡΤΟΦΥΛΑΚΙΟ & ΣΥΜΦΩΝΙΕΣ</Link>
           <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Crosshair size={16} /> ΣΑΡΩΤΗΣ ΥΛΙΚΩΝ</Link>
@@ -695,17 +698,17 @@ function SecureCommsContent() {
         )}
       </main>
 
-      {/* MOBILE BOTTOM NAV */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-1 flex justify-between items-center z-50 shadow-2xl w-full h-[56px] pb-[env(safe-area-inset-bottom)]">
         <Link href="/dashboard" className="text-[#A6947D]/40 flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><Layers3 size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Port</span></Link>
         <Link href="/trading" className="text-[#A6947D]/40 flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><Globe size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Floor</span></Link>
         <Link href="/inbox" className="text-[#A6947D] flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><MessageSquare size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Comms</span></Link>
-        <button onClick={() => setIsMobileMenuOpen(true)} className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Menu size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Menu</span></button>
+        <button onClick={() => setIsMobileMenuOpen(true)} className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-0.5 flex-1 h-full justify-center transition-colors"><Menu size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Menu</span></button>
       </nav>
     </div>
   );
   
 }
+
 export default function SecureComms() {
   return (
     <Suspense fallback={<div className="flex h-[100dvh] w-full bg-[#020509] items-center justify-center text-[#A6947D] text-[10px] font-mono uppercase tracking-[0.3em] animate-pulse">Establishing Secure Connection...</div>}>

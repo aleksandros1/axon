@@ -606,7 +606,7 @@ export default function PublicAssetDossier() {
         </Link>
         <button onClick={() => setIsMobileMenuOpen(true)} className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Menu size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Menu</span></button>
       </nav>
-      <style dangerouslySetInnerHTML={{__html: `
+        <style dangerouslySetInnerHTML={{__html: `
         @keyframes scan {
           0% { top: 0; opacity: 0; }
           10% { opacity: 1; }
