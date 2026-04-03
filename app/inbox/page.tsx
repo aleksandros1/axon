@@ -41,6 +41,10 @@ function SecureCommsContent() {
 
   const [draftContextAsset, setDraftContextAsset] = useState<any>(null);
   const [lastActivity, setLastActivity] = useState<Record<string, number>>({});
+  
+  // --- ΝΕΟ: STATE ΓΙΑ ΤΑ ΑΔΙΑΒΑΣΤΑ ΜΗΝΥΜΑΤΑ ---
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({}); 
+
   const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
 
   const [isVerifying, setIsVerifying] = useState(false);
@@ -59,22 +63,33 @@ function SecureCommsContent() {
       const { data: userSlabs } = await supabase.from('slabs').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
       if (userSlabs) setMySlabs(userSlabs);
 
+      // --- ΕΝΗΜΕΡΩΜΕΝΟ: Φέρνουμε και το is_read ---
       const { data: userMessages } = await supabase
         .from('messages')
-        .select('sender_id, receiver_id, created_at')
+        .select('sender_id, receiver_id, created_at, is_read')
         .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`);
 
       const activityMap: Record<string, number> = {};
+      const unreadMap: Record<string, number> = {};
+
       if (userMessages) {
         userMessages.forEach(msg => {
-          const otherId = msg.sender_id === session.user.id ? msg.receiver_id : msg.sender_id;
+          const isMine = msg.sender_id === session.user.id;
+          const otherId = isMine ? msg.receiver_id : msg.sender_id;
           const time = new Date(msg.created_at).getTime();
+          
           if (!activityMap[otherId] || time > activityMap[otherId]) {
             activityMap[otherId] = time;
+          }
+
+          // Αν ΔΕΝ είναι δικό μου και είναι ΑΔΙΑΒΑΣΤΟ, ανέβασε το counter
+          if (!isMine && !msg.is_read) {
+            unreadMap[otherId] = (unreadMap[otherId] || 0) + 1;
           }
         });
       }
       setLastActivity(activityMap);
+      setUnreadCounts(unreadMap);
 
       const chatParam = searchParams.get('chat');
       const assetParam = searchParams.get('asset');
@@ -106,6 +121,23 @@ function SecureCommsContent() {
     initComms();
   }, [router, searchParams]);
 
+  // --- ΝΕΟ: ΟΤΑΝ ΑΝΟΙΓΕΙ ΕΝΑ CHAT ΚΑΝΕΙ ΤΑ ΜΗΝΥΜΑΤΑ "ΔΙΑΒΑΣΜΕΝΑ" ---
+  useEffect(() => {
+    if (currentUser && selectedContact && unreadCounts[selectedContact.id] > 0) {
+      const markAsRead = async () => {
+        await supabase
+          .from('messages')
+          .update({ is_read: true })
+          .eq('sender_id', selectedContact.id)
+          .eq('receiver_id', currentUser.id)
+          .eq('is_read', false);
+          
+        setUnreadCounts(prev => ({ ...prev, [selectedContact.id]: 0 }));
+      };
+      markAsRead();
+    }
+  }, [currentUser, selectedContact, unreadCounts]);
+
   useEffect(() => {
     if (!currentUser || !selectedContact) return;
 
@@ -125,8 +157,21 @@ function SecureCommsContent() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, (payload) => {
         if (payload.eventType === 'INSERT') {
           const newMsg = payload.new;
-          const otherId = newMsg.sender_id === currentUser.id ? newMsg.receiver_id : newMsg.sender_id;
+          const isMine = newMsg.sender_id === currentUser.id;
+          const otherId = isMine ? newMsg.receiver_id : newMsg.sender_id;
+          
           setLastActivity(prev => ({ ...prev, [otherId]: new Date(newMsg.created_at).getTime() }));
+
+          // --- ΝΕΟ: REAL-TIME NOTIFICATION DOT ---
+          if (!isMine) {
+            if (selectedContact && selectedContact.id === newMsg.sender_id) {
+               // Είμαστε ήδη μέσα στο chat, άρα το διαβάζουμε αμέσως
+               supabase.from('messages').update({ is_read: true }).eq('id', newMsg.id);
+            } else {
+               // Είμαστε αλλού, άρα ανάβει το κόκκινο φωτάκι
+               setUnreadCounts(prev => ({ ...prev, [newMsg.sender_id]: (prev[newMsg.sender_id] || 0) + 1 }));
+            }
+          }
 
           if (
             (newMsg.sender_id === currentUser.id && newMsg.receiver_id === selectedContact.id) ||
@@ -187,7 +232,6 @@ function SecureCommsContent() {
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
-    // ΑΥΣΤΗΡΟΣ ΕΛΕΓΧΟΣ: Αφαίρεση κενών spaces και νέων γραμμών
     const safeText = newMessage.trim();
     
     if ((!safeText && attachments.length === 0 && !draftContextAsset) || !selectedContact || isUploading) return;
@@ -215,7 +259,8 @@ function SecureCommsContent() {
       receiver_id: selectedContact.id, 
       text: safeText || (draftContextAsset && attachments.length === 0 ? 'Inquiring about this asset.' : ''), 
       is_offer: false, 
-      attachments: uploadedFiles.length > 0 ? uploadedFiles : null 
+      attachments: uploadedFiles.length > 0 ? uploadedFiles : null,
+      is_read: false // ΝΕΟ: Default στο false
     };
 
     if (draftContextAsset) {
@@ -286,7 +331,8 @@ function SecureCommsContent() {
           price: offerPrice,
           incoterm: offerIncoterm,
           material: targetAsset?.material || 'Private Asset' 
-        } 
+        },
+        is_read: false // ΝΕΟ: Default στο false
       };
 
       const displayMsg = { ...newMsgObj, id: tempId, created_at: new Date().toISOString() };
@@ -475,7 +521,13 @@ function SecureCommsContent() {
                 {filteredContacts.map(contact => (
                   <button key={contact.id} onClick={() => setSelectedContact(contact)} className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all border text-left overflow-hidden ${selectedContact?.id === contact.id ? 'bg-[#A6947D]/10 border-[#A6947D]/30' : 'bg-transparent border-transparent hover:bg-[#A6947D]/5'}`}>
                     <div className="flex-1 overflow-hidden">
-                      <h3 className="text-xs md:text-sm font-serif uppercase tracking-wider truncate">{contact.company_name || contact.email}</h3>
+                      {/* --- ΝΕΟ: Η ΤΕΛΕΙΑ ΣΤΟ UI ΔΙΠΛΑ ΣΤΟ ΟΝΟΜΑ --- */}
+                      <h3 className="text-xs md:text-sm font-serif uppercase tracking-wider truncate flex items-center gap-2">
+                        {contact.company_name || contact.email}
+                        {unreadCounts[contact.id] > 0 && (
+                          <span className="w-2 h-2 bg-[#FF204E] rounded-full shadow-[0_0_8px_rgba(255,32,78,0.6)] animate-pulse shrink-0"></span>
+                        )}
+                      </h3>
                       <p className="text-[8px] md:text-[9px] font-mono tracking-widest text-[#A6947D]/40 mt-1 uppercase">Active Node</p>
                     </div>
                   </button>
