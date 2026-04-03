@@ -8,11 +8,11 @@ import {
   LogOut, Building2, ShieldCheck, Gavel, FileSignature, Menu, X, User, Users,
   UploadCloud, FileText, CheckCircle2, Activity, Loader2, AlertTriangle, Ship, Landmark
 } from 'lucide-react';
-import Link from 'next/link'; // <--- ΑΥΤΟ ΕΙΧΕ ΣΒΗΣΤΕΙ!
+import Link from 'next/link';
 
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher';
-import InboxBadge from '../components/InboxBadge';
+import InboxBadge from '../components/InboxBadge'; 
 
 export default function DealsVault() {
   const router = useRouter();
@@ -25,8 +25,6 @@ export default function DealsVault() {
 
   const [deals, setDeals] = useState<any[]>([]);
   const [isProcessingAction, setIsProcessingAction] = useState<string | null>(null);
-  
-  // DIAGNOSTIC STATE (Για να δούμε τι ακριβώς φέρνει το Supabase)
   const [debugData, setDebugData] = useState<any[]>([]);
 
   useEffect(() => {
@@ -41,7 +39,6 @@ export default function DealsVault() {
     setCurrentUser(session.user);
     const userId = session.user.id;
 
-    // ΠΙΟ ΑΠΛΟ QUERY: Φέρε τα ΠΑΝΤΑ όπου ο χρήστης εμπλέκεται (είτε ως vendor, είτε ως buyer)
     const { data: slabsData, error: slabError } = await supabase
       .from('slabs')
       .select('*')
@@ -54,9 +51,7 @@ export default function DealsVault() {
     }
 
     if (slabsData) {
-      setDebugData(slabsData); // Αποθηκεύουμε τα raw data για το diagnostic tool
-
-      // Φιλτράρουμε τοπικά με JS (είναι πιο αξιόπιστο) τις πλάκες που έχουν buyer_id
+      setDebugData(slabsData);
       const validDealsData = slabsData.filter(s => s.buyer_id && s.buyer_id.toString().trim() !== '');
 
       if (validDealsData.length > 0) {
@@ -73,7 +68,8 @@ export default function DealsVault() {
             role: isVendor ? 'vendor' : 'buyer',
             status: s.escrow_status || 'funded',
             counterparty: counterpartyProfile?.company_name || counterpartyProfile?.email || 'Global Entity',
-            date: s.created_at
+            date: s.created_at,
+            bol_url: s.bol_url // ΝΕΟ: Τραβάμε το link της φορτωτικής
           };
         });
         setDeals(mappedDeals);
@@ -88,13 +84,43 @@ export default function DealsVault() {
     return new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
   };
 
-  const handleUploadBoL = async (dealId: string) => {
+  // --- LOGIC ΓΙΑ ΤΟ UPLOAD ΤΟΥ ΕΓΓΡΑΦΟΥ ---
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, dealId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     setIsProcessingAction(dealId);
-    const { error } = await supabase.from('slabs').update({ escrow_status: 'shipped' }).eq('id', dealId);
-    if (!error) {
-      setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'shipped' } : d));
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `bol_${dealId}_${Math.random()}.${fileExt}`;
+
+      // 1. Ανέβασμα στο Supabase Storage (στον bucket 'contracts')
+      const { error: uploadError } = await supabase.storage
+        .from('contracts')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      // 2. Πάρε το δημόσιο URL του αρχείου
+      const { data: { publicUrl } } = supabase.storage.from('contracts').getPublicUrl(fileName);
+
+      // 3. Ενημέρωσε το συμβόλαιο στη βάση
+      const { error: dbError } = await supabase.from('slabs').update({
+        escrow_status: 'shipped',
+        bol_url: publicUrl
+      }).eq('id', dealId);
+
+      if (dbError) throw dbError;
+
+      // 4. Ενημέρωσε την οθόνη μας
+      setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'shipped', bol_url: publicUrl } : d));
+
+    } catch (err: any) {
+      console.error("Upload failed:", err);
+      alert("Failed to upload document. Please ensure you created the 'contracts' storage bucket.");
+    } finally {
+      setIsProcessingAction(null);
     }
-    setIsProcessingAction(null);
   };
 
   const handleReleaseFunds = async (dealId: string) => {
@@ -222,7 +248,7 @@ export default function DealsVault() {
                   <p className="text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-widest">No active contracts found in ledger.</p>
                 </div>
 
-                {/* DIAGNOSTIC TOOL (Βγαίνει ΜΟΝΟ αν είναι άδειο το vault) */}
+                {/* DIAGNOSTIC TOOL */}
                 <div className="bg-[#020509] border border-amber-500/30 rounded-xl p-6 shadow-inner text-left">
                   <div className="flex items-center gap-2 mb-4 text-amber-500">
                     <AlertTriangle size={18} />
@@ -300,25 +326,55 @@ export default function DealsVault() {
                       {deal.status === 'completed' && <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest flex items-center gap-2"><CheckCircle2 size={12} /> Transaction Settled</p>}
                     </div>
 
-                    <div className="w-full sm:w-auto">
+                    <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
+                      
                       {deal.role === 'vendor' && deal.status === 'funded' && (
-                        <button onClick={() => handleUploadBoL(deal.id)} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
-                          {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Upload BoL
-                        </button>
+                        <>
+                          <input 
+                            type="file" 
+                            id={`file-${deal.id}`} 
+                            className="hidden" 
+                            accept=".pdf,image/*" 
+                            onChange={(e) => handleFileChange(e, deal.id)} 
+                          />
+                          <button 
+                            onClick={() => document.getElementById(`file-${deal.id}`)?.click()} 
+                            disabled={isProcessingAction === deal.id} 
+                            className="w-full sm:w-auto bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                          >
+                            {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Upload BoL
+                          </button>
+                        </>
                       )}
                       
+                      {deal.role === 'buyer' && (deal.status === 'shipped' || deal.status === 'completed') && deal.bol_url && (
+                        <a 
+                          href={deal.bol_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="w-full sm:w-auto border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                        >
+                          <FileText size={14} /> View Document
+                        </a>
+                      )}
+
                       {deal.role === 'buyer' && deal.status === 'shipped' && (
-                        <button onClick={() => handleReleaseFunds(deal.id)} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
+                        <button 
+                          onClick={() => handleReleaseFunds(deal.id)} 
+                          disabled={isProcessingAction === deal.id} 
+                          className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
                           {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Release Funds
                         </button>
                       )}
 
-                      {deal.status === 'completed' && (
+                      {deal.status === 'completed' && deal.role === 'vendor' && (
                         <button className="w-full sm:w-auto border border-[#A6947D]/30 text-[#A6947D] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 hover:bg-[#A6947D]/10">
-                          <FileText size={14} /> View Invoice
+                          <CheckCircle2 size={14} /> Escrow Released
                         </button>
                       )}
 
+                      {/* Disabled states */}
                       {deal.role === 'buyer' && deal.status === 'funded' && <div className="px-6 py-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-500/60 text-[9px] font-bold uppercase tracking-widest text-center cursor-not-allowed">Vendor Action Pending</div>}
                       {deal.role === 'vendor' && deal.status === 'shipped' && <div className="px-6 py-3.5 rounded-xl border border-blue-500/20 bg-blue-500/5 text-blue-500/60 text-[9px] font-bold uppercase tracking-widest text-center cursor-not-allowed">Buyer Action Pending</div>}
                     </div>
