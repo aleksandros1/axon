@@ -108,7 +108,7 @@ export default function CorporateAuth() {
             <Shield size={28} className="text-[#A6947D]" strokeWidth={1.5} />
           </div>
           <h1 className="text-2xl md:text-3xl font-serif uppercase tracking-[0.3em] font-light text-[#F8F5EE] leading-none">AXON</h1>
-          <p className="text-[8px] md:text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-[0.4em] mt-3 text-center">{t('auth.subtitle')}</p>
+          <p className="text-[8px] md:text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-[0.4em] mt-3 text-center">{t('auth')}</p>
         </div>
 
         {/* AUTH BOX */}
@@ -121,7 +121,7 @@ export default function CorporateAuth() {
               onClick={() => { setIsLogin(true); setErrorMsg(''); setSuccessMsg(''); }}
               className={`flex-1 pb-3 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${isLogin ? 'text-[#A6947D] border-b-2 border-[#A6947D]' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]'}`}
             >
-              {t('auth.node_login')}
+              {t('node login')}
             </button>
             <button 
               type="button"
@@ -160,12 +160,12 @@ export default function CorporateAuth() {
             )}
 
             <div className="space-y-2">
-              <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Mail size={12}/> {t('auth.secure_email')}</label>
+              <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Mail size={12}/> {t('secure email')}</label>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20" placeholder="admin@corporate.com" />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Lock size={12}/> {t('auth.access_key')}</label>
+              <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-1.5"><Lock size={12}/> {t('access key')}</label>
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-lg font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20 tracking-[0.3em]" placeholder="••••••••••••" />
             </div>
 
