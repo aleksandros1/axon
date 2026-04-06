@@ -7,8 +7,8 @@ import {
   Shield, Globe, BarChart3, Crosshair, MessageSquare, 
   LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
   Trash2, Handshake, ExternalLink, Calendar, AlertOctagon, RotateCcw, X, Loader2,
-  Bell, Check, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send, Menu,
-  Layers3, UserCircle
+  Bell, Check, CheckCircle2, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send, Menu,
+  Layers3, UserCircle, Save
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -63,6 +63,7 @@ export default function PortfolioDashboard() {
 
   // --- STATE ΓΙΑ ΤΟ SMART MENU ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userRole, setUserRole] = useState('BUYER');
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -72,6 +73,10 @@ export default function PortfolioDashboard() {
       
       const user = session.user;
       setCurrentUser(user);
+
+      // Fetch Role
+      const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+      if (profile && profile.role) { setUserRole(profile.role); }
 
       // Fetch My Assets
       const { data: slabsData } = await supabase.from('slabs').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
@@ -289,7 +294,6 @@ export default function PortfolioDashboard() {
     }
   };
 
-  // --- ΔΙΑΧΩΡΙΣΜΟΣ PUBLIC ΚΑΙ PRIVATE ASSETS ---
   const publicAssets = mySlabs.filter(slab => slab.visibility !== 'private');
   const privateAssets = mySlabs.filter(slab => slab.visibility === 'private');
 
@@ -319,16 +323,18 @@ export default function PortfolioDashboard() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">ΒΑΣΙΚΕΣ ΕΝΟΤΗΤΕΣ</p>
+            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">ΒΑΣΙΚΕΣ ΕΝΟΤΗΤΕΣ - {userRole}</p>
             <div className="grid grid-cols-2 gap-4 mb-8">
               <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#A6947D]/10 border border-[#A6947D]/40 p-5 rounded-xl flex flex-col items-center justify-center gap-3 transition-colors shadow-inner">
                 <Layers3 size={24} className="text-[#A6947D]" />
                 <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Χαρτοφυλακιο &<br/>Συμφωνιες</span>
               </Link>
-              <Link href="/scanner" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <Crosshair size={24} className="text-[#A6947D]" />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Σαρωτης<br/>Υλικων</span>
-              </Link>
+              {userRole === 'SELLER' && (
+                <Link href="/scanner" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
+                  <Crosshair size={24} className="text-[#A6947D]" />
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Σαρωτης<br/>Υλικων</span>
+                </Link>
+              )}
               <Link href="/trading" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
                 <Globe size={24} className="text-[#A6947D]" />
                 <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Δημοσια<br/>Αγορα</span>
@@ -372,7 +378,9 @@ export default function PortfolioDashboard() {
 
         <nav className="flex-1 px-4 space-y-2 relative z-10">
           <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><Layers3 size={16} /> ΧΑΡΤΟΦΥΛΑΚΙΟ & ΣΥΜΦΩΝΙΕΣ</Link>
-          <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Crosshair size={16} /> ΣΑΡΩΤΗΣ ΥΛΙΚΩΝ</Link>
+          {userRole === 'SELLER' && (
+            <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Crosshair size={16} /> ΣΑΡΩΤΗΣ ΥΛΙΚΩΝ</Link>
+          )}
           <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> ΔΗΜΟΣΙΑ ΑΓΟΡΑ</Link>
           <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> ΠΑΓΚΟΣΜΙΟ ΔΙΚΤΥΟ</Link>
           <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> ΑΣΦΑΛΕΙΣ ΣΥΝΟΜΙΛΙΕΣ</Link>
@@ -566,7 +574,7 @@ export default function PortfolioDashboard() {
                 </div>
               )}
 
-              {/* INCOMING & OUTGOING TABS */}
+              {/* INCOMING TABS */}
               {activeTab === 'incoming' && (
                  <div className="space-y-4 w-full">
                  {incomingOffers.length === 0 ? (
@@ -585,7 +593,7 @@ export default function PortfolioDashboard() {
                           </div>
                           <div className="pt-1"><p className="text-[8px] md:text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.2em] mb-1">Sender Entity</p><p className="text-base md:text-xl font-serif text-[#F8F5EE] uppercase tracking-wider">{offer.contactName}</p></div>
                           <div className="bg-[#020509] border border-[#A6947D]/15 p-4 md:p-5 rounded-xl inline-block w-full max-w-md shadow-inner">
-                            <div className="flex justify-between items-center mb-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Target Asset</span><Link href={`/trading/${offer.offer_details?.asset_id}`} target="_blank" className="text-[9px] md:text-[11px] font-mono text-[#F8F5EE] hover:text-[#A6947D] transition-colors bg-[#A6947D]/10 px-2 py-0.5 rounded border border-[#A6947D]/20">AX-{offer.offer_details?.asset_id.substring(0,6)}</Link></div>
+                            <div className="flex justify-between items-center mb-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Target Asset</span><Link href={`/trading/${offer.offer_details?.asset_id}`} target="_blank" className="text-[9px] md:text-[11px] font-mono text-[#F8F5EE] hover:text-[#A6947D] transition-colors bg-[#A6947D]/10 px-2 py-0.5 rounded border border-[#A6947D]/20">AX-{offer.offer_details?.asset_id?.substring(0,6)}</Link></div>
                             <div className="flex justify-between items-center border-t border-[#A6947D]/15 pt-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Proposed Value</span><span className="text-lg md:text-2xl font-mono text-emerald-400 font-light tracking-tighter">{formatCurrency(offer.offer_details?.price)}</span></div>
                           </div>
                         </div>
@@ -594,6 +602,7 @@ export default function PortfolioDashboard() {
                  )}
                  </div>
               )}
+              {/* OUTGOING TABS */}
               {activeTab === 'outgoing' && (
                  <div className="space-y-4 w-full">
                  {outgoingOffers.length === 0 ? (
@@ -612,7 +621,7 @@ export default function PortfolioDashboard() {
                           </div>
                           <div className="pt-1"><p className="text-[8px] md:text-[9px] text-[#A6947D] uppercase font-bold tracking-[0.2em] mb-1">Target Entity</p><p className="text-base md:text-xl font-serif text-[#F8F5EE] uppercase tracking-wider">{offer.contactName}</p></div>
                           <div className="bg-[#020509] border border-[#A6947D]/15 p-4 md:p-5 rounded-xl inline-block w-full max-w-md shadow-inner opacity-80">
-                            <div className="flex justify-between items-center mb-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Requested Asset</span><Link href={`/trading/${offer.offer_details?.asset_id}`} target="_blank" className="text-[9px] md:text-[11px] font-mono text-[#F8F5EE] hover:text-[#A6947D] transition-colors bg-[#A6947D]/10 px-2 py-0.5 rounded border border-[#A6947D]/20">AX-{offer.offer_details?.asset_id.substring(0,6)}</Link></div>
+                            <div className="flex justify-between items-center mb-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Requested Asset</span><Link href={`/trading/${offer.offer_details?.asset_id}`} target="_blank" className="text-[9px] md:text-[11px] font-mono text-[#F8F5EE] hover:text-[#A6947D] transition-colors bg-[#A6947D]/10 px-2 py-0.5 rounded border border-[#A6947D]/20">AX-{offer.offer_details?.asset_id?.substring(0,6)}</Link></div>
                             <div className="flex justify-between items-center border-t border-[#A6947D]/15 pt-3"><span className="text-[8px] md:text-[9px] text-[#A6947D] uppercase tracking-widest">Your Offer</span><span className="text-lg md:text-2xl font-mono text-[#F8F5EE] font-light tracking-tighter">{formatCurrency(offer.offer_details?.price)}</span></div>
                           </div>
                         </div>
@@ -627,6 +636,7 @@ export default function PortfolioDashboard() {
         </div>
       </main>
 
+      {/* MOBILE BOTTOM NAV */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] w-full">
         <Link href="/dashboard" className="text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Layers3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Port</span></Link>
         <Link href="/trading" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Floor</span></Link>
@@ -637,6 +647,104 @@ export default function PortfolioDashboard() {
         </Link>
         <button onClick={() => setIsMobileMenuOpen(true)} className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Menu size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Menu</span></button>
       </nav>
+
+      {/* ========================================================= */}
+      {/* --- ΥΠΕΡΣΥΓΧΡΟΝΑ MODALS (EDIT, REFUND, TERM SHEET) --- */}
+      {/* ========================================================= */}
+
+      {/* 1. EDIT ASSET MODAL */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#01030A]/95 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#020509] border border-[#A6947D]/30 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-[#A6947D]/20 bg-[#01030A]">
+              <div className="flex items-center gap-3 text-[#A6947D]"><Edit size={20} /><h2 className="text-lg font-serif uppercase tracking-widest text-[#F8F5EE]">Update Asset Protocol</h2></div>
+              <button onClick={() => setIsEditModalOpen(false)} className="text-[#A6947D]/40 hover:bg-red-500/10 hover:text-red-500 p-2 rounded-full transition-colors"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleEditSubmit} className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Material Identity</label>
+                  <input type="text" value={editForm.material} onChange={(e) => setEditForm({...editForm, material: e.target.value})} className="w-full bg-[#01030A] border border-[#A6947D]/20 rounded-xl px-4 py-3 text-sm text-[#F8F5EE] outline-none focus:border-[#A6947D]" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Valuation (€)</label>
+                  <input type="number" value={editForm.price} onChange={(e) => setEditForm({...editForm, price: e.target.value})} className="w-full bg-[#01030A] border border-[#A6947D]/20 rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] outline-none focus:border-[#A6947D]" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Quantity (m²)</label>
+                  <input type="text" value={editForm.quantity} onChange={(e) => setEditForm({...editForm, quantity: e.target.value})} className="w-full bg-[#01030A] border border-[#A6947D]/20 rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] outline-none focus:border-[#A6947D]" required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Thickness (cm)</label>
+                  <input type="text" value={editForm.thickness} onChange={(e) => setEditForm({...editForm, thickness: e.target.value})} className="w-full bg-[#01030A] border border-[#A6947D]/20 rounded-xl px-4 py-3 text-sm font-mono text-[#F8F5EE] outline-none focus:border-[#A6947D]" required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Market Visibility</label>
+                <div className="flex bg-[#01030A] border border-[#A6947D]/20 rounded-xl p-1 gap-1">
+                  <button type="button" onClick={() => setEditForm({...editForm, visibility: 'public'})} className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${editForm.visibility === 'public' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-[#A6947D]/40 border border-transparent'}`}>Public Floor</button>
+                  <button type="button" onClick={() => setEditForm({...editForm, visibility: 'private'})} className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${editForm.visibility === 'private' ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'text-[#A6947D]/40 border border-transparent'}`}>Private Vault (Off-Market)</button>
+                </div>
+              </div>
+            </form>
+            <div className="p-6 border-t border-[#A6947D]/20 bg-[#01030A]">
+              <button onClick={handleEditSubmit} disabled={isSavingEdit} className="w-full bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] font-bold uppercase tracking-widest py-4 rounded-xl transition-all text-[10px] flex items-center justify-center gap-2">
+                {isSavingEdit ? <Loader2 className="animate-spin" size={16}/> : <><Save size={16}/> Override Protocol Data</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. TERM SHEET MODAL */}
+      {isTermSheetOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#01030A]/95 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#020509] border border-amber-500/30 rounded-2xl w-full max-w-md shadow-[0_0_40px_rgba(245,158,11,0.1)] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-amber-500/20 bg-[#01030A]">
+               <div className="flex items-center gap-3 text-amber-500"><FileSignature size={20} /><h2 className="text-lg font-serif uppercase tracking-widest text-[#F8F5EE]">Generate Term Sheet</h2></div>
+               <button onClick={() => setIsTermSheetOpen(false)} className="text-[#A6947D]/40 p-2 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-colors"><X size={18} /></button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Proposed Valuation (€)</label>
+                <input type="number" value={termSheet.price} onChange={(e) => setTermSheet({...termSheet, price: e.target.value})} className="w-full bg-[#01030A] border border-amber-500/30 rounded-xl px-4 py-4 font-mono text-amber-400 outline-none" required />
+              </div>
+              <button onClick={submitTermSheet} disabled={isSubmittingTerm} className="w-full bg-amber-500 hover:bg-amber-400 text-[#020509] font-bold uppercase tracking-widest py-4 rounded-xl transition-all text-[10px] shadow-lg flex justify-center items-center gap-2">
+                {isSubmittingTerm ? <Loader2 size={16} className="animate-spin"/> : 'Transmit Term Sheet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. REFUND/TERMINATE MODAL */}
+      {isRefundModalOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-[#01030A]/95 backdrop-blur-md animate-in fade-in duration-200">
+           <div className="bg-[#020509] border border-red-500/30 rounded-2xl w-full max-w-md shadow-[0_0_40px_rgba(239,68,68,0.15)] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-red-500/20 bg-[#01030A]">
+               <div className="flex items-center gap-3 text-red-500"><RotateCcw size={20} /><h2 className="text-lg font-serif uppercase tracking-widest text-[#F8F5EE]">Terminate Escrow</h2></div>
+               <button onClick={() => setIsRefundModalOpen(false)} className="text-[#A6947D]/40 p-2 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-colors"><X size={18} /></button>
+            </div>
+            <div className="p-6 space-y-6">
+              {refundSuccess ? (
+                <div className="text-center py-8">
+                  <CheckCircle2 size={48} className="mx-auto text-emerald-500 mb-4" />
+                  <p className="text-sm font-bold uppercase tracking-widest text-emerald-400">Escrow Terminated Successfully</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[10px] font-mono text-[#A6947D]/80 uppercase tracking-widest leading-relaxed">Warning: This action will reverse the secured funds via Stripe API and terminate the active contract.</p>
+                  <button onClick={executeRefund} disabled={isRefunding} className="w-full bg-red-500 hover:bg-red-400 text-[#020509] font-bold uppercase tracking-widest py-4 rounded-xl transition-all text-[10px] shadow-lg flex justify-center items-center gap-2">
+                    {isRefunding ? <Loader2 size={16} className="animate-spin"/> : 'Authorize Termination & Refund'}
+                  </button>
+                </>
+              )}
+            </div>
+           </div>
+        </div>
+      )}
+      {/* ========================================================= */}
+
     </div>
   );
 }
