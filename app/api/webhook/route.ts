@@ -1,59 +1,98 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 import Stripe from 'stripe';
-import { supabase } from '../../../lib/supabase'; // Το path είναι σωστό
+import { createClient } from '@supabase/supabase-js';
 
-// 1. Αρχικοποιούμε τη Stripe με το Μυστικό Κλειδί
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy_key_for_build', {
-  apiVersion: '2023-10-16' as any,
+// 1. Αρχικοποίηση Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: '2023-10-16',
 });
 
-// 2. Το "Συνθηματικό" του Webhook
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+// 2. Αρχικοποίηση Supabase με το MASTER KEY (Service Role) για απόλυτη πρόσβαση
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.SUPABASE_SERVICE_ROLE_KEY as string
+);
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const sig = req.headers.get('stripe-signature');
+  // ΕΔΩ ΕΓΙΝΕ Η ΔΙΟΡΘΩΣΗ: Προστέθηκε το await
+  const headersList = await headers();
+  const signature = headersList.get('stripe-signature') as string;
 
-  // ΑΦΑΙΡΕΘΗΚΕ Ο ΑΥΣΤΗΡΟΣ ΤΥΠΟΣ ΓΙΑ ΝΑ ΜΗΝ ΧΤΥΠΑΕΙ ΤΟ TYPESCRIPT
-  let event;
+  let event: Stripe.Event;
 
   try {
-    // 3. ΕΛΕΓΧΟΣ ΑΣΦΑΛΕΙΑΣ
-    if (!sig || !endpointSecret) {
-      throw new Error('Λείπει η υπογραφή Stripe ή το Webhook Secret.');
-    }
-    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
+    // Επαλήθευση ότι το χτύπημα είναι 100% από το Stripe και όχι από hacker
+    event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET as string
+    );
   } catch (err: any) {
-    console.error(`🚨 ΣΥΝΑΓΕΡΜΟΣ WEBHOOK: ${err.message}`);
-    return NextResponse.json({ error: `Webhook Error: ${err.message}` }, { status: 400 });
+    console.error('Webhook signature verification failed.', err.message);
+    return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 });
   }
 
-  console.log(`✅ ΕΠΙΒΕΒΑΙΩΜΕΝΟ ΣΗΜΑ STRIPE: ${event.type}`);
+  // 3. Αν η πληρωμή ολοκληρώθηκε με επιτυχία
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object as Stripe.Checkout.Session;
 
-  // 4. ΕΚΤΕΛΕΣΗ ΔΙΑΤΑΓΩΝ ΑΝΑΛΟΓΑ ΜΕ ΤΟ ΣΗΜΑ
-  if (event.type === 'payment_intent.succeeded') {
-    // Βάζουμε "as any" για να μην μπλοκάρει ο κώδικας
-    const paymentIntent = event.data.object as any;
-    
-    console.log(`💰 ΤΑ ΚΕΦΑΛΑΙΑ ΚΛΕΙΔΩΣΑΝ! PaymentIntent ID: ${paymentIntent.id}`);
+    // Παίρνουμε τα κρυφά δεδομένα (metadata) που στείλαμε όταν ξεκίνησε το checkout
+    const slabId = session.metadata?.slab_id;
+    const buyerId = session.metadata?.buyer_id;
+    const vendorId = session.metadata?.vendor_id;
+    const price = session.metadata?.price;
 
-    // Αλλάζουμε το Status του συμβολαίου στο Supabase
-    const { error } = await supabase
-      .from('contracts')
-      .update({ status: 'funded' })
-      .eq('stripe_payment_id', paymentIntent.id);
+    if (slabId && buyerId && vendorId) {
+      
+      // A. Φτιάχνουμε το συμβόλαιο στη βάση δεδομένων
+      const { error: contractError } = await supabaseAdmin
+        .from('contracts')
+        .insert([
+          {
+            slab_id: slabId,
+            buyer_id: buyerId,
+            vendor_id: vendorId,
+            price: price,
+            status: 'funded', // STATUS: FUNDS LOCKED
+            stripe_payment_id: session.payment_intent as string,
+          }
+        ]);
 
-    if (error) {
-      console.error('❌ Σφάλμα κατά την ενημέρωση του Supabase:', error.message);
-    } else {
-      console.log('✅ Το Smart Contract στο Supabase ενημερώθηκε επιτυχώς σε "funded".');
+      if (contractError) console.error('Error creating contract:', contractError);
+
+      // B. Ενημερώνουμε την πλάκα ότι "ΠΟΥΛΗΘΗΚΕ" (Δεν είναι πια διαθέσιμη στο Trading Floor)
+      await supabaseAdmin
+        .from('slabs')
+        .update({ is_available: false, visibility: 'private' })
+        .eq('id', slabId);
+
+      // C. Στέλνουμε Ειδοποίηση στον Πωλητή να ετοιμάσει το καράβι (BOL)
+      await supabaseAdmin
+        .from('notifications')
+        .insert([
+          {
+            user_id: vendorId,
+            type: 'payment',
+            title: 'FUNDS SECURED IN ESCROW',
+            message: `Payment for Asset AX-${slabId.substring(0,6)} has been secured by the buyer. Please prepare logistics and BOL.`
+          }
+        ]);
+        
+      // D. Στέλνουμε Ειδοποίηση στον Αγοραστή ότι τα λεφτά του κλειδώθηκαν με ασφάλεια
+      await supabaseAdmin
+        .from('notifications')
+        .insert([
+          {
+            user_id: buyerId,
+            type: 'payment',
+            title: 'ESCROW FUNDED SUCCESSFULLY',
+            message: `Your funds for AX-${slabId.substring(0,6)} are safely locked in the AXON Escrow Vault. Awaiting vendor logistics.`
+          }
+        ]);
     }
   }
 
-  if (event.type === 'payment_intent.payment_failed') {
-    const paymentIntent = event.data.object as any;
-    console.log(`❌ Η ΠΛΗΡΩΜΗ ΑΠΕΤΥΧΕ Ή ΑΚΥΡΩΘΗΚΕ: ${paymentIntent.id}`);
-  }
-
-  return NextResponse.json({ received: true });
+  return new NextResponse(JSON.stringify({ received: true }), { status: 200 });
 }
