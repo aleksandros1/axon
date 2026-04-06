@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
-import { Shield, Lock, Mail, Loader2, ArrowRight, AlertTriangle } from 'lucide-react';
+import { Shield, Lock, Mail, Loader2, ArrowRight, AlertTriangle, Building2, Globe } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 
@@ -13,6 +13,7 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedRole, setSelectedRole] = useState<'BUYER' | 'SELLER'>('BUYER'); // <-- ΝΕΟ: Επιλογή Ρόλου
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,12 +24,26 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
+        // --- LOGIN ---
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         router.push('/dashboard');
       } else {
-        const { error } = await supabase.auth.signUp({ email, password });
+        // --- SIGN UP ---
+        const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            data: { role: selectedRole } // Αποθήκευση ρόλου στα μεταδεδομένα του χρήστη
+          }
+        });
         if (error) throw error;
+
+        // Ενημέρωση και του πίνακα profiles με τον ρόλο που επέλεξε
+        if (data?.user) {
+          await supabase.from('profiles').update({ role: selectedRole }).eq('id', data.user.id);
+        }
+
         setError('REGISTRATION SUCCESSFUL. PLEASE AWAIT INSTITUTIONAL CLEARANCE.');
       }
     } catch (err: any) {
@@ -65,6 +80,37 @@ export default function AuthPage() {
 
           <form onSubmit={handleAuth} className="space-y-6">
             
+            {/* ΝΕΟ: ΕΠΙΛΟΓΗ ΡΟΛΟΥ (Φαίνεται ΜΟΝΟ στο Sign Up) */}
+            {!isLogin && (
+              <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Entity Classification</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setSelectedRole('BUYER')}
+                    className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border text-[9px] font-bold uppercase tracking-widest transition-all ${
+                      selectedRole === 'BUYER' 
+                        ? 'bg-[#A6947D]/10 border-[#A6947D] text-[#A6947D] shadow-inner' 
+                        : 'bg-[#020509] border-[#A6947D]/20 text-[#A6947D]/40 hover:border-[#A6947D]/50 hover:text-[#A6947D]/80'
+                    }`}
+                  >
+                    <Globe size={16} /> BUYER
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setSelectedRole('SELLER')}
+                    className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border text-[9px] font-bold uppercase tracking-widest transition-all ${
+                      selectedRole === 'SELLER' 
+                        ? 'bg-[#A6947D]/10 border-[#A6947D] text-[#A6947D] shadow-inner' 
+                        : 'bg-[#020509] border-[#A6947D]/20 text-[#A6947D]/40 hover:border-[#A6947D]/50 hover:text-[#A6947D]/80'
+                    }`}
+                  >
+                    <Building2 size={16} /> VENDOR
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest flex items-center gap-2">
                 <Mail size={12}/> Email Identity
@@ -82,7 +128,6 @@ export default function AuthPage() {
                   <Lock size={12}/> Passcode
                 </label>
                 
-                {/* 1. Η ΣΥΝΔΕΣΗ ΜΕ ΤΟ FORGOT PASSWORD */}
                 {isLogin && (
                   <Link href="/forgot-password" className="text-[8px] text-[#A6947D]/60 hover:text-[#A6947D] uppercase font-bold tracking-widest transition-colors">
                     Protocol Recovery?
@@ -97,9 +142,9 @@ export default function AuthPage() {
             </div>
 
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-center gap-3">
-                <AlertTriangle size={16} className="text-red-500 flex-none" />
-                <p className="text-[9px] font-bold uppercase tracking-widest text-red-500 leading-relaxed">{error}</p>
+              <div className={`p-4 rounded-xl flex items-start gap-3 border ${error.includes('SUCCESSFUL') ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-red-500/10 border-red-500/30 text-red-500'}`}>
+                {error.includes('SUCCESSFUL') ? <Shield size={16} className="flex-none mt-0.5" /> : <AlertTriangle size={16} className="flex-none mt-0.5" />}
+                <p className="text-[9px] font-bold uppercase tracking-widest leading-relaxed">{error}</p>
               </div>
             )}
 
@@ -118,7 +163,6 @@ export default function AuthPage() {
           </div>
         </div>
 
-        {/* 2. Η ΣΥΝΔΕΣΗ ΜΕ ΤΟ SUPPORT CENTER */}
         <div className="mt-8 text-center">
           <Link href="/support" className="inline-flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-[#A6947D]/40 hover:text-[#A6947D] transition-colors group">
             REQUIRE ASSISTANCE? <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform" />
