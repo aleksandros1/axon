@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
-// Βεβαιώσου ότι έχεις βάλει το RESEND_API_KEY στο .env.local σου
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(req: Request) {
   try {
+    // Η αρχικοποίηση μπήκε ΕΔΩ ΜΕΣΑ για να περάσει το Vercel Build
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    
     const { email, title, message, type } = await req.json();
 
-    // Στέλνουμε το Email
     const data = await resend.emails.send({
-      from: 'AXON Command Center <system@axon-trading.com>', // Άλλαξέ το με το domain σου όταν το κάνεις verify
+      from: 'AXON Command Center <system@axon-trading.com>',
       to: [email],
       subject: `[AXON ALERT] ${title}`,
       html: `
