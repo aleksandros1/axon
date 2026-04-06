@@ -1,5 +1,6 @@
 import './globals.css';
 import { LanguageProvider } from '../lib/i18n/LanguageContext';
+import NotificationCenter from './components/NotificationCenter';
 
 export const metadata = {
   title: 'AXON | Institutional B2B Marketplace',
