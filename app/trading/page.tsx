@@ -22,6 +22,7 @@ export default function TradingFloor() {
   const [slabs, setSlabs] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userRole, setUserRole] = useState('BUYER'); // <-- ΕΔΩ ΜΠΑΙΝΕΙ Ο ΡΟΛΟΣ
 
   useEffect(() => {
     const fetchSlabs = async () => {
@@ -29,6 +30,18 @@ export default function TradingFloor() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/auth'); return; }
 
+      // Τραβάμε τον ρόλο του χρήστη από το προφίλ του
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+        
+      if (profile && profile.role) {
+        setUserRole(profile.role);
+      }
+
+      // Τραβάμε τα υλικά
       const { data, error } = await supabase
         .from('slabs')
         .select('*, profiles(company_name, status, country)')
@@ -65,7 +78,7 @@ export default function TradingFloor() {
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-x-hidden font-sans relative antialiased">
       
-      {/* MOBILE MENU (SMART OVERLAY) */}
+      {/* MOBILE MENU */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-[100] bg-[#01030A]/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-5 duration-300">
           <div className="flex justify-between items-center p-6 border-b border-[#A6947D]/20 bg-[#020509]">
@@ -73,21 +86,26 @@ export default function TradingFloor() {
             <button onClick={() => setIsMobileMenuOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 p-2"><X size={24} /></button>
           </div>
           <div className="flex-1 overflow-y-auto p-6">
-            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">{t('common.core_modules')}</p>
+            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">{t('common.core_modules')} - {userRole}</p>
             <div className="grid grid-cols-2 gap-4 mb-8">
-              <Link href="/dashboard" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Layers3 size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE]">{t('menu.portfolio')}</span></Link>
-              <Link href="/scanner" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Crosshair size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE]">{t('menu.scanner')}</span></Link>
-              <Link href="/trading" className="bg-[#A6947D]/10 border border-[#A6947D]/40 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Globe size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE]">{t('menu.floor')}</span></Link>
-              <Link href="/network" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Users size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE]">{t('menu.network')}</span></Link>
-              <Link href="/inbox" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><MessageSquare size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE]">{t('menu.comms')}</span></Link>
-              <Link href="/me" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><UserCircle size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE]">{t('menu.profile')}</span></Link>
+              <Link href="/dashboard" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Layers3 size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE] text-center">{t('menu.portfolio')}</span></Link>
+              
+              {/* ΕΛΕΓΧΟΣ ΡΟΛΟΥ ΓΙΑ MOBILE: Το βλέπουν ΜΟΝΟ οι SELLERS */}
+              {userRole === 'SELLER' && (
+                <Link href="/scanner" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Crosshair size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE] text-center">{t('menu.scanner')}</span></Link>
+              )}
+              
+              <Link href="/trading" className="bg-[#A6947D]/10 border border-[#A6947D]/40 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Globe size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE] text-center">{t('menu.floor')}</span></Link>
+              <Link href="/network" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Users size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE] text-center">{t('menu.network')}</span></Link>
+              <Link href="/inbox" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><MessageSquare size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE] text-center">{t('menu.comms')}</span></Link>
+              <Link href="/me" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><UserCircle size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE] text-center">{t('menu.profile')}</span></Link>
             </div>
             <button onClick={handleLogout} className="w-full bg-[#020509] border border-red-900/30 text-red-500 p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px]">{t('common.disconnect')}</button>
           </div>
         </div>
       )}
 
-      {/* INSTITUTIONAL SIDEBAR */}
+      {/* MASTER SIDEBAR - DESKTOP */}
       <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl fixed h-full">
         <div className="p-8 pb-10 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
           <div className="w-12 h-12 border border-[#A6947D]/30 rounded-full flex items-center justify-center relative mb-4 bg-[#01030A]">
@@ -99,7 +117,12 @@ export default function TradingFloor() {
         <SidebarLanguageSwitcher />
         <nav className="flex-1 px-4 space-y-2 relative z-10 text-[10px] font-bold uppercase tracking-widest">
           <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><Layers3 size={16} /> {t('menu.portfolio')}</Link>
-          <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><Crosshair size={16} /> {t('menu.scanner')}</Link>
+          
+          {/* ΕΛΕΓΧΟΣ ΡΟΛΟΥ ΓΙΑ DESKTOP: Το βλέπουν ΜΟΝΟ οι SELLERS */}
+          {userRole === 'SELLER' && (
+             <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><Crosshair size={16} /> {t('menu.scanner')}</Link>
+          )}
+          
           <Link href="/trading" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl border border-[#A6947D]/20 shadow-inner"><Globe size={16} /> {t('menu.floor')}</Link>
           <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><Users size={16} /> {t('menu.network')}</Link>
           <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><MessageSquare size={16} /> {t('menu.comms')}</Link>
