@@ -207,25 +207,47 @@ export default function PublicAssetDossier() {
     setIsSubmitting(false);
   };
 
+  // --- Η ΜΑΓΕΙΑ ΕΔΩ (ΔΙΟΡΘΩΜΕΝΟ STRIPE INITIALIZATION) ---
   const initializeStripePayment = async (mode: 'instant' | 'lock') => {
     if (!currentUser) { router.push('/auth'); return; }
+    
+    // Ενεργοποιούμε το οπτικό Radar του AXON για ψυχολογικό lock-in
+    setIsVerifying(true);
+    setVerificationStep(1);
+
     const amount = mode === 'instant' ? parsePrice(slab.price) : parsePrice(slab.price) * 0.20;
-    setCheckoutMode(mode);
+    
     try {
       const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }),
+        body: JSON.stringify({ 
+          slabId: slab.id,
+          price: amount,
+          buyerId: currentUser.id,
+          vendorId: vendor?.id || slab.user_id || slab.vendor_id
+        }),
       });
+      
       const data = await res.json();
-      if (data.clientSecret) setClientSecret(data.clientSecret);
-    } catch (err) { setCheckoutMode(null); }
+      
+      if (data.url) {
+        // Τηλεμεταφορά στην επίσημη σελίδα του Stripe
+        window.location.href = data.url; 
+      } else {
+        setIsVerifying(false);
+        alert("Failed to initialize secure payment portal. Check console.");
+      }
+    } catch (err) { 
+      setIsVerifying(false);
+      console.error(err);
+      alert("System Error. Please contact AXON support."); 
+    }
   };
 
   // --- AI VISION SCAN HANDLER ---
   const handleAiScan = () => {
     setIsAiScanning(true);
-    // Προσομοίωση 3.5 δευτερολέπτων για να κάνει "scan" το μοντέλο AI
     setTimeout(() => {
       setIsAiScanning(false);
       setAiReport({
@@ -313,8 +335,8 @@ export default function PublicAssetDossier() {
         </div>
       )}
 
-      {/* STRIPE CHECKOUT MODAL */}
-      {checkoutMode && (
+      {/* STRIPE CHECKOUT MODAL (ΠΑΡΑΜΕΝΕΙ ΓΙΑ ΛΟΓΟΥΣ ΣΥΜΒΑΤΟΤΗΤΑΣ ΑΝ ΚΑΙ ΠΛΕΟΝ ΔΕΝ ΤΟ ΧΡΕΙΑΖΕΣΑΙ) */}
+      {checkoutMode && clientSecret && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#01030A]/95 backdrop-blur-md animate-in fade-in duration-300 overflow-x-hidden">
           <div className="bg-[#020509] border border-[#A6947D]/20 rounded-2xl w-full max-w-lg relative shadow-2xl overflow-hidden my-auto">
             {paymentSuccess ? (
@@ -333,13 +355,9 @@ export default function PublicAssetDossier() {
                   <p className="text-[10px] text-[#A6947D]/80 uppercase font-bold tracking-widest mb-3">{checkoutMode === 'instant' ? t('scanner.valuation') : 'Escrow Deposit'}</p>
                   <p className="text-4xl md:text-5xl font-mono text-[#F8F5EE] tracking-tighter">{formatCurrencyLocal(checkoutMode === 'instant' ? slab.price : parsePrice(slab.price)*0.2)}</p>
                 </div>
-                {!clientSecret ? (
-                  <div className="p-16 flex justify-center"><Loader2 size={32} className="animate-spin text-[#A6947D]" /></div>
-                ) : (
-                  <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night', variables: { colorPrimary: '#10B981', colorBackground: '#01030A', colorDanger: '#EF4444' } } }}>
-                    <StripeCheckoutForm onSuccess={handlePaymentSuccess} onCancel={() => setCheckoutMode(null)} themeColorBg="bg-emerald-500 hover:bg-emerald-400" />
-                  </Elements>
-                )}
+                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night', variables: { colorPrimary: '#10B981', colorBackground: '#01030A', colorDanger: '#EF4444' } } }}>
+                  <StripeCheckoutForm onSuccess={handlePaymentSuccess} onCancel={() => setCheckoutMode(null)} themeColorBg="bg-emerald-500 hover:bg-emerald-400" />
+                </Elements>
               </>
             )}
           </div>
@@ -599,7 +617,6 @@ export default function PublicAssetDossier() {
         <Link href="/inbox" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 relative flex-1 transition-colors">
           <div className="relative inline-flex">
             <MessageSquare size={20} />
-            {/* Η "Χειροκίνητη" Κόκκινη τελεία για σιγουριά στο compile! */}
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-[#FF204E] border-[2px] border-[#01030A] rounded-full shadow-[0_0_10px_rgba(255,32,78,0.6)] z-20 animate-pulse"></span>
           </div>
           <span className="text-[8px] uppercase font-bold tracking-widest">Comms</span>
