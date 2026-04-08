@@ -1,54 +1,64 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-// Αρχικοποίηση του Stripe με το Secret Key από το .env.local
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16', // Ή η νεότερη έκδοση που υποστηρίζει το Stripe
+// Αρχικοποίηση Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: '2023-10-16',
 });
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const body = await request.json();
-    const { amount, vendorStripeAccountId } = body;
+    const body = await req.json();
+    // Στην πράξη το vendorStripeAccountId θα έρχεται από τη βάση δεδομένων σου.
+    // Για το τεστ, βάλε εδώ το acct_ που μόλις αντέγραψες!
+    const { slabId, buyerId, vendorId, price, vendorStripeAccountId = 'acct_1TJvWW1RTGgmHrj9' } = body;
 
-    if (!amount) {
-      return NextResponse.json({ error: 'Amount is required' }, { status: 400 });
+    if (!price || !slabId) {
+      return new NextResponse('Missing required fields', { status: 400 });
     }
 
-    // Το Stripe δουλεύει ΠΑΝΤΑ με cents (π.χ. 10.000€ = 1.000.000 cents)
-    const amountInCents = Math.round(amount * 100);
+    // Το Stripe δουλεύει ΠΑΝΤΑ με λεπτά (cents). Άρα 1000€ = 100000 cents.
+    const amountInCents = Math.round(price * 100);
     
-    // Υπολογισμός Προμήθειας AXON: 2.5%
-    const platformFeeCents = Math.round(amountInCents * 0.025);
+    // Το δικό σου fee (2.5%) -> Το AXON "Διόδιο"
+    const platformFeeInCents = Math.round(amountInCents * 0.025);
 
-    // Βασικές Παράμετροι Συναλλαγής
-    const paymentIntentParams: Stripe.PaymentIntentCreateParams = {
-      amount: amountInCents,
-      currency: 'eur',
-      // ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΜΥΣΤΙΚΟ ΤΟΥ ESCROW: Δεσμεύει, ΔΕΝ τραβάει τα λεφτά!
-      capture_method: 'manual', 
-    };
-
-    // Αν ο πωλητής έχει συνδέσει τον λογαριασμό του (Stripe Connect), τότε στέλνουμε τα λεφτά 
-    // σε αυτόν και κρατάμε την προμήθεια. 
-    // (Αν δεν έχει, τα λεφτά απλά δεσμεύονται στον κεντρικό λογαριασμό του AXON προς το παρόν)
-    if (vendorStripeAccountId) {
-      paymentIntentParams.transfer_data = {
-        destination: vendorStripeAccountId,
-      };
-      paymentIntentParams.application_fee_amount = platformFeeCents;
-    }
-
-    // Δημιουργία του Payment Intent στο Stripe
-    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
-
-    // Επιστροφή του κλειδιού στο Frontend για να ανοίξει το παράθυρο της κάρτας
-    return NextResponse.json({
-      clientSecret: paymentIntent.client_secret,
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: `AXON Contract: AX-${slabId.substring(0,8)}`,
+              description: 'Premium Asset - Escrow Secured',
+            },
+            unit_amount: amountInCents,
+          },
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      payment_intent_data: {
+        // ΕΔΩ ΓΙΝΕΤΑΙ Η ΜΑΓΕΙΑ (Destination Charge)
+        transfer_data: {
+          destination: vendorStripeAccountId, // Στέλνει το 97.5% απευθείας στον Παυλίδη
+        },
+        application_fee_amount: platformFeeInCents, // Κρατάει το 2.5% στο δικό σου λογαριασμό AXON
+      },
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard?status=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard?status=cancelled`,
+      metadata: {
+        slab_id: slabId,
+        buyer_id: buyerId || 'test_buyer',
+        vendor_id: vendorId || 'test_vendor',
+        price: price.toString(),
+      },
     });
-    
+
+    return NextResponse.json({ url: session.url });
   } catch (error: any) {
-    console.error('Stripe Checkout Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Checkout Error:', error);
+    return new NextResponse(error.message, { status: 500 });
   }
 }
