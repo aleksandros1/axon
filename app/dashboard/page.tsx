@@ -8,7 +8,7 @@ import {
   LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
   Trash2, Handshake, ExternalLink, Calendar, AlertOctagon, RotateCcw, X, Loader2,
   Bell, Check, CheckCircle2, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send, Menu,
-  Layers3, UserCircle, Save, FileText, Download, Mail, Archive // Προστέθηκαν Mail, Archive
+  Layers3, UserCircle, Save, FileText, Download, Mail, Archive
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -28,7 +28,6 @@ export default function PortfolioDashboard() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
   
-  // Προστέθηκε το 'archive' στο activeTab
   const [activeTab, setActiveTab] = useState<'assets' | 'private' | 'tracked' | 'incoming' | 'outgoing' | 'archive'>('assets');
   
   const [mySlabs, setMySlabs] = useState<any[]>([]);
@@ -36,6 +35,9 @@ export default function PortfolioDashboard() {
   const [outgoingOffers, setOutgoingOffers] = useState<any[]>([]);
   const [trackedSlabs, setTrackedSlabs] = useState<any[]>([]);
   const [escrowTotal, setEscrowTotal] = useState(0);
+  
+  // ΝΕΟ STATE ΓΙΑ ΤΑ ΠΡΑΓΜΑΤΙΚΑ ΣΥΜΒΟΛΑΙΑ
+  const [myContracts, setMyContracts] = useState<any[]>([]);
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -139,13 +141,21 @@ export default function PortfolioDashboard() {
         setOutgoingOffers(out.map(o => ({ ...o, contactName: getContactName(o.receiver_id) })));
       }
 
-      // Fetch Contracts for Escrow Total
+      // Fetch Contracts
       const { data: contractsData } = await supabase
         .from('contracts')
-        .select('price, status')
-        .or(`buyer_id.eq.${user.id},vendor_id.eq.${user.id}`);
+        .select(`
+          *,
+          buyer:buyer_id (company_name),
+          vendor:vendor_id (company_name),
+          slab:slab_id (material)
+        `)
+        .or(`buyer_id.eq.${user.id},vendor_id.eq.${user.id}`)
+        .order('created_at', { ascending: false });
 
       if (contractsData) {
+        setMyContracts(contractsData); // Για το Archive Tab
+        
         const activeStatuses = ['pending', 'funded', 'shipped'];
         const total = contractsData
           .filter(c => activeStatuses.includes(c.status))
@@ -233,8 +243,15 @@ export default function PortfolioDashboard() {
   };
 
   const formatTime = (isoString: string) => {
+    if (!isoString) return '';
     return new Date(isoString).toLocaleDateString('el-GR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
+  
+  // Απλό formatting ημερομηνίας για το Archive
+  const formatArchiveDate = (isoString: string) => {
+      if (!isoString) return '';
+      return new Date(isoString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
 
   // --- ESCROW TERMINATION (REFUND) LOGIC ---
   const openRefundModal = (deal: any) => {
@@ -313,6 +330,13 @@ export default function PortfolioDashboard() {
       setIsSubmittingTerm(false);
     }
   };
+  
+  // Handler για δημιουργία συμβολαίου από το modal
+  const handleGenerateContract = async () => {
+      // Αυτό απλά κλείνει το modal και πάει στο inbox για να επιλέξει σε ποιον θα το στείλει
+      setIsContractGeneratorOpen(false);
+      router.push('/inbox');
+  };
 
   const publicAssets = mySlabs.filter(slab => slab.visibility !== 'private');
   const privateAssets = mySlabs.filter(slab => slab.visibility === 'private');
@@ -326,13 +350,6 @@ export default function PortfolioDashboard() {
     const val = typeof slab.price === 'string' ? parseFloat(slab.price.replace(/\./g, '').replace(/,/g, '.')) : (slab.price || 0);
     return acc + val;
   }, 0);
-
-  // --- MOCK DATA ΓΙΑ ΤΟ CONTRACT ARCHIVE ---
-  const archiveContracts = [
-    { id: 'C4509', date: 'Apr 9, 2026', counterparty: 'VENDOR 7BEFD1', type: 'SIVEC PURCHASE', status: 'SECURED (99.9% TRUST)', statusColor: 'text-emerald-500' },
-    { id: 'C4610', date: 'Apr 10, 2026', counterparty: 'VENDOR 1F5D02', type: 'VOLAKAS PURCHASE', status: 'SECURED (99.9% TRUST)', statusColor: 'text-emerald-500' },
-    { id: 'C4782', date: 'Apr 12, 2026', counterparty: 'EMAAR PROPERTIES', type: 'SIVEC PREMIUM EXPORT', status: 'PENDING ESCROW', statusColor: 'text-amber-500' }
-  ];
 
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
@@ -503,9 +520,9 @@ export default function PortfolioDashboard() {
             <button onClick={() => setActiveTab('incoming')} className={`pb-3 md:pb-4 px-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'incoming' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}><ArrowDownRight size={14} /> {t('dashboard.incoming')} {incomingOffers.length > 0 && <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full text-[8px] md:text-[9px] shadow-[0_0_10px_rgba(16,185,129,0.2)]">{incomingOffers.length}</span>}</button>
             <button onClick={() => setActiveTab('outgoing')} className={`pb-3 md:pb-4 px-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'outgoing' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}><ArrowUpRight size={14} /> {t('dashboard.outgoing')} ({outgoingOffers.length})</button>
             
-            {/* ΝΕΟ TAB: CONTRACT ARCHIVE */}
+            {/* ARCHIVE TAB */}
             <button onClick={() => setActiveTab('archive')} className={`pb-3 md:pb-4 px-2 text-[9px] md:text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2 transition-all whitespace-nowrap ${activeTab === 'archive' ? 'text-[#A6947D] border-b-2 border-[#A6947D]' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]/80'}`}>
-              <Archive size={14} /> ARCHIVE
+              <Archive size={14} /> CONTRACT ARCHIVE
             </button>
           </div>
 
@@ -677,7 +694,7 @@ export default function PortfolioDashboard() {
                  </div>
               )}
 
-              {/* --- ΝΕΟ: CONTRACT ARCHIVE TAB --- */}
+              {/* --- ΝΕΟ: CONTRACT ARCHIVE TAB (REAL DATA) --- */}
               {activeTab === 'archive' && (
                 <div className="w-full animate-in fade-in duration-500">
                   <div className="mb-6">
@@ -685,48 +702,74 @@ export default function PortfolioDashboard() {
                     <p className="text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-widest">Institutional Ledger History</p>
                   </div>
                   
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                    {archiveContracts.map(contract => (
-                      <div key={contract.id} className="bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/20 rounded-2xl p-5 md:p-6 flex flex-col md:flex-row justify-between gap-6 shadow-lg hover:border-[#A6947D]/40 transition-colors group">
-                        
-                        {/* Αριστερό Μέρος (Πληροφορίες) */}
-                        <div className="flex gap-4">
-                          <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-[#A6947D]/30 flex items-center justify-center relative shrink-0 bg-[#A6947D]/5 group-hover:bg-[#A6947D]/10 transition-colors">
-                            <Shield size={26} className="text-[#A6947D]/30 absolute" />
-                            <span className="text-[#A6947D] text-[10px] md:text-xs font-bold font-serif relative z-10">CT</span>
-                          </div>
-                          
-                          <div className="flex flex-col justify-center">
-                            <h4 className="text-[#F8F5EE] font-serif uppercase tracking-wider text-sm md:text-base">CONTRACT #{contract.id}</h4>
-                            <p className="text-[10px] text-[#A6947D]/60 font-mono mb-3">{contract.date}</p>
-                            
-                            <div className="space-y-1">
-                              <p className="text-[9px] md:text-[10px] font-mono text-[#A6947D]"><span className="text-[#A6947D]/50">Counterparty:</span> {contract.counterparty}</p>
-                              <p className="text-[9px] md:text-[10px] font-mono text-[#A6947D]"><span className="text-[#A6947D]/50">Type:</span> {contract.type}</p>
-                              <p className="text-[9px] md:text-[10px] font-mono text-[#A6947D]"><span className="text-[#A6947D]/50">Status:</span> <span className={`font-bold ${contract.statusColor}`}>{contract.status}</span></p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Δεξί Μέρος (Κουμπιά) */}
-                        <div className="flex flex-col gap-2 shrink-0 md:w-48 justify-center">
-                          <button 
-                            onClick={() => alert(`Sending Contract ${contract.id} via AXON Chat...`)} 
-                            className="w-full bg-transparent border border-[#A6947D]/30 hover:border-[#A6947D] hover:bg-[#A6947D]/10 text-[#A6947D] px-4 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
-                          >
-                            <MessageSquare size={14} /> SEND VIA AXON CHAT
-                          </button>
-                          <button 
-                            onClick={() => alert(`Sending Contract ${contract.id} via Email...`)} 
-                            className="w-full bg-transparent border border-[#A6947D]/30 hover:border-[#A6947D] hover:bg-[#A6947D]/10 text-[#A6947D] px-4 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
-                          >
-                            <Mail size={14} /> SEND VIA EMAIL
-                          </button>
-                        </div>
-
+                  {myContracts.length === 0 ? (
+                    <div className="bg-[#01030A]/60 backdrop-blur-md border border-[#A6947D]/10 rounded-2xl p-10 md:p-16 text-center flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 md:w-20 h-20 rounded-full border border-[#A6947D]/20 flex items-center justify-center mb-4 md:mb-6 bg-[#A6947D]/5">
+                        <Archive size={28} className="text-[#A6947D]/40" />
                       </div>
-                    ))}
-                  </div>
+                      <p className="text-[9px] md:text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-[0.2em]">No contracts found in ledger.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+                      {myContracts.map(contract => {
+                        // Καθορισμός του ρόλου του χρήστη στο συμβόλαιο (αν είναι αγοραστής ή πωλητής)
+                        const isSeller = currentUser?.id === contract.vendor_id;
+                        const counterpartyName = isSeller 
+                          ? (contract.buyer?.company_name || 'UNKNOWN BUYER')
+                          : (contract.vendor?.company_name || 'UNKNOWN VENDOR');
+                        
+                        // Χρώμα Status
+                        let statusColor = 'text-slate-400';
+                        if (contract.status === 'funded' || contract.status === 'shipped') statusColor = 'text-emerald-500';
+                        if (contract.status === 'pending') statusColor = 'text-amber-500';
+                        if (contract.status === 'cancelled' || contract.status === 'disputed') statusColor = 'text-red-500';
+
+                        return (
+                          <div key={contract.id} className="bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/20 rounded-2xl p-5 md:p-6 flex flex-col md:flex-row justify-between gap-6 shadow-lg hover:border-[#A6947D]/40 transition-colors group">
+                            
+                            {/* Αριστερό Μέρος (Πληροφορίες) */}
+                            <div className="flex gap-4">
+                              <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-[#A6947D]/30 flex items-center justify-center relative shrink-0 bg-[#A6947D]/5 group-hover:bg-[#A6947D]/10 transition-colors">
+                                <Shield size={26} className="text-[#A6947D]/30 absolute" />
+                                <span className="text-[#A6947D] text-[10px] md:text-xs font-bold font-serif relative z-10">CT</span>
+                              </div>
+                              
+                              <div className="flex flex-col justify-center">
+                                <h4 className="text-[#F8F5EE] font-serif uppercase tracking-wider text-sm md:text-base">
+                                  CONTRACT #{contract.id.substring(0, 8).toUpperCase()}
+                                </h4>
+                                <p className="text-[10px] text-[#A6947D]/60 font-mono mb-3">{formatArchiveDate(contract.created_at)}</p>
+                                
+                                <div className="space-y-1">
+                                  <p className="text-[9px] md:text-[10px] font-mono text-[#A6947D]"><span className="text-[#A6947D]/50">Counterparty:</span> {counterpartyName}</p>
+                                  <p className="text-[9px] md:text-[10px] font-mono text-[#A6947D]"><span className="text-[#A6947D]/50">Asset:</span> {contract.slab?.material || 'Unknown Material'}</p>
+                                  <p className="text-[9px] md:text-[10px] font-mono text-[#A6947D]"><span className="text-[#A6947D]/50">Value:</span> €{contract.price}</p>
+                                  <p className="text-[9px] md:text-[10px] font-mono text-[#A6947D]"><span className="text-[#A6947D]/50">Status:</span> <span className={`font-bold uppercase ${statusColor}`}>{contract.status}</span></p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Δεξί Μέρος (Κουμπιά) */}
+                            <div className="flex flex-col gap-2 shrink-0 md:w-48 justify-center">
+                              <button 
+                                onClick={() => router.push('/inbox')} 
+                                className="w-full bg-transparent border border-[#A6947D]/30 hover:border-[#A6947D] hover:bg-[#A6947D]/10 text-[#A6947D] px-4 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
+                              >
+                                <MessageSquare size={14} /> SEND VIA AXON CHAT
+                              </button>
+                              <button 
+                                onClick={() => alert(`Downloading PDF for Contract: AX-${contract.id.substring(0, 8).toUpperCase()}`)} 
+                                className="w-full bg-transparent border border-[#A6947D]/30 hover:border-[#A6947D] hover:bg-[#A6947D]/10 text-[#A6947D] px-4 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
+                              >
+                                <Download size={14} /> DOWNLOAD PDF
+                              </button>
+                            </div>
+
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -807,7 +850,7 @@ export default function PortfolioDashboard() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-4 pt-8 mt-auto pb-4">
-                  <button onClick={() => alert('Contract sent via Chat system (Mock)')} className="flex-1 bg-[#D4AF37] hover:bg-[#b5952f] text-[#020817] font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                  <button onClick={handleGenerateContract} className="flex-1 bg-[#D4AF37] hover:bg-[#b5952f] text-[#020817] font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
                     <Send size={18} />
                     SEND CONTRACT TO BUYER
                   </button>
