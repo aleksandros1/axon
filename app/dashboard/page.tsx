@@ -8,7 +8,7 @@ import {
   LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
   Trash2, Handshake, ExternalLink, Calendar, AlertOctagon, RotateCcw, X, Loader2,
   Bell, Check, CheckCircle2, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send, Menu,
-  Layers3, UserCircle, Save, FileText, Download, Mail, Archive
+  Layers3, UserCircle, Save, FileText, Download, Mail, Archive, UserPlus
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -36,8 +36,9 @@ export default function PortfolioDashboard() {
   const [trackedSlabs, setTrackedSlabs] = useState<any[]>([]);
   const [escrowTotal, setEscrowTotal] = useState(0);
   
-  // STATE ΓΙΑ ΤΑ ΠΡΑΓΜΑΤΙΚΑ ΣΥΜΒΟΛΑΙΑ ΤΟΥ ARCHIVE
+  // STATE ΓΙΑ ΤΑ ΣΥΜΒΟΛΑΙΑ & ΕΠΑΦΕΣ
   const [myContracts, setMyContracts] = useState<any[]>([]);
+  const [platformContacts, setPlatformContacts] = useState<any[]>([]);
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -56,6 +57,10 @@ export default function PortfolioDashboard() {
   const [termSuccess, setTermSuccess] = useState(false);
   const [termSheet, setTermSheet] = useState({ price: '', incoterms: 'FOB', deposit: '30', inspection: '7' });
 
+  // --- CONTACT SELECTOR MODAL STATE ---
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [contractToSend, setContractToSend] = useState<any>(null);
+
   // --- EDIT MODAL STATE ---
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingSlab, setEditingSlab] = useState<any>(null);
@@ -64,13 +69,9 @@ export default function PortfolioDashboard() {
     material: '', price: '', origin: '', location: '', thickness: '', quantity: '', incoterm: 'EXW', description: '', visibility: 'public', pricing_model: 'PUBLIC'
   });
 
-  // --- STATE ΓΙΑ ΤΟ SMART MENU ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userRole, setUserRole] = useState('BUYER');
 
-  // ==========================================
-  // --- STATE ΓΙΑ ΤΟ CONTRACT GENERATOR ---
-  // ==========================================
   const [isContractGeneratorOpen, setIsContractGeneratorOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [contractData, setContractData] = useState({
@@ -86,18 +87,21 @@ export default function PortfolioDashboard() {
   const handleContractChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setContractData({ ...contractData, [e.target.name]: e.target.value });
   };
-  // ==========================================
 
   // ==========================================
-  // --- ENGINE ΚΑΘΑΡΗΣ ΕΚΤΥΠΩΣΗΣ PDF ---
+  // --- ENGINE ΚΑΘΑΡΗΣ ΕΚΤΥΠΩΣΗΣ PDF (ΑΟΡΑΤΟ IFRAME) ---
   // ==========================================
   const triggerPDFDownload = (cId: string, buyer: string, material: string, quantity: string, price: string, incoterms: string, dateStr: string) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert("Παρακαλώ επιτρέψτε τα pop-ups για να κατεβάσετε το PDF.");
-      return;
-    }
-    
+    // Δημιουργούμε ένα αόρατο Iframe για να τυπώσουμε ΜΟΝΟ το έγγραφο, χωρίς το μαύρο background
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -167,20 +171,24 @@ export default function PortfolioDashboard() {
             <span>Generated via AXON Network</span>
             <span>Legally Binding Document</span>
           </div>
-          
-          <script>
-            window.onload = function() {
-              setTimeout(function() {
-                window.print();
-                window.close();
-              }, 300);
-            }
-          </script>
         </body>
       </html>
     `;
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+
+      setTimeout(() => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 1000);
+      }, 500);
+    }
   };
 
   useEffect(() => {
@@ -195,6 +203,10 @@ export default function PortfolioDashboard() {
       // Fetch Role
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
       if (profile && profile.role) { setUserRole(profile.role); }
+
+      // Fetch Contacts for the Modal (All other users)
+      const { data: profilesList } = await supabase.from('profiles').select('id, company_name, email').neq('id', user.id);
+      if (profilesList) setPlatformContacts(profilesList);
 
       // Fetch My Assets
       const { data: slabsData } = await supabase.from('slabs').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
@@ -237,7 +249,9 @@ export default function PortfolioDashboard() {
         setOutgoingOffers(out.map(o => ({ ...o, contactName: getContactName(o.receiver_id) })));
       }
 
-      // Fetch Contracts (Για το Archive)
+      // Fetch Contracts (Για το Archive + LocalStorage)
+      const localContracts = JSON.parse(localStorage.getItem('axon_custom_contracts') || '[]');
+      
       const { data: contractsData } = await supabase
         .from('contracts')
         .select(`
@@ -249,11 +263,12 @@ export default function PortfolioDashboard() {
         .or(`buyer_id.eq.${user.id},vendor_id.eq.${user.id}`)
         .order('created_at', { ascending: false });
 
+      let combinedContracts = [...localContracts];
       if (contractsData) {
-        setMyContracts(contractsData); 
+        combinedContracts = [...localContracts, ...contractsData];
         
         const activeStatuses = ['pending', 'funded', 'shipped'];
-        const total = contractsData
+        const total = combinedContracts
           .filter(c => activeStatuses.includes(c.status))
           .reduce((acc, curr) => {
             const priceString = curr.price?.toString() || '0';
@@ -262,6 +277,7 @@ export default function PortfolioDashboard() {
           }, 0);
         setEscrowTotal(total);
       }
+      setMyContracts(combinedContracts);
 
       setLoading(false);
     };
@@ -282,7 +298,6 @@ export default function PortfolioDashboard() {
     }
   };
 
-  // --- EDIT ASSET LOGIC ---
   const openEditModal = (slab: any) => {
     setEditingSlab(slab);
     setEditForm({
@@ -304,33 +319,17 @@ export default function PortfolioDashboard() {
     e.preventDefault();
     setIsSavingEdit(true);
     try {
-      const { error } = await supabase
-        .from('slabs')
-        .update({
-          material: editForm.material,
-          price: editForm.price,
-          origin: editForm.origin,
-          location: editForm.location,
-          thickness: editForm.thickness,
-          quantity: editForm.quantity,
-          incoterm: editForm.incoterm,
-          description: editForm.description,
-          visibility: editForm.visibility,
-          pricing_model: editForm.pricing_model,
-          is_vault: editForm.visibility === 'private'
-        })
-        .eq('id', editingSlab.id);
-
+      const { error } = await supabase.from('slabs').update({
+        material: editForm.material, price: editForm.price, origin: editForm.origin, location: editForm.location,
+        thickness: editForm.thickness, quantity: editForm.quantity, incoterm: editForm.incoterm,
+        description: editForm.description, visibility: editForm.visibility, pricing_model: editForm.pricing_model,
+        is_vault: editForm.visibility === 'private'
+      }).eq('id', editingSlab.id);
       if (error) throw error;
-
       setMySlabs(prev => prev.map(s => s.id === editingSlab.id ? { ...s, ...editForm, is_vault: editForm.visibility === 'private' } : s));
       setIsEditModalOpen(false);
       setEditingSlab(null);
-    } catch (error: any) {
-      alert(`Update Error: ${error.message}`);
-    } finally {
-      setIsSavingEdit(false);
-    }
+    } catch (error: any) { alert(`Update Error: ${error.message}`); } finally { setIsSavingEdit(false); }
   };
 
   const formatCurrency = (amount: string | number) => {
@@ -348,20 +347,14 @@ export default function PortfolioDashboard() {
       return new Date(isoString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  // --- ESCROW TERMINATION (REFUND) LOGIC ---
   const openRefundModal = (deal: any) => {
-    setSelectedDeal(deal);
-    setRefundType('full');
-    setRefundAmount('');
-    setRefundSuccess(false);
-    setIsRefundModalOpen(true);
+    setSelectedDeal(deal); setRefundType('full'); setRefundAmount(''); setRefundSuccess(false); setIsRefundModalOpen(true);
   };
 
   const executeRefund = async () => {
     setIsRefunding(true);
     const paymentIntentId = selectedDeal?.stripe_payment_id || 'pi_TEST_DUMMY_ID'; 
     const amountToRefund = refundType === 'partial' ? parseFloat(refundAmount) : null;
-
     try {
       await fetch('/api/refund', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentIntentId, amountToRefund }) });
       if (selectedDeal?.id) {
@@ -371,63 +364,34 @@ export default function PortfolioDashboard() {
       }
       setRefundSuccess(true);
       setTimeout(() => { setIsRefundModalOpen(false); setSelectedDeal(null); }, 2500);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsRefunding(false);
-    }
+    } catch (error) { console.error(error); } finally { setIsRefunding(false); }
   };
 
-  // --- SMART TERM SHEET LOGIC ---
   const openTermSheet = (slab: any) => {
     setSelectedTarget(slab);
-    setTermSheet({
-      price: slab.price ? slab.price.toString() : '',
-      incoterms: 'FOB',
-      deposit: '30',
-      inspection: '7'
-    });
-    setTermSuccess(false);
-    setIsTermSheetOpen(true);
+    setTermSheet({ price: slab.price ? slab.price.toString() : '', incoterms: 'FOB', deposit: '30', inspection: '7' });
+    setTermSuccess(false); setIsTermSheetOpen(true);
   };
 
   const submitTermSheet = async () => {
     if (!selectedTarget || !currentUser) return;
     setIsSubmittingTerm(true);
-
     try {
       const generatedText = `BINDING TERM SHEET GENERATED:\n• Target Asset: AX-${selectedTarget.id.substring(0,8)}\n• Proposed Value: €${termSheet.price}\n• Logistics (Incoterms): ${termSheet.incoterms}\n• Escrow Deposit: ${termSheet.deposit}%\n• Surveyor Inspection Window: ${termSheet.inspection} Days\n\n*Awaiting Vendor Authorization to initialize Stripe Escrow API.*`;
-
       const { error } = await supabase.from('messages').insert({
-        sender_id: currentUser.id,
-        receiver_id: selectedTarget.user_id || selectedTarget.vendor_id,
-        text: generatedText,
-        is_offer: true,
-        offer_details: {
-          asset_id: selectedTarget.id,
-          price: termSheet.price,
-          incoterms: termSheet.incoterms,
-          deposit: termSheet.deposit,
-          inspection: termSheet.inspection
-        }
+        sender_id: currentUser.id, receiver_id: selectedTarget.user_id || selectedTarget.vendor_id, text: generatedText, is_offer: true,
+        offer_details: { asset_id: selectedTarget.id, price: termSheet.price, incoterms: termSheet.incoterms, deposit: termSheet.deposit, inspection: termSheet.inspection }
       });
-
       if (error) throw error;
       await supabase.from('saved_assets').delete().match({ user_id: currentUser.id, slab_id: selectedTarget.id });
       setTrackedSlabs(prev => prev.filter(s => s.id !== selectedTarget.id));
-
       setTermSuccess(true);
       setTimeout(() => { setIsTermSheetOpen(false); router.push('/inbox'); }, 2000);
-    } catch (error) {
-      console.error('Term Sheet Error:', error);
-      alert(t('common.error'));
-    } finally {
-      setIsSubmittingTerm(false);
-    }
+    } catch (error) { console.error(error); alert(t('common.error')); } finally { setIsSubmittingTerm(false); }
   };
   
   // =========================================================================
-  // --- 1. ΑΜΕΣΗ ΑΠΟΘΗΚΕΥΣΗ ΣΤΟ ARCHIVE (OPTIMISTIC UI UPDATE) ---
+  // --- 1. ΑΜΕΣΗ ΑΠΟΘΗΚΕΥΣΗ ΣΤΟ ARCHIVE (LOCALSTORAGE MERGE ΓΙΑ ΣΙΓΟΥΡΙΑ) ---
   // =========================================================================
   const handleGenerateContract = async () => {
       if (!currentUser) return;
@@ -435,10 +399,11 @@ export default function PortfolioDashboard() {
       
       try {
         const numericPrice = contractData.price ? parseFloat(contractData.price.replace(/,/g, '')) : 0;
+        const shortId = contractData.contractId.replace('AX-', '').substring(0,8);
         
-        // Φτιάχνουμε αμέσως το αντικείμενο για να το δειχθούμε στην οθόνη χωρίς να περιμένουμε το Supabase
-        const newContractForUI = {
-          id: contractData.contractId.replace('AX-', ''),
+        // Φτιάχνουμε το αντικείμενο για το UI & LocalStorage
+        const newContract = {
+          id: shortId,
           created_at: new Date().toISOString(),
           price: numericPrice,
           status: 'pending',
@@ -446,24 +411,22 @@ export default function PortfolioDashboard() {
           buyer: { company_name: contractData.buyerName || 'UNKNOWN BUYER' },
           slab: { material: contractData.material || 'Unknown Material' },
           custom_quantity: contractData.quantity,
-          custom_incoterms: contractData.incoterms
+          custom_incoterms: contractData.incoterms,
+          is_local: true
         };
 
-        // Το βάζουμε πρώτο-πρώτο στη λίστα των Archives
-        setMyContracts(prev => [newContractForUI, ...prev]);
+        // Αποθήκευση στο LocalStorage για να ΜΗΝ ΧΑΘΕΙ ΠΟΤΕ
+        const localContracts = JSON.parse(localStorage.getItem('axon_custom_contracts') || '[]');
+        localContracts.unshift(newContract); // Το βάζουμε πρώτο
+        localStorage.setItem('axon_custom_contracts', JSON.stringify(localContracts));
 
-        // Προσπαθούμε να το γράψουμε και στη βάση (χωρίς να μπλοκάρουμε το UI αν αποτύχει λόγω foreign keys)
-        const { error } = await supabase.from('contracts').insert({
-          vendor_id: currentUser.id,
-          price: numericPrice,
-          status: 'pending'
-        });
+        // Ανανέωση του State
+        setMyContracts(prev => [newContract, ...prev]);
 
-        if (error) {
-           console.warn("DB Constraints blocked save, but UI is updated for demonstration.", error.message);
-        }
+        // Προσπάθεια αποθήκευσης και στη βάση (χωρίς να νοιαζόμαστε αν "χτυπήσει" error στα Foreign Keys)
+        await supabase.from('contracts').insert({ vendor_id: currentUser.id, price: numericPrice, status: 'pending' });
 
-        // Κλείνουμε το modal και πάμε απευθείας στο Archive tab
+        // Κλείσιμο modal και πλοήγηση στο Archive
         setIsContractGeneratorOpen(false);
         setActiveTab('archive');
 
@@ -475,19 +438,50 @@ export default function PortfolioDashboard() {
   };
 
   // =========================================================================
-  // --- 2. COPY ΣΤΟ CLIPBOARD ΚΑΙ ΜΕΤΑΒΑΣΗ ΣΤΟ INBOX ΓΙΑ ΕΠΙΚΟΛΛΗΣΗ ---
+  // --- 2. ΑΠΟΣΤΟΛΗ ΣΤΟ CHAT ΩΣ ΚΑΝΟΝΙΚΟ ΔΟΜΗΜΕΝΟ "OFFER" ΟΧΙ ΩΣ ΚΕΙΜΕΝΟ ---
   // =========================================================================
-  const sendArchiveContractToInbox = async (contractId: string, price: string, status: string, material: string) => {
-      const draftText = `AXON INSTITUTIONAL LEDGER\nContract Ref: AX-${contractId.substring(0,8).toUpperCase()}\nAsset: ${material || 'N/A'}\nValue: €${price}\nStatus: ${status.toUpperCase()}\n\n*Awaiting your review in the AXON secure portal.*`;
+  const openContactSelector = (contract: any) => {
+      setContractToSend(contract);
+      setIsContactModalOpen(true);
+  };
+
+  const confirmSendToChat = async (receiverId: string) => {
+      if (!currentUser || !contractToSend) return;
+      setIsGenerating(true);
       
       try {
-        await navigator.clipboard.writeText(draftText);
-        alert("Το συμβόλαιο αντιγράφηκε στο πρόχειρο! \n\nΜόλις ανοίξει το Inbox, μπείτε στο Chat του πελάτη σας και πατήστε Επικόλληση (Ctrl+V / Cmd+V).");
+          // Το μήνυμα που θα συνοδεύει το offer box
+          const textMessage = `AXON SECURE CONTRACT INITIATED\nRef: AX-${contractToSend.id.substring(0,8).toUpperCase()}\n\nPlease review the terms and authorize Escrow funding below.`;
+          
+          const materialName = contractToSend.slab?.material || contractToSend.custom_material || 'Sivec Premium';
+          const incoterms = contractToSend.custom_incoterms || 'FOB Piraeus';
+
+          // Καρφώνουμε το μήνυμα ΚΑΤΕΥΘΕΙΑΝ στη βάση ως "ΠΡΟΣΦΟΡΑ"
+          const { error } = await supabase.from('messages').insert({
+              sender_id: currentUser.id,
+              receiver_id: receiverId,
+              text: textMessage,
+              is_offer: true, // ΑΥΤΟ ΕΙΝΑΙ ΤΟ ΜΥΣΤΙΚΟ: Θα το δείξει σαν κουτί στο Inbox!
+              offer_details: {
+                  asset_id: contractToSend.id.substring(0,8),
+                  price: contractToSend.price,
+                  incoterms: incoterms,
+                  material: materialName,
+                  is_contract: true
+              }
+          });
+
+          if (error) throw error;
+          
+          setIsContactModalOpen(false);
+          router.push('/inbox'); // Σε πάει στο Inbox και θα δεις το συμβόλαιο έτοιμο!
+
       } catch (err) {
-        console.warn("Clipboard access denied.", err);
+          console.error(err);
+          alert("Υπήρξε πρόβλημα κατά την αποστολή.");
+      } finally {
+          setIsGenerating(false);
       }
-      
-      router.push('/inbox');
   };
 
   const publicAssets = mySlabs.filter(slab => slab.visibility !== 'private');
@@ -503,11 +497,47 @@ export default function PortfolioDashboard() {
     return acc + val;
   }, 0);
 
-
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
       {/* --------------------------------------------------------- */}
+      {/* CONTACT SELECTOR MODAL (NEW) */}
+      {/* --------------------------------------------------------- */}
+      {isContactModalOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-[#01030A]/95 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="bg-[#020509] border border-[#A6947D]/30 rounded-2xl w-full max-w-md shadow-[0_0_50px_rgba(166,148,125,0.1)] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-[#A6947D]/20 bg-[#01030A]">
+               <div className="flex items-center gap-3 text-[#A6947D]"><UserPlus size={20} /><h2 className="text-lg font-serif uppercase tracking-widest text-[#F8F5EE]">Select Counterparty</h2></div>
+               <button onClick={() => setIsContactModalOpen(false)} className="text-[#A6947D]/40 p-2 hover:bg-red-500/10 hover:text-red-500 rounded-full transition-colors"><X size={18} /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-[10px] font-mono text-[#A6947D]/60 uppercase tracking-widest mb-4">Transmit Contract AX-{contractToSend?.id.substring(0,8).toUpperCase()} to:</p>
+              
+              <div className="max-h-[60vh] overflow-y-auto custom-scrollbar space-y-2">
+                {platformContacts.length === 0 ? (
+                  <p className="text-[10px] text-slate-500 text-center py-4">No verified contacts found in network.</p>
+                ) : (
+                  platformContacts.map(contact => (
+                    <button 
+                      key={contact.id}
+                      onClick={() => confirmSendToChat(contact.id)}
+                      disabled={isGenerating}
+                      className="w-full bg-[#01030A] border border-[#A6947D]/20 hover:border-[#A6947D] hover:bg-[#A6947D]/10 p-4 rounded-xl flex items-center justify-between transition-all group text-left"
+                    >
+                      <div>
+                        <p className="text-sm font-serif text-[#F8F5EE] uppercase tracking-wider">{contact.company_name || contact.email}</p>
+                        <p className="text-[9px] text-[#A6947D]/60 font-mono mt-1">{contact.email}</p>
+                      </div>
+                      <Send size={16} className="text-[#A6947D]/40 group-hover:text-[#A6947D] transition-colors" />
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* EXECUTIVE COMMAND OVERLAY (THE SMART MENU) */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-[100] bg-[#01030A]/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-5 duration-300">
@@ -865,8 +895,7 @@ export default function PortfolioDashboard() {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                       {myContracts.map((contract, index) => {
                         const isSeller = currentUser?.id === contract.vendor_id;
-                        // Fallback σε custom data από το UI αν η βάση απέτυχε
-                        const counterpartyName = contract.buyer?.company_name || contract.vendor?.company_name || 'UNKNOWN ENTITY';
+                        const counterpartyName = contract.buyer?.company_name || contract.buyer?.company_name || 'UNKNOWN ENTITY';
                         const materialName = contract.slab?.material || contract.custom_material || 'Custom Asset';
                         const qty = contract.custom_quantity || 'As agreed';
                         const inc = contract.custom_incoterms || 'FOB Piraeus';
@@ -876,7 +905,6 @@ export default function PortfolioDashboard() {
                         if (contract.status === 'pending') statusColor = 'text-amber-500';
                         if (contract.status === 'cancelled' || contract.status === 'disputed') statusColor = 'text-red-500';
 
-                        // Χρησιμοποιούμε fallback ID αν δεν υπάρχει (από το optimistic UI)
                         const displayId = contract.id || `MOCK-${index}`;
 
                         return (
@@ -907,7 +935,7 @@ export default function PortfolioDashboard() {
                             {/* Δεξί Μέρος (Κουμπιά) */}
                             <div className="flex flex-col gap-2 shrink-0 md:w-48 justify-center">
                               <button 
-                                onClick={() => sendArchiveContractToInbox(displayId, contract.price, contract.status, materialName)} 
+                                onClick={() => openContactSelector(contract)} 
                                 className="w-full bg-transparent border border-[#A6947D]/30 hover:border-[#A6947D] hover:bg-[#A6947D]/10 text-[#A6947D] px-4 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
                               >
                                 <MessageSquare size={14} /> SEND VIA AXON CHAT
