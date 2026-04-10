@@ -88,6 +88,101 @@ export default function PortfolioDashboard() {
   };
   // ==========================================
 
+  // ==========================================
+  // --- ENGINE ΚΑΘΑΡΗΣ ΕΚΤΥΠΩΣΗΣ PDF ---
+  // ==========================================
+  const triggerPDFDownload = (cId: string, buyer: string, material: string, quantity: string, price: string, incoterms: string, dateStr: string) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert("Παρακαλώ επιτρέψτε τα pop-ups για να κατεβάσετε το PDF.");
+      return;
+    }
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>AXON_Contract_${cId}</title>
+          <style>
+            @page { size: A4; margin: 20mm; }
+            body { font-family: 'Times New Roman', serif; color: #0A192F; background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; }
+            .header { border-bottom: 2px solid #0A192F; padding-bottom: 20px; margin-bottom: 40px; display: flex; justify-content: space-between; }
+            .header h1 { font-size: 32px; font-weight: 900; margin: 0; }
+            .header p { color: #D4AF37; font-family: sans-serif; font-weight: bold; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; margin-top: 5px; }
+            .details { text-align: right; font-family: sans-serif; font-size: 12px; color: #64748B; }
+            .section-title { font-size: 14px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #E2E8F0; padding-bottom: 5px; margin-bottom: 20px; }
+            .grid { display: flex; gap: 40px; margin-bottom: 40px; }
+            .col { flex: 1; }
+            .label { font-family: sans-serif; font-size: 10px; color: #64748B; text-transform: uppercase; margin-bottom: 5px; }
+            .value { font-size: 16px; font-weight: bold; margin: 0 0 5px 0; }
+            .sub-value { font-size: 12px; color: #475569; margin: 0; }
+            table { border-collapse: collapse; margin-bottom: 40px; width: 100%; text-align: left; }
+            th, td { padding: 12px 8px; border-bottom: 1px solid #F1F5F9; }
+            .total-row { background: #F8FAFC; font-weight: bold; }
+            .escrow-box { background: #F8FAFC; border: 1px solid #E2E8F0; padding: 20px; font-family: sans-serif; font-size: 12px; line-height: 1.6; }
+            .escrow-title { color: #D4AF37; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
+            .footer { position: fixed; bottom: 0; left: 0; width: 100%; border-top: 1px solid #E2E8F0; padding-top: 10px; display: flex; justify-content: space-between; font-family: sans-serif; font-size: 10px; color: #94A3B8; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1>AXON</h1>
+              <p>Institutional Ledger</p>
+            </div>
+            <div class="details">
+              <p>Contract ID: <strong style="color:#0A192F">AX-${cId.substring(0,8).toUpperCase()}</strong></p>
+              <p>Date: ${dateStr}</p>
+            </div>
+          </div>
+
+          <div class="section-title">Parties of Agreement</div>
+          <div class="grid">
+            <div class="col">
+              <div class="label">Seller</div>
+              <p class="value">Pavlidis S.A.</p>
+              <p class="sub-value">Verified Tier 1 Vendor</p>
+            </div>
+            <div class="col">
+              <div class="label">Buyer</div>
+              <p class="value">${buyer || 'Verified Entity'}</p>
+              <p class="sub-value">Platform Buyer</p>
+            </div>
+          </div>
+
+          <div class="section-title">Asset & Terms</div>
+          <table>
+            <tr><td style="color:#64748B; width:30%">Material</td><td style="font-weight:bold">${material || '-'}</td></tr>
+            <tr><td style="color:#64748B">Quantity</td><td style="font-weight:bold">${quantity || '-'}</td></tr>
+            <tr><td style="color:#64748B">Incoterms</td><td style="font-weight:bold">${incoterms}</td></tr>
+            <tr class="total-row"><td>Total Value</td><td style="font-size:18px">€ ${Number(price).toLocaleString() || '0'}</td></tr>
+          </table>
+
+          <div class="escrow-box">
+            <div class="escrow-title">Escrow Protocol Activated</div>
+            <p>Funds will be secured in AXON Stripe Institutional Escrow. 100% of the funds will be automatically released to the Seller upon platform upload of a valid Bill of Lading (BOL). By funding this contract, the Buyer waives physical inspection rights and accepts the AXON Purity Grading as final.</p>
+          </div>
+
+          <div class="footer">
+            <span>Generated via AXON Network</span>
+            <span>Legally Binding Document</span>
+          </div>
+          
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 300);
+            }
+          </script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       setLoading(true);
@@ -248,7 +343,6 @@ export default function PortfolioDashboard() {
     return new Date(isoString).toLocaleDateString('el-GR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
   
-  // Απλό formatting ημερομηνίας για το Archive
   const formatArchiveDate = (isoString: string) => {
       if (!isoString) return '';
       return new Date(isoString).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -333,48 +427,36 @@ export default function PortfolioDashboard() {
   };
   
   // =========================================================================
-  // --- ΝΕΟ: ΕΓΓΡΑΦΗ ΤΟΥ CONTRACT ΣΤΗ ΒΑΣΗ ΚΑΙ ΑΠΟΣΤΟΛΗ ΣΤΟ INBOX ---
+  // --- 1. ΑΠΟΘΗΚΕΥΣΗ ΤΟΥ CONTRACT ΣΤΑ ARCHIVES (ΧΩΡΙΣ ΑΜΕΣΗ ΑΠΟΣΤΟΛΗ) ---
   // =========================================================================
   const handleGenerateContract = async () => {
       if (!currentUser) return;
       setIsGenerating(true);
       
       try {
-        // 1. Γράφουμε το συμβόλαιο στη βάση (πίνακας contracts)
         const numericPrice = contractData.price ? parseFloat(contractData.price.replace(/,/g, '')) : 0;
         
-        const { data, error } = await supabase.from('contracts').insert({
+        // Γράφουμε στη βάση 
+        const { error } = await supabase.from('contracts').insert({
           vendor_id: currentUser.id,
           price: numericPrice,
           status: 'pending'
-          // Σημείωση: Αφήνουμε το buyer_id και slab_id κενά προς το παρόν, 
-          // εφόσον είναι generated text contract.
         });
 
-        if (error) {
-          console.warn("DB Validation for pure text contracts might need tweaks:", error);
-          // Ακόμα και αν το σχήμα της βάσης έχει strict foreign keys και βγάλει error, 
-          // εμείς προχωράμε στο βήμα 2 για να λειτουργήσει το flow προς τον αγοραστή.
-        } else {
-          // Αν η εγγραφή πετύχει, κάνουμε refresh τα data του Archive
-          const { data: updatedContracts } = await supabase
-            .from('contracts')
-            .select('*, buyer:buyer_id (company_name), vendor:vendor_id (company_name), slab:slab_id (material)')
-            .or(`buyer_id.eq.${currentUser.id},vendor_id.eq.${currentUser.id}`)
-            .order('created_at', { ascending: false });
-          
-          if (updatedContracts) setMyContracts(updatedContracts);
-        }
+        if (error) console.warn("Upload logic issue:", error);
 
-        // 2. Δημιουργούμε το "Πακέτο" (Text format) για να μπει στο Inbox
-        const draftText = `AXON INSTITUTIONAL CONTRACT\nID: ${contractData.contractId}\nCounterparty: ${contractData.buyerName}\nMaterial: ${contractData.material}\nQuantity: ${contractData.quantity}\nValue: €${contractData.price}\nIncoterms: ${contractData.incoterms}\n\n*Awaiting your approval to fund Escrow.*`;
+        // Κάνουμε refresh το Archive για να φανεί αμέσως
+        const { data: updatedContracts } = await supabase
+          .from('contracts')
+          .select('*, buyer:buyer_id (company_name), vendor:vendor_id (company_name), slab:slab_id (material)')
+          .or(`buyer_id.eq.${currentUser.id},vendor_id.eq.${currentUser.id}`)
+          .order('created_at', { ascending: false });
         
-        // Το αποθηκεύουμε στη μνήμη του browser
-        localStorage.setItem('axon_draft_contract', draftText);
+        if (updatedContracts) setMyContracts(updatedContracts);
 
-        // 3. Κλείνουμε το Modal και πάμε στο Inbox
+        // Κλείνουμε το modal και πάμε απευθείας στο Archive tab!
         setIsContractGeneratorOpen(false);
-        router.push('/inbox');
+        setActiveTab('archive');
 
       } catch (err) {
         console.error(err);
@@ -383,10 +465,19 @@ export default function PortfolioDashboard() {
       }
   };
 
-  const sendArchiveContractToInbox = (contractId: string, price: string, status: string) => {
-      // Όταν πατάς "Send via Axon Chat" από το Archive
-      const draftText = `Please review our latest Institutional Ledger Update.\nContract Ref: AX-${contractId.substring(0,8).toUpperCase()}\nValue: €${price}\nStatus: ${status}\n\n*Document secured by AXON Network.*`;
-      localStorage.setItem('axon_draft_contract', draftText);
+  // =========================================================================
+  // --- 2. COPY ΣΤΟ CLIPBOARD ΚΑΙ ΜΕΤΑΒΑΣΗ ΣΤΟ INBOX ΓΙΑ ΕΠΙΚΟΛΛΗΣΗ ---
+  // =========================================================================
+  const sendArchiveContractToInbox = async (contractId: string, price: string, status: string, material: string) => {
+      const draftText = `AXON INSTITUTIONAL LEDGER\nContract Ref: AX-${contractId.substring(0,8).toUpperCase()}\nAsset: ${material || 'N/A'}\nValue: €${price}\nStatus: ${status.toUpperCase()}\n\n*Awaiting your review in the AXON secure portal.*`;
+      
+      try {
+        await navigator.clipboard.writeText(draftText);
+        alert("Το συμβόλαιο αντιγράφηκε στο πρόχειρο! \n\nΜόλις ανοίξει το Inbox, κάντε Επικόλληση (Ctrl+V / Cmd+V) στο chat του πελάτη σας.");
+      } catch (err) {
+        console.warn("Clipboard access denied.", err);
+      }
+      
       router.push('/inbox');
   };
 
@@ -420,7 +511,6 @@ export default function PortfolioDashboard() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            {/* CONTRACT GENERATOR BUTTON FOR MOBILE */}
             <button onClick={() => {setIsMobileMenuOpen(false); setIsContractGeneratorOpen(true);}} className="w-full bg-[#A6947D] border border-[#A6947D]/50 text-[#020509] p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px] tracking-widest mb-6 shadow-lg shadow-[#A6947D]/20">
               <FileText size={16} /> CREATE SMART CONTRACT
             </button>
@@ -765,13 +855,11 @@ export default function PortfolioDashboard() {
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
                       {myContracts.map(contract => {
-                        // Καθορισμός του ρόλου του χρήστη στο συμβόλαιο (αν είναι αγοραστής ή πωλητής)
                         const isSeller = currentUser?.id === contract.vendor_id;
                         const counterpartyName = isSeller 
                           ? (contract.buyer?.company_name || 'UNKNOWN BUYER')
                           : (contract.vendor?.company_name || 'UNKNOWN VENDOR');
                         
-                        // Χρώμα Status
                         let statusColor = 'text-slate-400';
                         if (contract.status === 'funded' || contract.status === 'shipped') statusColor = 'text-emerald-500';
                         if (contract.status === 'pending') statusColor = 'text-amber-500';
@@ -780,7 +868,7 @@ export default function PortfolioDashboard() {
                         return (
                           <div key={contract.id} className="bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/20 rounded-2xl p-5 md:p-6 flex flex-col md:flex-row justify-between gap-6 shadow-lg hover:border-[#A6947D]/40 transition-colors group">
                             
-                            {/* Αριστερό Μέρος (Πληροφορίες) */}
+                            {/* Αριστερό Μέρος */}
                             <div className="flex gap-4">
                               <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border border-[#A6947D]/30 flex items-center justify-center relative shrink-0 bg-[#A6947D]/5 group-hover:bg-[#A6947D]/10 transition-colors">
                                 <Shield size={26} className="text-[#A6947D]/30 absolute" />
@@ -805,16 +893,13 @@ export default function PortfolioDashboard() {
                             {/* Δεξί Μέρος (Κουμπιά) */}
                             <div className="flex flex-col gap-2 shrink-0 md:w-48 justify-center">
                               <button 
-                                onClick={() => sendArchiveContractToInbox(contract.id, contract.price, contract.status)} 
+                                onClick={() => sendArchiveContractToInbox(contract.id, contract.price, contract.status, contract.slab?.material)} 
                                 className="w-full bg-transparent border border-[#A6947D]/30 hover:border-[#A6947D] hover:bg-[#A6947D]/10 text-[#A6947D] px-4 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
                               >
                                 <MessageSquare size={14} /> SEND VIA AXON CHAT
                               </button>
                               <button 
-                                onClick={() => {
-                                  alert(`AXON SECURE SYSTEM: Generating PDF for Contract AX-${contract.id.substring(0, 8).toUpperCase()}`);
-                                  window.print(); // Αυτό ανοίγει κατευθείαν το παράθυρο εκτύπωσης/αποθήκευσης PDF του browser!
-                                }} 
+                                onClick={() => triggerPDFDownload(contract.id, counterpartyName, contract.slab?.material, 'As per agreement', contract.price, 'FOB Piraeus', formatArchiveDate(contract.created_at))} 
                                 className="w-full bg-transparent border border-[#A6947D]/30 hover:border-[#A6947D] hover:bg-[#A6947D]/10 text-[#A6947D] px-4 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all"
                               >
                                 <Download size={14} /> DOWNLOAD PDF
@@ -850,11 +935,10 @@ export default function PortfolioDashboard() {
       {/* --- ΥΠΕΡΣΥΓΧΡΟΝΑ MODALS (EDIT, REFUND, TERM SHEET, CONTRACT GENERATOR) --- */}
       {/* ========================================================= */}
 
-      {/* 0. CONTRACT GENERATOR MODAL (NEW) */}
+      {/* 0. CONTRACT GENERATOR MODAL */}
       {isContractGeneratorOpen && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center p-2 md:p-6 bg-[#01030A]/95 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-[#020509] border border-[#D4AF37]/30 rounded-2xl w-full max-w-[1400px] h-full max-h-[90vh] shadow-2xl overflow-hidden flex flex-col relative">
-            {/* Header */}
             <div className="flex justify-between items-center p-4 md:p-6 border-b border-[#D4AF37]/20 bg-[#01030A] shrink-0">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-[#D4AF37]/10 rounded-lg">
@@ -870,10 +954,8 @@ export default function PortfolioDashboard() {
               </button>
             </div>
 
-            {/* Body Split */}
             <div className="flex flex-col md:flex-row h-full overflow-y-auto custom-scrollbar">
-              
-              {/* ΑΡΙΣΤΕΡΗ ΠΛΕΥΡΑ: AXON CONTROL PANEL */}
+              {/* ΑΡΙΣΤΕΡΗ ΠΛΕΥΡΑ */}
               <div className="w-full md:w-1/2 bg-[#0A192F] p-6 flex flex-col gap-5 border-r border-[#D4AF37]/10">
                 <div className="space-y-3">
                   <label className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wider">Buyer Information</label>
@@ -904,23 +986,22 @@ export default function PortfolioDashboard() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* ACTION BUTTONS (NO DIRECT SEND ANYMORE) */}
                 <div className="flex gap-4 pt-8 mt-auto pb-4">
                   <button onClick={handleGenerateContract} disabled={isGenerating} className="flex-1 bg-[#D4AF37] hover:bg-[#b5952f] text-[#020817] font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                    {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-                    SEND CONTRACT TO BUYER
+                    {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    GENERATE & SAVE TO ARCHIVE
                   </button>
-                  <button onClick={() => window.print()} className="px-4 border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg flex items-center justify-center transition-colors" title="Download PDF">
+                  <button onClick={() => triggerPDFDownload(contractData.contractId, contractData.buyerName, contractData.material, contractData.quantity, contractData.price, contractData.incoterms, new Date().toLocaleDateString())} className="px-4 border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg flex items-center justify-center transition-colors" title="Download PDF">
                     <Download size={20} />
                   </button>
                 </div>
               </div>
 
-              {/* ΔΕΞΙΑ ΠΛΕΥΡΑ: LIVE DOCUMENT PREVIEW (Institutional White) */}
+              {/* ΔΕΞΙΑ ΠΛΕΥΡΑ: LIVE DOCUMENT PREVIEW */}
               <div className="w-full md:w-1/2 bg-[#020509] flex items-start justify-center p-4 md:p-8 overflow-y-auto">
                 <div className="bg-white w-full max-w-[600px] min-h-[700px] shadow-[0_0_50px_rgba(255,255,255,0.1)] rounded-sm p-8 md:p-10 text-slate-900 font-serif relative">
                   
-                  {/* Header */}
                   <div className="flex justify-between items-start border-b-2 border-[#0A192F] pb-6 mb-8">
                     <div>
                       <h1 className="text-3xl font-black tracking-tighter text-[#0A192F]">AXON</h1>
@@ -932,7 +1013,6 @@ export default function PortfolioDashboard() {
                     </div>
                   </div>
 
-                  {/* Parties */}
                   <div className="mb-8 text-sm">
                     <h3 className="font-bold text-[#0A192F] mb-4 uppercase border-b border-slate-200 pb-1">Parties of Agreement</h3>
                     <div className="grid grid-cols-2 gap-8">
@@ -949,7 +1029,6 @@ export default function PortfolioDashboard() {
                     </div>
                   </div>
 
-                  {/* Asset & Terms */}
                   <div className="mb-8 text-sm">
                     <h3 className="font-bold text-[#0A192F] mb-4 uppercase border-b border-slate-200 pb-1">Asset & Terms</h3>
                     <table className="w-full text-left border-collapse">
@@ -976,7 +1055,6 @@ export default function PortfolioDashboard() {
                     </table>
                   </div>
 
-                  {/* Escrow Clause */}
                   <div className="bg-[#0A192F]/5 border border-[#0A192F]/20 p-4 rounded text-xs mt-12 text-[#0A192F]">
                     <div className="flex items-center gap-2 mb-2">
                       <ShieldCheck className="text-[#D4AF37] w-4 h-4" />
@@ -987,7 +1065,6 @@ export default function PortfolioDashboard() {
                     </p>
                   </div>
                   
-                  {/* Signatures placeholder */}
                   <div className="absolute bottom-10 left-10 right-10 flex justify-between text-xs text-slate-400 border-t border-slate-200 pt-4">
                     <p>Generated via AXON Network</p>
                     <p>Legally Binding Document</p>
