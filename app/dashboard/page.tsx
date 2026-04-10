@@ -8,7 +8,7 @@ import {
   LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
   Trash2, Handshake, ExternalLink, Calendar, AlertOctagon, RotateCcw, X, Loader2,
   Bell, Check, CheckCircle2, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send, Menu,
-  Layers3, UserCircle, Save
+  Layers3, UserCircle, Save, FileText, Download // Προστέθηκαν FileText, Download
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -64,6 +64,25 @@ export default function PortfolioDashboard() {
   // --- STATE ΓΙΑ ΤΟ SMART MENU ---
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userRole, setUserRole] = useState('BUYER');
+
+  // ==========================================
+  // --- STATE ΓΙΑ ΤΟ CONTRACT GENERATOR ---
+  // ==========================================
+  const [isContractGeneratorOpen, setIsContractGeneratorOpen] = useState(false);
+  const [contractData, setContractData] = useState({
+    contractId: `AX-${Math.floor(1000 + Math.random() * 9000)}-SIVEC`,
+    buyerName: '',
+    buyerEmail: '',
+    material: 'Sivec White Premium',
+    quantity: '',
+    price: '',
+    incoterms: 'FOB Piraeus',
+  });
+
+  const handleContractChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setContractData({ ...contractData, [e.target.name]: e.target.value });
+  };
+  // ==========================================
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -323,6 +342,11 @@ export default function PortfolioDashboard() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            {/* CONTRACT GENERATOR BUTTON FOR MOBILE */}
+            <button onClick={() => {setIsMobileMenuOpen(false); setIsContractGeneratorOpen(true);}} className="w-full bg-[#A6947D] border border-[#A6947D]/50 text-[#020509] p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px] tracking-widest mb-6 shadow-lg shadow-[#A6947D]/20">
+              <FileText size={16} /> CREATE SMART CONTRACT
+            </button>
+
             <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">ΒΑΣΙΚΕΣ ΕΝΟΤΗΤΕΣ - {userRole}</p>
             <div className="grid grid-cols-2 gap-4 mb-8">
               <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#A6947D]/10 border border-[#A6947D]/40 p-5 rounded-xl flex flex-col items-center justify-center gap-3 transition-colors shadow-inner">
@@ -402,13 +426,22 @@ export default function PortfolioDashboard() {
               <h2 className="text-2xl md:text-3xl font-serif text-[#F8F5EE] uppercase tracking-[0.1em] font-light">{t('dashboard.title')}</h2>
               <div className="flex items-center gap-2 md:gap-3 mt-2"><span className="h-px w-6 md:w-8 bg-[#A6947D]/30"></span><p className="text-[8px] md:text-[10px] text-[#A6947D] uppercase tracking-[0.2em] font-mono">Portfolio Oversight</p></div>
             </div>
-            <div className="relative">
+            <div className="relative flex items-center gap-4">
+              
+              {/* CONTRACT GENERATOR BUTTON (DESKTOP) */}
+              <button 
+                onClick={() => setIsContractGeneratorOpen(true)}
+                className="hidden md:flex bg-[#D4AF37] hover:bg-[#b5952f] text-[#020817] px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest items-center gap-2 transition-all shadow-[0_0_20px_rgba(212,175,55,0.2)]"
+              >
+                <FileText size={16} /> NEW CONTRACT
+              </button>
+
               <button onClick={() => setShowNotifs(!showNotifs)} className={`p-2.5 md:p-3 rounded-xl border transition-all relative ${notifications.length > 0 ? 'bg-amber-500/10 border-amber-500/30 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]' : 'bg-[#01030A] border-[#A6947D]/20 text-[#A6947D]/60'}`}>
                 <Bell size={20} />
                 {notifications.length > 0 && <span className="absolute -top-1 -right-1 w-4 h-4 md:w-5 md:h-5 bg-amber-500 text-[#020509] text-[9px] md:text-[10px] font-bold rounded-full flex items-center justify-center animate-bounce">{notifications.length}</span>}
               </button>
               {showNotifs && (
-                <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-[#01030A] border border-[#A6947D]/30 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div className="absolute right-0 top-12 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-[#01030A] border border-[#A6947D]/30 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                   <div className="p-4 border-b border-[#A6947D]/10 bg-[#020509] flex justify-between items-center"><p className="text-[10px] font-bold uppercase tracking-widest text-[#A6947D]">Intelligence Feed</p><button onClick={() => setShowNotifs(false)} className="text-[#A6947D]/60 hover:text-[#A6947D]"><X size={14}/></button></div>
                   <div className="max-h-80 md:max-h-96 overflow-y-auto custom-scrollbar">
                     {notifications.length === 0 ? <div className="p-10 text-center text-[10px] font-mono text-[#A6947D]/40 uppercase tracking-widest">No active alerts.</div> : notifications.map(n => (
@@ -649,8 +682,158 @@ export default function PortfolioDashboard() {
       </nav>
 
       {/* ========================================================= */}
-      {/* --- ΥΠΕΡΣΥΓΧΡΟΝΑ MODALS (EDIT, REFUND, TERM SHEET) --- */}
+      {/* --- ΥΠΕΡΣΥΓΧΡΟΝΑ MODALS (EDIT, REFUND, TERM SHEET, CONTRACT GENERATOR) --- */}
       {/* ========================================================= */}
+
+      {/* 0. CONTRACT GENERATOR MODAL (NEW) */}
+      {isContractGeneratorOpen && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center p-2 md:p-6 bg-[#01030A]/95 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="bg-[#020509] border border-[#D4AF37]/30 rounded-2xl w-full max-w-[1400px] h-full max-h-[90vh] shadow-2xl overflow-hidden flex flex-col relative">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 md:p-6 border-b border-[#D4AF37]/20 bg-[#01030A] shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#D4AF37]/10 rounded-lg">
+                  <FileText className="text-[#D4AF37] w-5 h-5 md:w-6 md:h-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg md:text-2xl font-bold text-white tracking-wide uppercase">AXON CONTRACT GENERATOR</h2>
+                  <p className="text-[10px] font-mono text-[#D4AF37] tracking-widest uppercase">Institutional Ledger Tool</p>
+                </div>
+              </div>
+              <button onClick={() => setIsContractGeneratorOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 p-2 transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Body Split */}
+            <div className="flex flex-col md:flex-row h-full overflow-y-auto custom-scrollbar">
+              
+              {/* ΑΡΙΣΤΕΡΗ ΠΛΕΥΡΑ: AXON CONTROL PANEL */}
+              <div className="w-full md:w-1/2 bg-[#0A192F] p-6 flex flex-col gap-5 border-r border-[#D4AF37]/10">
+                <div className="space-y-3">
+                  <label className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wider">Buyer Information</label>
+                  <input type="text" name="buyerName" placeholder="Company Name (e.g., Emaar Properties)" value={contractData.buyerName} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white placeholder-slate-500 outline-none transition-colors" />
+                  <input type="email" name="buyerEmail" placeholder="Contact Email" value={contractData.buyerEmail} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white placeholder-slate-500 outline-none transition-colors" />
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-slate-800">
+                  <label className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wider">Asset Details</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="text" name="material" placeholder="Material" value={contractData.material} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white placeholder-slate-500 outline-none" />
+                    <input type="text" name="quantity" placeholder="Quantity (e.g., 15,000 m²)" value={contractData.quantity} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white placeholder-slate-500 outline-none" />
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-4 border-t border-slate-800">
+                  <label className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wider">Financial Terms</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <select name="incoterms" value={contractData.incoterms} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white outline-none appearance-none">
+                      <option value="FOB Piraeus">FOB Piraeus</option>
+                      <option value="EXW Drama">EXW Drama</option>
+                      <option value="CIF Dubai">CIF Dubai</option>
+                    </select>
+                    <div className="relative">
+                      <span className="absolute left-3 top-3 text-slate-400">€</span>
+                      <input type="number" name="price" placeholder="Total Value" value={contractData.price} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 pl-8 text-white placeholder-slate-500 outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-4 pt-8 mt-auto pb-4">
+                  <button onClick={() => alert('Contract sent via Chat system (Mock)')} className="flex-1 bg-[#D4AF37] hover:bg-[#b5952f] text-[#020817] font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
+                    <Send size={18} />
+                    SEND CONTRACT TO BUYER
+                  </button>
+                  <button className="px-4 border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg flex items-center justify-center transition-colors" title="Download PDF">
+                    <Download size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* ΔΕΞΙΑ ΠΛΕΥΡΑ: LIVE DOCUMENT PREVIEW (Institutional White) */}
+              <div className="w-full md:w-1/2 bg-[#020509] flex items-start justify-center p-4 md:p-8 overflow-y-auto">
+                <div className="bg-white w-full max-w-[600px] min-h-[700px] shadow-[0_0_50px_rgba(255,255,255,0.1)] rounded-sm p-8 md:p-10 text-slate-900 font-serif relative">
+                  
+                  {/* Header */}
+                  <div className="flex justify-between items-start border-b-2 border-[#0A192F] pb-6 mb-8">
+                    <div>
+                      <h1 className="text-3xl font-black tracking-tighter text-[#0A192F]">AXON</h1>
+                      <p className="text-[10px] uppercase tracking-widest text-[#D4AF37] font-sans font-bold mt-1">Institutional Ledger</p>
+                    </div>
+                    <div className="text-right text-xs text-slate-500 font-sans">
+                      <p>Contract ID: <strong className="text-[#0A192F]">{contractData.contractId}</strong></p>
+                      <p>Date: {new Date().toLocaleDateString()}</p>
+                    </div>
+                  </div>
+
+                  {/* Parties */}
+                  <div className="mb-8 text-sm">
+                    <h3 className="font-bold text-[#0A192F] mb-4 uppercase border-b border-slate-200 pb-1">Parties of Agreement</h3>
+                    <div className="grid grid-cols-2 gap-8">
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase">Seller</p>
+                        <p className="font-semibold text-base">Pavlidis S.A.</p>
+                        <p className="text-slate-600">Verified Tier 1 Vendor</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-500 uppercase">Buyer</p>
+                        <p className="font-semibold text-base">{contractData.buyerName || '[Buyer Name]'}</p>
+                        <p className="text-slate-600">{contractData.buyerEmail || '[Buyer Email]'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Asset & Terms */}
+                  <div className="mb-8 text-sm">
+                    <h3 className="font-bold text-[#0A192F] mb-4 uppercase border-b border-slate-200 pb-1">Asset & Terms</h3>
+                    <table className="w-full text-left border-collapse">
+                      <tbody>
+                        <tr className="border-b border-slate-100">
+                          <td className="py-2 text-slate-500">Material</td>
+                          <td className="py-2 font-semibold">{contractData.material || '-'}</td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                          <td className="py-2 text-slate-500">Quantity</td>
+                          <td className="py-2 font-semibold">{contractData.quantity || '-'}</td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                          <td className="py-2 text-slate-500">Incoterms</td>
+                          <td className="py-2 font-semibold">{contractData.incoterms}</td>
+                        </tr>
+                        <tr className="bg-slate-50">
+                          <td className="py-3 px-2 font-bold text-[#0A192F]">Total Value</td>
+                          <td className="py-3 px-2 font-bold text-lg text-[#0A192F]">
+                            {contractData.price ? `€ ${Number(contractData.price).toLocaleString()}` : '-'}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Escrow Clause */}
+                  <div className="bg-[#0A192F]/5 border border-[#0A192F]/20 p-4 rounded text-xs mt-12 text-[#0A192F]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <ShieldCheck className="text-[#D4AF37] w-4 h-4" />
+                      <h4 className="font-bold uppercase tracking-wider">Escrow Protocol Activated</h4>
+                    </div>
+                    <p className="leading-relaxed">
+                      Funds will be secured in AXON Stripe Institutional Escrow. 100% of the funds will be automatically released to the Seller upon platform upload of a valid Bill of Lading (BOL). By funding this contract, the Buyer waives physical inspection rights and accepts the AXON Purity Grading as final.
+                    </p>
+                  </div>
+                  
+                  {/* Signatures placeholder */}
+                  <div className="absolute bottom-10 left-10 right-10 flex justify-between text-xs text-slate-400 border-t border-slate-200 pt-4">
+                    <p>Generated via AXON Network</p>
+                    <p>Legally Binding Document</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 1. EDIT ASSET MODAL */}
       {isEditModalOpen && (
