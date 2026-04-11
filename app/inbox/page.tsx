@@ -7,7 +7,7 @@ import {
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   LogOut, Search, Send, Building2, ShieldCheck, Users, Gavel, 
   Loader2, Paperclip, X, FileText, ImageIcon, Handshake, Layers, CheckCircle2, Trash2, Anchor, Factory, MapPin, User, Package, AlertOctagon, ArrowLeft,
-  Layers3, UserCircle, Menu
+  Layers3, UserCircle, Menu, Download, ZoomIn
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -51,6 +51,9 @@ function SecureCommsContent() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // --- IMAGE VIEWER MODAL STATE ---
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
+
   useEffect(() => {
     const initComms = async () => {
       setLoading(true);
@@ -58,11 +61,9 @@ function SecureCommsContent() {
       if (!session) { router.push('/auth'); return; }
       setCurrentUser(session.user);
 
-      // Fetch User's Slabs
       const { data: userSlabs } = await supabase.from('slabs').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
       if (userSlabs) setMySlabs(userSlabs);
 
-      // Fetch Messages to determine Active Contacts
       const { data: userMessages } = await supabase
         .from('messages')
         .select('sender_id, receiver_id, created_at, is_read')
@@ -70,7 +71,7 @@ function SecureCommsContent() {
 
       const activityMap: Record<string, number> = {};
       const unreadMap: Record<string, number> = {};
-      const contactIds = new Set<string>(); // Κρατάμε τα μοναδικά ID των επαφών
+      const contactIds = new Set<string>();
 
       if (userMessages) {
         userMessages.forEach(msg => {
@@ -96,12 +97,10 @@ function SecureCommsContent() {
       const assetParam = searchParams.get('asset');
       const attachParam = searchParams.get('attach'); 
 
-      // Αν ερχόμαστε από link (π.χ. από το Trading ή το Archive) πρέπει να εξασφαλίσουμε ότι αυτό το ID θα φορτωθεί
       if (chatParam) {
         contactIds.add(chatParam);
       }
 
-      // Fetch PROFILES ONLY FOR ACTIVE CONTACTS
       const uniqueContactIds = Array.from(contactIds);
       let activeProfiles: any[] = [];
 
@@ -116,16 +115,14 @@ function SecureCommsContent() {
           setAllUsers(activeProfiles);
         }
       } else {
-        setAllUsers([]); // Empty state αν δεν υπάρχουν μηνύματα
+        setAllUsers([]); 
       }
 
-      // Set Selected Contact
       if (chatParam && activeProfiles.length > 0) {
         const targetUser = activeProfiles.find(p => p.id === chatParam);
         if (targetUser) setSelectedContact(targetUser);
       }
 
-      // Set Draft Asset Context
       if (assetParam) {
         const { data: targetAsset } = await supabase.from('slabs').select('*').eq('id', assetParam).single();
         if (targetAsset) {
@@ -134,7 +131,6 @@ function SecureCommsContent() {
         }
       }
 
-      // Set Attach Protocol
       if (attachParam && userSlabs) {
         const targetPrivateAsset = userSlabs.find(s => s.id === attachParam);
         if (targetPrivateAsset) {
@@ -412,6 +408,31 @@ function SecureCommsContent() {
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
+      {/* --------------------------------------------------------- */}
+      {/* IMAGE VIEWER MODAL (NEW) */}
+      {/* --------------------------------------------------------- */}
+      {viewingImage && (
+        <div className="fixed inset-0 z-[250] bg-[#01030A]/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="absolute top-6 right-6 flex gap-4 z-10">
+             <a 
+               href={viewingImage} 
+               download 
+               target="_blank"
+               rel="noopener noreferrer"
+               className="bg-[#A6947D] text-[#020509] px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(166,148,125,0.4)] hover:bg-white transition-colors"
+             >
+               <Download size={16} /> Download
+             </a>
+             <button onClick={() => setViewingImage(null)} className="bg-white/10 text-white hover:bg-red-500 hover:text-white p-2 rounded-xl transition-colors backdrop-blur-md">
+               <X size={24} />
+             </button>
+          </div>
+          <div className="w-full max-w-5xl h-[80vh] relative flex items-center justify-center">
+             <img src={viewingImage} alt="Attachment Full View" className="max-w-full max-h-full object-contain rounded-lg shadow-2xl border border-[#A6947D]/20" />
+          </div>
+        </div>
+      )}
+
       {isVerifying && (
         <div className="fixed inset-0 z-[200] bg-[#020509]/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6">
           <div className="relative mb-8">
@@ -632,7 +653,12 @@ function SecureCommsContent() {
                     <div className="flex items-center gap-3 overflow-hidden">
                       <button onClick={() => setSelectedContact(null)} className="md:hidden text-[#A6947D] p-2 bg-[#A6947D]/10 rounded-lg flex-none"><ArrowLeft size={16} /></button>
                       <div className="overflow-hidden">
-                        <h3 className="text-sm md:text-lg font-serif tracking-widest text-[#F8F5EE] uppercase truncate">{selectedContact.company_name || selectedContact.email}</h3>
+                        {/* --- CLICKABLE PROFILE LINK --- */}
+                        <button onClick={() => router.push(`/network/${selectedContact.id}`)} className="text-left group outline-none">
+                          <h3 className="text-sm md:text-lg font-serif tracking-widest text-[#F8F5EE] group-hover:text-[#D4AF37] transition-colors uppercase truncate">
+                            {selectedContact.company_name || selectedContact.email}
+                          </h3>
+                        </button>
                         <div className="flex items-center gap-1.5 mt-0.5 text-emerald-500/80"><Lock size={10} /><span className="text-[7px] md:text-[9px] font-mono tracking-widest uppercase">{t('inbox.encryption_active')}</span></div>
                       </div>
                     </div>
@@ -652,11 +678,24 @@ function SecureCommsContent() {
                                 <div className="flex flex-col gap-2 mt-2">
                                   {msg.attachments.map((file: any, idx: number) => (
                                     file.isImage || file.url?.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                                      <img key={idx} src={file.url} alt="attachment" className="w-full max-w-[200px] h-auto rounded-lg border border-[#A6947D]/30 object-cover" />
+                                      // --- IMAGE VIEWER TRIGGER ---
+                                      <div 
+                                        key={idx} 
+                                        onClick={() => setViewingImage(file.url)}
+                                        className="relative group cursor-pointer"
+                                      >
+                                        <img src={file.url} alt="attachment" className="w-full max-w-[200px] h-auto rounded-lg border border-[#A6947D]/30 object-cover group-hover:brightness-75 transition-all" />
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                          <ZoomIn className="text-white drop-shadow-md" size={32} />
+                                        </div>
+                                      </div>
                                     ) : (
-                                      <a key={idx} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 bg-[#020509]/50 rounded border border-[#A6947D]/20 hover:text-amber-500 transition-colors w-max max-w-full">
-                                        <Paperclip size={14} className="shrink-0 text-[#A6947D]" />
-                                        <span className="text-[10px] truncate text-[#A6947D]">{file.name || 'Secure Attachment'}</span>
+                                      <a key={idx} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-[#020509]/50 rounded-lg border border-[#A6947D]/20 hover:border-[#A6947D]/60 hover:bg-[#A6947D]/5 transition-all w-full max-w-[250px] group">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                          <FileText size={16} className="shrink-0 text-[#A6947D]" />
+                                          <span className="text-[10px] truncate text-[#A6947D] group-hover:text-[#F8F5EE] transition-colors">{file.name || 'Secure Document'}</span>
+                                        </div>
+                                        <Download size={14} className="shrink-0 text-[#A6947D]/50 group-hover:text-[#A6947D] transition-colors" />
                                       </a>
                                     )
                                   ))}
@@ -668,7 +707,7 @@ function SecureCommsContent() {
                             <div className={`w-[280px] sm:w-[320px] p-4 md:p-5 rounded-2xl border shadow-2xl bg-[#01030A] ${isMine ? 'border-[#A6947D]/60' : 'border-[#A6947D]/20'}`}>
                                 <div className="flex items-center gap-3 mb-3 md:mb-4 border-b border-[#A6947D]/10 pb-3"><Handshake size={16} className="text-amber-500" /><div><p className="text-[8px] text-[#A6947D] uppercase font-bold tracking-widest">Protocol Attached</p><p className="text-[10px] text-[#F8F5EE] uppercase truncate">{msg.offer_details?.material}</p></div></div>
                                 <div className="space-y-2 mb-4">
-                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/10"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Terms</span><span className="text-[9px] font-bold text-amber-500">{msg.offer_details?.incoterm || msg.offer_details?.incoterms}</span></div>
+                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/10"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Terms</span><span className="text-[9px] font-bold text-amber-500">{msg.offer_details?.incoterm}</span></div>
                                   <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/20"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Value</span><span className="text-[11px] font-mono text-amber-500">{typeof msg.offer_details.price === 'number' ? formatCurrencyLocal(msg.offer_details.price) : `€${msg.offer_details.price}`}</span></div>
                                 </div>
                                 {!isMine && msg.offer_details.price !== 'Inquiry' && (
