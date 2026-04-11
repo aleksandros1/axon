@@ -12,7 +12,7 @@ import {
 import Link from 'next/link';
 
 import { useLanguage } from '../../lib/i18n/LanguageContext';
-import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher'; // Added SidebarLanguageSwitcher import
+import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher'; 
 
 function SecureCommsContent() {
   const router = useRouter();
@@ -58,12 +58,11 @@ function SecureCommsContent() {
       if (!session) { router.push('/auth'); return; }
       setCurrentUser(session.user);
 
-      const { data: profiles } = await supabase.from('profiles').select('*').neq('id', session.user.id);
-      if (profiles) setAllUsers(profiles);
-
+      // Fetch User's Slabs
       const { data: userSlabs } = await supabase.from('slabs').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false });
       if (userSlabs) setMySlabs(userSlabs);
 
+      // Fetch Messages to determine Active Contacts
       const { data: userMessages } = await supabase
         .from('messages')
         .select('sender_id, receiver_id, created_at, is_read')
@@ -71,6 +70,7 @@ function SecureCommsContent() {
 
       const activityMap: Record<string, number> = {};
       const unreadMap: Record<string, number> = {};
+      const contactIds = new Set<string>(); // Κρατάμε τα μοναδικά ID των επαφών
 
       if (userMessages) {
         userMessages.forEach(msg => {
@@ -78,6 +78,8 @@ function SecureCommsContent() {
           const otherId = isMine ? msg.receiver_id : msg.sender_id;
           const time = new Date(msg.created_at).getTime();
           
+          contactIds.add(otherId);
+
           if (!activityMap[otherId] || time > activityMap[otherId]) {
             activityMap[otherId] = time;
           }
@@ -94,11 +96,36 @@ function SecureCommsContent() {
       const assetParam = searchParams.get('asset');
       const attachParam = searchParams.get('attach'); 
 
-      if (chatParam && profiles) {
-        const targetUser = profiles.find(p => p.id === chatParam);
+      // Αν ερχόμαστε από link (π.χ. από το Trading ή το Archive) πρέπει να εξασφαλίσουμε ότι αυτό το ID θα φορτωθεί
+      if (chatParam) {
+        contactIds.add(chatParam);
+      }
+
+      // Fetch PROFILES ONLY FOR ACTIVE CONTACTS
+      const uniqueContactIds = Array.from(contactIds);
+      let activeProfiles: any[] = [];
+
+      if (uniqueContactIds.length > 0) {
+        const { data: fetchedProfiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', uniqueContactIds);
+          
+        if (fetchedProfiles) {
+          activeProfiles = fetchedProfiles;
+          setAllUsers(activeProfiles);
+        }
+      } else {
+        setAllUsers([]); // Empty state αν δεν υπάρχουν μηνύματα
+      }
+
+      // Set Selected Contact
+      if (chatParam && activeProfiles.length > 0) {
+        const targetUser = activeProfiles.find(p => p.id === chatParam);
         if (targetUser) setSelectedContact(targetUser);
       }
 
+      // Set Draft Asset Context
       if (assetParam) {
         const { data: targetAsset } = await supabase.from('slabs').select('*').eq('id', assetParam).single();
         if (targetAsset) {
@@ -107,6 +134,7 @@ function SecureCommsContent() {
         }
       }
 
+      // Set Attach Protocol
       if (attachParam && userSlabs) {
         const targetPrivateAsset = userSlabs.find(s => s.id === attachParam);
         if (targetPrivateAsset) {
@@ -565,19 +593,26 @@ function SecureCommsContent() {
                 <div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A6947D]/50" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Nodes..." className="w-full bg-[#020509] border border-[#A6947D]/20 rounded-xl pl-11 pr-4 py-3 text-xs text-[#F8F5EE] focus:border-[#A6947D]/60 focus:outline-none transition-all placeholder:text-[#A6947D]/30 shadow-inner" /></div>
               </div>
               <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-1 custom-scrollbar overflow-x-hidden">
-                {filteredContacts.map(contact => (
-                  <button key={contact.id} onClick={() => setSelectedContact(contact)} className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all border text-left overflow-hidden ${selectedContact?.id === contact.id ? 'bg-[#A6947D]/10 border-[#A6947D]/30' : 'bg-transparent border-transparent hover:bg-[#A6947D]/5'}`}>
-                    <div className="flex-1 overflow-hidden">
-                      <h3 className="text-xs md:text-sm font-serif uppercase tracking-wider truncate flex items-center gap-2">
-                        {contact.company_name || contact.email}
-                        {unreadCounts[contact.id] > 0 && (
-                          <span className="w-2 h-2 bg-[#FF204E] rounded-full shadow-[0_0_8px_rgba(255,32,78,0.6)] animate-pulse shrink-0"></span>
-                        )}
-                      </h3>
-                      <p className="text-[8px] md:text-[9px] font-mono tracking-widest text-[#A6947D]/40 mt-1 uppercase">Active Node</p>
-                    </div>
-                  </button>
-                ))}
+                {filteredContacts.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center opacity-40 p-6 text-center">
+                     <Shield size={32} className="text-[#A6947D] mb-3" />
+                     <p className="text-[10px] font-mono text-[#A6947D] uppercase tracking-widest leading-relaxed">No Active Connections.<br/>Radar is empty.</p>
+                  </div>
+                ) : (
+                  filteredContacts.map(contact => (
+                    <button key={contact.id} onClick={() => setSelectedContact(contact)} className={`w-full flex items-center gap-4 p-4 rounded-xl transition-all border text-left overflow-hidden ${selectedContact?.id === contact.id ? 'bg-[#A6947D]/10 border-[#A6947D]/30' : 'bg-transparent border-transparent hover:bg-[#A6947D]/5'}`}>
+                      <div className="flex-1 overflow-hidden">
+                        <h3 className="text-xs md:text-sm font-serif uppercase tracking-wider truncate flex items-center gap-2">
+                          {contact.company_name || contact.email}
+                          {unreadCounts[contact.id] > 0 && (
+                            <span className="w-2 h-2 bg-[#FF204E] rounded-full shadow-[0_0_8px_rgba(255,32,78,0.6)] animate-pulse shrink-0"></span>
+                          )}
+                        </h3>
+                        <p className="text-[8px] md:text-[9px] font-mono tracking-widest text-[#A6947D]/40 mt-1 uppercase">Active Node</p>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
@@ -633,7 +668,7 @@ function SecureCommsContent() {
                             <div className={`w-[280px] sm:w-[320px] p-4 md:p-5 rounded-2xl border shadow-2xl bg-[#01030A] ${isMine ? 'border-[#A6947D]/60' : 'border-[#A6947D]/20'}`}>
                                 <div className="flex items-center gap-3 mb-3 md:mb-4 border-b border-[#A6947D]/10 pb-3"><Handshake size={16} className="text-amber-500" /><div><p className="text-[8px] text-[#A6947D] uppercase font-bold tracking-widest">Protocol Attached</p><p className="text-[10px] text-[#F8F5EE] uppercase truncate">{msg.offer_details?.material}</p></div></div>
                                 <div className="space-y-2 mb-4">
-                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/10"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Terms</span><span className="text-[9px] font-bold text-amber-500">{msg.offer_details?.incoterm}</span></div>
+                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/10"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Terms</span><span className="text-[9px] font-bold text-amber-500">{msg.offer_details?.incoterm || msg.offer_details?.incoterms}</span></div>
                                   <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/20"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Value</span><span className="text-[11px] font-mono text-amber-500">{typeof msg.offer_details.price === 'number' ? formatCurrencyLocal(msg.offer_details.price) : `€${msg.offer_details.price}`}</span></div>
                                 </div>
                                 {!isMine && msg.offer_details.price !== 'Inquiry' && (
