@@ -356,37 +356,48 @@ function SecureCommsContent() {
     });
   };
 
-  const handleAcceptOffer = async (msg: any) => {
+ const handleAcceptOffer = async (msg: any) => {
     if (!currentUser || isAcceptingOffer) return;
     runVerificationProtocol(async () => {
       setIsAcceptingOffer(true);
       try {
+        // ΑΣΦΑΛΕΙΑ: Μετατρέπουμε τα κείμενα σε καθαρούς αριθμούς για τη βάση
         const contractPayload = {
-          asset_id: msg.offer_details.asset_id, buyer_id: currentUser.id, vendor_id: msg.sender_id, 
-          price: msg.offer_details.price, incoterms: msg.offer_details.incoterm || 'EXW',
-          deposit_percentage: '30', inspection_days: '7', status: 'pending'
+          asset_id: msg.offer_details.asset_id, 
+          buyer_id: currentUser.id, 
+          vendor_id: msg.sender_id, 
+          price: Number(msg.offer_details.price), 
+          incoterms: msg.offer_details.incoterm || 'EXW',
+          deposit_percentage: 30, 
+          inspection_days: 7, 
+          status: 'pending'
         };
 
+        // 1. Δημιουργία Συμβολαίου
         const { error: contractError } = await supabase.from('contracts').insert([contractPayload]);
         if (contractError) throw contractError;
 
+        // 2. Κλείδωμα Πλάκας
         const { error: slabUpdateError } = await supabase.from('slabs').update({ is_available: false }).eq('id', msg.offer_details.asset_id);
         if (slabUpdateError) throw slabUpdateError;
 
+        // 3. Ειδοποίηση
         await supabase.from('notifications').insert([{
           user_id: msg.sender_id, title: 'Deal Accepted!',
           message: `The terms for Asset AX-${msg.offer_details.asset_id.substring(0,6)} have been accepted. Check your Contracts Vault.`,
           type: 'contract', link: '/contracts'
         }]);
+        
         router.push('/contracts');
       } catch (error: any) {
-        alert('Failed to initialize contract. Database error.');
+        // THE RADAR: Τυπώνει το ακριβές λάθος της Supabase
+        console.error("💥 SUPABASE ERROR LOG 💥:", error);
+        alert(`Transaction Failed: ${error.message || error.details || 'Check console for details.'}`);
       } finally {
         setIsAcceptingOffer(false);
       }
     });
   };
-
   // --- DELETE MESSAGE FUNCTION ---
   const handleDeleteMessage = async (messageId: string) => {
     // Optimistic Update: Αφαιρούμε άμεσα το μήνυμα από την οθόνη για ταχύτητα
