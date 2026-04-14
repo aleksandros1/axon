@@ -114,7 +114,6 @@ export default function PublicAssetDossier() {
           let parsedImages: string[] = [];
           let rawData = slabData.images || slabData.image_url;
           
-          // ΔΙΟΡΘΩΣΗ: Πιο ισχυρό parsing για να μην "σπάει" η εικόνα
           if (typeof rawData === 'string' && rawData.startsWith('[')) {
             try { rawData = JSON.parse(rawData); } catch (err) {}
           }
@@ -129,7 +128,6 @@ export default function PublicAssetDossier() {
             } catch (err) { console.error(err); }
           }
           
-          // Καθαρισμός από κενά/invalid URLs
           parsedImages = parsedImages.filter(url => url && url.trim() !== '' && url !== 'null' && url !== 'undefined');
 
           if (parsedImages.length === 0) {
@@ -266,6 +264,15 @@ export default function PublicAssetDossier() {
         tone: 'Brilliant Base / Subtle Veining'
       });
     }, 3500);
+  };
+
+  // --- IMAGE NAVIGATION LOGIC ---
+  const nextImage = () => {
+    setActiveImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = () => {
+    setActiveImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   if (loading) return <div className="h-[100dvh] w-full bg-[#020509] flex items-center justify-center text-[#A6947D] animate-pulse font-mono text-[10px] uppercase tracking-[0.3em]"><Loader2 className="animate-spin mr-3"/> {t('common.syncing')}</div>;
@@ -435,9 +442,35 @@ export default function PublicAssetDossier() {
           {/* IMAGE SECTION */}
           <div className="lg:col-span-7 space-y-4 md:space-y-6 w-full">
             <div className="relative aspect-square md:aspect-[4/3] bg-[#01030A] rounded-2xl overflow-hidden border border-[#A6947D]/20 shadow-xl w-full group">
-              {/* ΔΙΟΡΘΩΣΗ: Προστέθηκε fallback URL απευθείας στο src για ασφάλεια */}
-              <img src={images[activeImageIndex] || 'https://via.placeholder.com/800x600?text=NO+VISUAL+DATA'} alt="" className="w-full h-full object-cover" />
+              <img src={images[activeImageIndex] || 'https://via.placeholder.com/800x600?text=NO+VISUAL+DATA'} alt="" className="w-full h-full object-cover transition-opacity duration-300" />
               
+              {/* IMAGE NAVIGATION CONTROLS (ADDED) */}
+              {images.length > 1 && (
+                <>
+                  <button 
+                    onClick={(e) => { e.preventDefault(); prevImage(); }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 z-40 bg-[#01030A]/60 hover:bg-[#020509] text-[#A6947D] border border-[#A6947D]/30 p-2 md:p-3 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button 
+                    onClick={(e) => { e.preventDefault(); nextImage(); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-40 bg-[#01030A]/60 hover:bg-[#020509] text-[#A6947D] border border-[#A6947D]/30 p-2 md:p-3 rounded-full backdrop-blur-md transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-[#01030A]/50 backdrop-blur-md px-3 py-1.5 rounded-full border border-[#A6947D]/20">
+                    {images.map((_, idx) => (
+                      <button 
+                        key={idx}
+                        onClick={(e) => { e.preventDefault(); setActiveImageIndex(idx); }}
+                        className={`w-1.5 h-1.5 rounded-full transition-all ${idx === activeImageIndex ? 'bg-[#A6947D] scale-125' : 'bg-[#A6947D]/30 hover:bg-[#A6947D]/60'}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
               {/* AI SCANNER OVERLAY ANIMATION */}
               {isAiScanning && (
                 <div className="absolute inset-0 z-20 overflow-hidden rounded-2xl">
@@ -543,7 +576,6 @@ export default function PublicAssetDossier() {
               
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-[#F8F5EE] uppercase leading-tight mb-6 tracking-wider truncate w-full">{slab.material}</h1>
               
-              {/* ΔΙΟΡΘΩΣΗ: Ενσωμάτωση του Description Block που έλειπε */}
               {slab.description && (
                 <div className="mb-8">
                   <p className="text-[10px] text-[#A6947D] uppercase font-bold tracking-widest mb-3">Asset Description</p>
