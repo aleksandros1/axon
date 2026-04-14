@@ -387,6 +387,23 @@ function SecureCommsContent() {
     });
   };
 
+  // --- DELETE MESSAGE FUNCTION ---
+  const handleDeleteMessage = async (messageId: string) => {
+    // Optimistic Update: Αφαιρούμε άμεσα το μήνυμα από την οθόνη για ταχύτητα
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    
+    // Διαγραφή από την βάση δεδομένων
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId)
+      .eq('sender_id', currentUser?.id); // Ασφάλεια: Διαγράφεις μόνο τα δικά σου
+      
+    if (error) {
+      console.error("Failed to delete message:", error);
+    }
+  };
+
   const formatTime = (isoString: string) => new Date(isoString).toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' });
 
   const renderSlabItem = (slab: any) => (
@@ -668,7 +685,7 @@ function SecureCommsContent() {
                     {messages.map((msg) => {
                       const isMine = msg.sender_id === currentUser.id;
                       return (
-                        <div key={msg.id} className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300`}>
+                        <div key={msg.id} className={`flex w-full ${isMine ? 'justify-end' : 'justify-start'} animate-in fade-in duration-300 group`}>
                           {!msg.is_offer ? (
                             <div className={`max-w-[90%] md:max-w-[75%] p-3 md:p-4 rounded-2xl flex flex-col gap-1.5 shadow-lg ${isMine ? 'bg-[#A6947D]/15 border border-[#A6947D]/30 text-[#F8F5EE]' : 'bg-[#01030A] border border-[#A6947D]/15 text-[#F8F5EE]/90'}`}>
                               {msg.text && (
@@ -682,26 +699,40 @@ function SecureCommsContent() {
                                       <div 
                                         key={idx} 
                                         onClick={() => setViewingImage(file.url)}
-                                        className="relative group cursor-pointer"
+                                        className="relative group/img cursor-pointer"
                                       >
-                                        <img src={file.url} alt="attachment" className="w-full max-w-[200px] h-auto rounded-lg border border-[#A6947D]/30 object-cover group-hover:brightness-75 transition-all" />
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <img src={file.url} alt="attachment" className="w-full max-w-[200px] h-auto rounded-lg border border-[#A6947D]/30 object-cover group-hover/img:brightness-75 transition-all" />
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
                                           <ZoomIn className="text-white drop-shadow-md" size={32} />
                                         </div>
                                       </div>
                                     ) : (
-                                      <a key={idx} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-[#020509]/50 rounded-lg border border-[#A6947D]/20 hover:border-[#A6947D]/60 hover:bg-[#A6947D]/5 transition-all w-full max-w-[250px] group">
+                                      <a key={idx} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-[#020509]/50 rounded-lg border border-[#A6947D]/20 hover:border-[#A6947D]/60 hover:bg-[#A6947D]/5 transition-all w-full max-w-[250px] group/file">
                                         <div className="flex items-center gap-2 overflow-hidden">
                                           <FileText size={16} className="shrink-0 text-[#A6947D]" />
-                                          <span className="text-[10px] truncate text-[#A6947D] group-hover:text-[#F8F5EE] transition-colors">{file.name || 'Secure Document'}</span>
+                                          <span className="text-[10px] truncate text-[#A6947D] group-hover/file:text-[#F8F5EE] transition-colors">{file.name || 'Secure Document'}</span>
                                         </div>
-                                        <Download size={14} className="shrink-0 text-[#A6947D]/50 group-hover:text-[#A6947D] transition-colors" />
+                                        <Download size={14} className="shrink-0 text-[#A6947D]/50 group-hover/file:text-[#A6947D] transition-colors" />
                                       </a>
                                     )
                                   ))}
                                 </div>
                               )}
-                              <p className={`text-[7px] font-mono tracking-widest text-right mt-1 ${isMine ? 'text-[#A6947D]/60' : 'text-[#A6947D]/40'}`}>{formatTime(msg.created_at)}</p>
+                              {/* --- TIMESTAMP ΚΑΙ ΚΟΥΜΠΙ ΔΙΑΓΡΑΦΗΣ --- */}
+                              <div className={`flex items-center gap-2 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                {isMine && (
+                                  <button 
+                                    onClick={() => handleDeleteMessage(msg.id)}
+                                    className="text-[#A6947D]/40 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                    title="Eradicate Message"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                )}
+                                <p className={`text-[7px] font-mono tracking-widest ${isMine ? 'text-[#A6947D]/60' : 'text-[#A6947D]/40'}`}>
+                                  {formatTime(msg.created_at)}
+                                </p>
+                              </div>
                             </div>
                           ) : (
                             <div className={`w-[280px] sm:w-[320px] p-4 md:p-5 rounded-2xl border shadow-2xl bg-[#01030A] ${isMine ? 'border-[#A6947D]/60' : 'border-[#A6947D]/20'}`}>
@@ -713,6 +744,21 @@ function SecureCommsContent() {
                                 {!isMine && msg.offer_details.price !== 'Inquiry' && (
                                   <button onClick={() => handleAcceptOffer(msg)} disabled={isAcceptingOffer} className="w-full bg-emerald-600 text-[#020509] font-bold uppercase tracking-widest py-3 rounded-xl text-[9px] shadow-lg disabled:opacity-50">Accept & Escrow</button>
                                 )}
+                                {/* --- TIMESTAMP ΚΑΙ ΚΟΥΜΠΙ ΔΙΑΓΡΑΦΗΣ ΓΙΑ OFFERS --- */}
+                                <div className={`flex items-center gap-2 mt-3 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                  {isMine && (
+                                    <button 
+                                      onClick={() => handleDeleteMessage(msg.id)}
+                                      className="text-[#A6947D]/40 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                      title="Revoke Offer"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )}
+                                  <p className={`text-[7px] font-mono tracking-widest ${isMine ? 'text-[#A6947D]/60' : 'text-[#A6947D]/40'}`}>
+                                    {formatTime(msg.created_at)}
+                                  </p>
+                                </div>
                             </div>
                           )}
                         </div>
