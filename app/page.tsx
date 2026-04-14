@@ -175,8 +175,9 @@ export default function LandingPage() {
               {t('landing.hero_title_1')} <br/> <span className="text-[#A6947D] italic font-light">{t('landing.hero_title_2')}</span> {t('landing.hero_title_3')}
             </h1>
             
-            <p className="text-sm sm:text-base md:text-lg text-[#F8F5EE]/70 md:text-[#F8F5EE]/60 font-sans max-w-2xl mb-12 md:mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
-              {t('landing.hero_subtitle')}
+            {/* THE HEAVY ASSET NEXUS MANIFESTO */}
+            <p className="text-sm sm:text-base md:text-lg text-[#F8F5EE]/70 font-sans max-w-2xl mb-12 md:mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200 border-l-2 border-[#A6947D]/50 pl-4 md:pl-6 py-1">
+              A decentralized neural network engineered exclusively for fine marble. AXON transforms traditional stone procurement into a high-velocity, secure digital exchange. <br className="hidden md:block"/><br className="hidden md:block"/> We bridge the gap between physical extraction and global architecture, securing every multi-million dollar transaction through immutable escrow protocols.
             </p>
             
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300">
@@ -186,7 +187,7 @@ export default function LandingPage() {
               
               <button 
                 onClick={() => setIsServicesOpen(true)}
-                className="w-full sm:w-auto bg-transparent border border-[#A6947D]/30 text-[#A6947D] px-8 py-5 md:py-4 rounded-xl text-xs md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2"
+                className="w-full sm:w-auto bg-transparent border border-[#A6947D]/30 text-[#A6947D] px-8 py-5 md:py-4 rounded-xl text-xs md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 hover:bg-[#A6947D]/10"
               >
                 <Zap size={16} className="md:w-3.5 md:h-3.5" /> {t('landing.services_btn')}
               </button>
