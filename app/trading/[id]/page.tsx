@@ -112,17 +112,29 @@ export default function PublicAssetDossier() {
           setOfferPrice(String(slabData.price || '')); 
           
           let parsedImages: string[] = [];
-          const rawData = slabData.images || slabData.image_url;
+          let rawData = slabData.images || slabData.image_url;
+          
+          // ΔΙΟΡΘΩΣΗ: Πιο ισχυρό parsing για να μην "σπάει" η εικόνα
+          if (typeof rawData === 'string' && rawData.startsWith('[')) {
+            try { rawData = JSON.parse(rawData); } catch (err) {}
+          }
+
           if (rawData) {
             try {
               if (Array.isArray(rawData)) {
                 parsedImages = rawData.map((item: any) => typeof item === 'string' ? item : (item.url || item.publicUrl || '')).filter(Boolean);
-              } else {
+              } else if (typeof rawData === 'string') {
                 parsedImages = [rawData];
               }
             } catch (err) { console.error(err); }
           }
-          if (parsedImages.length === 0) parsedImages = ['https://via.placeholder.com/800x600?text=NO+VISUAL+DATA'];
+          
+          // Καθαρισμός από κενά/invalid URLs
+          parsedImages = parsedImages.filter(url => url && url.trim() !== '' && url !== 'null' && url !== 'undefined');
+
+          if (parsedImages.length === 0) {
+            parsedImages = ['https://via.placeholder.com/800x600?text=NO+VISUAL+DATA'];
+          }
           setImages(parsedImages);
 
           const vendorId = slabData.user_id || slabData.vendor_id;
@@ -207,11 +219,9 @@ export default function PublicAssetDossier() {
     setIsSubmitting(false);
   };
 
-  // --- Η ΜΑΓΕΙΑ ΕΔΩ (ΔΙΟΡΘΩΜΕΝΟ STRIPE INITIALIZATION) ---
   const initializeStripePayment = async (mode: 'instant' | 'lock') => {
     if (!currentUser) { router.push('/auth'); return; }
     
-    // Ενεργοποιούμε το οπτικό Radar του AXON για ψυχολογικό lock-in
     setIsVerifying(true);
     setVerificationStep(1);
 
@@ -232,7 +242,6 @@ export default function PublicAssetDossier() {
       const data = await res.json();
       
       if (data.url) {
-        // Τηλεμεταφορά στην επίσημη σελίδα του Stripe
         window.location.href = data.url; 
       } else {
         setIsVerifying(false);
@@ -245,7 +254,6 @@ export default function PublicAssetDossier() {
     }
   };
 
-  // --- AI VISION SCAN HANDLER ---
   const handleAiScan = () => {
     setIsAiScanning(true);
     setTimeout(() => {
@@ -262,7 +270,6 @@ export default function PublicAssetDossier() {
 
   if (loading) return <div className="h-[100dvh] w-full bg-[#020509] flex items-center justify-center text-[#A6947D] animate-pulse font-mono text-[10px] uppercase tracking-[0.3em]"><Loader2 className="animate-spin mr-3"/> {t('common.syncing')}</div>;
 
-  // --- DYNAMIC STATE LOGIC ΓΙΑ ΤΟ SOLD ACTION ---
   const isSold = slab?.is_available === false;
   const isVendor = currentUser?.id === slab?.user_id || currentUser?.id === slab?.vendor_id;
   const isBuyer = slab?.buyer_id && currentUser?.id === slab?.buyer_id;
@@ -335,7 +342,7 @@ export default function PublicAssetDossier() {
         </div>
       )}
 
-      {/* STRIPE CHECKOUT MODAL (ΠΑΡΑΜΕΝΕΙ ΓΙΑ ΛΟΓΟΥΣ ΣΥΜΒΑΤΟΤΗΤΑΣ ΑΝ ΚΑΙ ΠΛΕΟΝ ΔΕΝ ΤΟ ΧΡΕΙΑΖΕΣΑΙ) */}
+      {/* STRIPE CHECKOUT MODAL */}
       {checkoutMode && clientSecret && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#01030A]/95 backdrop-blur-md animate-in fade-in duration-300 overflow-x-hidden">
           <div className="bg-[#020509] border border-[#A6947D]/20 rounded-2xl w-full max-w-lg relative shadow-2xl overflow-hidden my-auto">
@@ -428,7 +435,8 @@ export default function PublicAssetDossier() {
           {/* IMAGE SECTION */}
           <div className="lg:col-span-7 space-y-4 md:space-y-6 w-full">
             <div className="relative aspect-square md:aspect-[4/3] bg-[#01030A] rounded-2xl overflow-hidden border border-[#A6947D]/20 shadow-xl w-full group">
-              <img src={images[activeImageIndex]} alt="" className="w-full h-full object-cover" />
+              {/* ΔΙΟΡΘΩΣΗ: Προστέθηκε fallback URL απευθείας στο src για ασφάλεια */}
+              <img src={images[activeImageIndex] || 'https://via.placeholder.com/800x600?text=NO+VISUAL+DATA'} alt="" className="w-full h-full object-cover" />
               
               {/* AI SCANNER OVERLAY ANIMATION */}
               {isAiScanning && (
@@ -532,7 +540,18 @@ export default function PublicAssetDossier() {
                 <div className={`w-2 h-2 rounded-full animate-pulse ${isSold ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
                 <p className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest flex items-center gap-2">AX-{slab.id.substring(0,8)}</p>
               </div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-[#F8F5EE] uppercase leading-tight mb-8 tracking-wider truncate w-full">{slab.material}</h1>
+              
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-[#F8F5EE] uppercase leading-tight mb-6 tracking-wider truncate w-full">{slab.material}</h1>
+              
+              {/* ΔΙΟΡΘΩΣΗ: Ενσωμάτωση του Description Block που έλειπε */}
+              {slab.description && (
+                <div className="mb-8">
+                  <p className="text-[10px] text-[#A6947D] uppercase font-bold tracking-widest mb-3">Asset Description</p>
+                  <p className="text-sm font-serif text-[#F8F5EE]/80 leading-relaxed whitespace-pre-line border-l-2 border-[#A6947D]/30 pl-4">
+                    {slab.description}
+                  </p>
+                </div>
+              )}
               
               <div className={`p-8 rounded-2xl border w-full bg-[#01030A] shadow-xl ${isSold ? 'border-red-500/20' : slab.pricing_model === 'ROQ' ? 'border-amber-500/20' : 'border-emerald-500/20'}`}>
                 <p className="text-[9px] uppercase font-bold mb-2 text-[#A6947D]/80 tracking-widest">{isSold ? 'Locked Valuation' : slab.pricing_model === 'ROQ' ? 'Premium Request' : t('scanner.valuation')}</p>
