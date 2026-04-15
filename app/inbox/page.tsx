@@ -7,7 +7,7 @@ import {
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   LogOut, Search, Send, Building2, ShieldCheck, Users, Gavel, 
   Loader2, Paperclip, X, FileText, ImageIcon, Handshake, Layers, CheckCircle2, Trash2, Anchor, Factory, MapPin, User, Package, AlertOctagon, ArrowLeft,
-  Layers3, UserCircle, Menu, Download, ZoomIn
+  Layers3, UserCircle, Menu, Download, ZoomIn, Landmark, Wallet
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -36,9 +36,13 @@ function SecureCommsContent() {
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
   const [mySlabs, setMySlabs] = useState<any[]>([]); 
   const [slabSearchQuery, setSlabSearchQuery] = useState(''); 
+  
+  // --- OTC PROTOCOL DYNAMIC STATE (NEW INSTITUTIONAL PARAMS) ---
   const [offerAssetId, setOfferAssetId] = useState('');
   const [offerPrice, setOfferPrice] = useState('');
-  const [offerIncoterm, setOfferIncoterm] = useState('EXW');
+  const [offerIncoterm, setOfferIncoterm] = useState('FOB');
+  const [offerPaymentTerms, setOfferPaymentTerms] = useState('100_escrow');
+  const [offerInspection, setOfferInspection] = useState('waived');
   const [offerText, setOfferText] = useState('Here is my final offer for this asset.');
 
   const [draftContextAsset, setDraftContextAsset] = useState<any>(null);
@@ -326,12 +330,20 @@ function SecureCommsContent() {
     
     runVerificationProtocol(async () => {
       const tempId = `temp_offer_${Date.now()}`;
+      
+      // ΒΑΖΟΥΜΕ ΟΛΑ ΤΑ INSTITUTIONAL TERMS ΣΤΟ PAYLOAD
       const newMsgObj = { 
-        sender_id: currentUser.id, receiver_id: selectedContact.id, text: offerText, 
+        sender_id: currentUser.id, 
+        receiver_id: selectedContact.id, 
+        text: offerText, 
         is_offer: true, 
         offer_details: { 
-          asset_id: offerAssetId, price: offerPrice, incoterm: offerIncoterm,
-          material: targetAsset?.material || 'Private Asset' 
+          asset_id: offerAssetId, 
+          price: offerPrice, 
+          incoterm: offerIncoterm,
+          material: targetAsset?.material || 'Private Asset',
+          payment_terms: offerPaymentTerms,  // NEW
+          inspection: offerInspection        // NEW
         },
         is_read: false 
       };
@@ -340,7 +352,14 @@ function SecureCommsContent() {
       setMessages(prev => [...prev, displayMsg]);
       setLastActivity(prev => ({ ...prev, [selectedContact.id]: Date.now() }));
 
-      setIsOfferModalOpen(false); setOfferAssetId(''); setOfferPrice(''); setSlabSearchQuery(''); setOfferText('Here is my final offer for this asset.');
+      // RESET STATE
+      setIsOfferModalOpen(false); 
+      setOfferAssetId(''); 
+      setOfferPrice(''); 
+      setSlabSearchQuery(''); 
+      setOfferText('Here is my final offer for this asset.');
+      setOfferPaymentTerms('100_escrow');
+      setOfferInspection('waived');
       router.replace('/inbox', { scroll: false });
 
       const { data: insertedData, error: insertError } = await supabase.from('messages').insert([newMsgObj]).select().single();
@@ -356,41 +375,43 @@ function SecureCommsContent() {
     });
   };
 
- const handleAcceptOffer = async (msg: any) => {
+  // --- DYNAMIC ACCEPT & SYNC (ΤΟ ΣΗΜΑΝΤΙΚΟΤΕΡΟ ΚΟΜΜΑΤΙ) ---
+  const handleAcceptOffer = async (msg: any) => {
     if (!currentUser || isAcceptingOffer) return;
     runVerificationProtocol(async () => {
       setIsAcceptingOffer(true);
       try {
-        // ΑΣΦΑΛΕΙΑ: Μετατρέπουμε τα κείμενα σε καθαρούς αριθμούς για τη βάση
+        const payload = msg.offer_details;
+        const priceClean = payload.price === 'Inquiry' ? 0 : Number(payload.price);
+        
+        // Φτιάχνουμε το 100% συγχρονισμένο συμβόλαιο
         const contractPayload = {
-          asset_id: msg.offer_details.asset_id, 
+          asset_id: payload.asset_id, 
           buyer_id: currentUser.id, 
           vendor_id: msg.sender_id, 
-          price: Number(msg.offer_details.price), 
-          incoterms: msg.offer_details.incoterm || 'EXW',
-          deposit_percentage: 30, 
-          inspection_days: 7, 
+          price: priceClean, 
+          incoterms: payload.incoterm || payload.incoterms || 'FOB',
+          payment_terms: payload.payment_terms || '100_escrow',  // ΔΙΑΒΑΖΕΙ ΤΟΥΣ ΝΕΟΥΣ ΟΡΟΥΣ
+          inspection: payload.inspection || 'waived',            // ΔΙΑΒΑΖΕΙ ΤΟΥΣ ΝΕΟΥΣ ΟΡΟΥΣ
+          custom_material: payload.material,
           status: 'pending'
         };
 
-        // 1. Δημιουργία Συμβολαίου
         const { error: contractError } = await supabase.from('contracts').insert([contractPayload]);
         if (contractError) throw contractError;
 
-        // 2. Κλείδωμα Πλάκας
-        const { error: slabUpdateError } = await supabase.from('slabs').update({ is_available: false }).eq('id', msg.offer_details.asset_id);
-        if (slabUpdateError) throw slabUpdateError;
-
-        // 3. Ειδοποίηση
+        // Κλείδωμα Πλάκας
+        const { error: slabUpdateError } = await supabase.from('slabs').update({ is_available: false }).eq('id', payload.asset_id);
+        
+        // Ειδοποίηση
         await supabase.from('notifications').insert([{
           user_id: msg.sender_id, title: 'Deal Accepted!',
-          message: `The terms for Asset AX-${msg.offer_details.asset_id.substring(0,6)} have been accepted. Check your Contracts Vault.`,
+          message: `The terms for Asset AX-${payload.asset_id.substring(0,6)} have been accepted. Check your Contracts Vault.`,
           type: 'contract', link: '/contracts'
         }]);
         
         router.push('/contracts');
       } catch (error: any) {
-        // THE RADAR: Τυπώνει το ακριβές λάθος της Supabase
         console.error("💥 SUPABASE ERROR LOG 💥:", error);
         alert(`Transaction Failed: ${error.message || error.details || 'Check console for details.'}`);
       } finally {
@@ -398,21 +419,11 @@ function SecureCommsContent() {
       }
     });
   };
-  // --- DELETE MESSAGE FUNCTION ---
+
   const handleDeleteMessage = async (messageId: string) => {
-    // Optimistic Update: Αφαιρούμε άμεσα το μήνυμα από την οθόνη για ταχύτητα
     setMessages(prev => prev.filter(m => m.id !== messageId));
-    
-    // Διαγραφή από την βάση δεδομένων
-    const { error } = await supabase
-      .from('messages')
-      .delete()
-      .eq('id', messageId)
-      .eq('sender_id', currentUser?.id); // Ασφάλεια: Διαγράφεις μόνο τα δικά σου
-      
-    if (error) {
-      console.error("Failed to delete message:", error);
-    }
+    const { error } = await supabase.from('messages').delete().eq('id', messageId).eq('sender_id', currentUser?.id); 
+    if (error) console.error("Failed to delete message:", error);
   };
 
   const formatTime = (isoString: string) => new Date(isoString).toLocaleTimeString('el-GR', { hour: '2-digit', minute: '2-digit' });
@@ -436,19 +447,11 @@ function SecureCommsContent() {
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
-      {/* --------------------------------------------------------- */}
-      {/* IMAGE VIEWER MODAL (NEW) */}
-      {/* --------------------------------------------------------- */}
+      {/* IMAGE VIEWER MODAL */}
       {viewingImage && (
         <div className="fixed inset-0 z-[250] bg-[#01030A]/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="absolute top-6 right-6 flex gap-4 z-10">
-             <a 
-               href={viewingImage} 
-               download 
-               target="_blank"
-               rel="noopener noreferrer"
-               className="bg-[#A6947D] text-[#020509] px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(166,148,125,0.4)] hover:bg-white transition-colors"
-             >
+             <a href={viewingImage} download target="_blank" rel="noopener noreferrer" className="bg-[#A6947D] text-[#020509] px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 shadow-[0_0_15px_rgba(166,148,125,0.4)] hover:bg-white transition-colors">
                <Download size={16} /> Download
              </a>
              <button onClick={() => setViewingImage(null)} className="bg-white/10 text-white hover:bg-red-500 hover:text-white p-2 rounded-xl transition-colors backdrop-blur-md">
@@ -461,6 +464,7 @@ function SecureCommsContent() {
         </div>
       )}
 
+      {/* VERIFICATION PROTOCOL UI */}
       {isVerifying && (
         <div className="fixed inset-0 z-[200] bg-[#020509]/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6">
           <div className="relative mb-8">
@@ -479,11 +483,12 @@ function SecureCommsContent() {
         </div>
       )}
 
+      {/* --- INSTITUTIONAL OTC OFFER MODAL (NEW DYNAMIC) --- */}
       {isOfferModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-[#020509]/95 backdrop-blur-md animate-in fade-in duration-200 overflow-x-hidden">
-          <div className="bg-[#01030A] border border-amber-500/30 rounded-2xl w-full max-w-lg relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-[#01030A] border border-amber-500/30 rounded-2xl w-full max-w-xl relative shadow-[0_0_50px_rgba(166,148,125,0.1)] overflow-hidden flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-5 md:p-6 border-b border-[#A6947D]/20 bg-[#020509] flex-none">
-              <div className="flex items-center gap-3 text-amber-500"><Handshake size={20} /><h2 className="text-lg font-serif uppercase tracking-widest text-[#F8F5EE]">{language === 'el' ? 'Πρωτόκολλο OTC' : 'OTC Protocol'}</h2></div>
+              <div className="flex items-center gap-3 text-amber-500"><Handshake size={20} /><h2 className="text-lg font-serif uppercase tracking-widest text-[#F8F5EE]">Institutional OTC Protocol</h2></div>
               <button onClick={() => {setIsOfferModalOpen(false); router.replace('/inbox', { scroll: false });}} className="text-[#F8F5EE]/40 hover:text-red-500 transition-colors p-2"><X size={20} /></button>
             </div>
             
@@ -495,34 +500,24 @@ function SecureCommsContent() {
                 </div>
               )}
 
+              {/* 1. ASSET SELECTION */}
               <div className="space-y-3">
-                <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest flex items-center gap-2"><Layers size={12}/> Inventory Selection</label>
-                
-                <div className="bg-[#020509] border border-[#A6947D]/30 rounded-xl max-h-64 overflow-y-auto p-3 space-y-4 custom-scrollbar shadow-inner">
+                <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest flex items-center gap-2"><Layers size={12}/> Target Asset</label>
+                <div className="bg-[#020509] border border-[#A6947D]/30 rounded-xl max-h-48 overflow-y-auto p-3 space-y-4 custom-scrollbar shadow-inner">
                   {mySlabs.length === 0 ? (
                     <div className="text-center py-6 text-[#A6947D]/50 text-[10px] uppercase font-mono tracking-widest">{t('trading.no_assets')}</div>
                   ) : (
                     <>
                       {privateSlabs.length > 0 && (
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 border-b border-[#A6947D]/10 pb-1.5 px-1 sticky top-0 bg-[#020509] z-10">
-                            <Lock size={12} className="text-[#A6947D]" />
-                            <span className="text-[9px] uppercase font-bold tracking-widest text-[#A6947D]">Private Vault</span>
-                          </div>
-                          <div className="space-y-1">
-                            {privateSlabs.map(renderSlabItem)}
-                          </div>
+                          <div className="flex items-center gap-2 border-b border-[#A6947D]/10 pb-1.5 px-1 sticky top-0 bg-[#020509] z-10"><Lock size={12} className="text-[#A6947D]" /><span className="text-[9px] uppercase font-bold tracking-widest text-[#A6947D]">Private Vault</span></div>
+                          <div className="space-y-1">{privateSlabs.map(renderSlabItem)}</div>
                         </div>
                       )}
                       {publicSlabs.length > 0 && (
                         <div className="space-y-2 pt-2">
-                          <div className="flex items-center gap-2 border-b border-[#A6947D]/10 pb-1.5 px-1 sticky top-0 bg-[#020509] z-10">
-                            <Globe size={12} className="text-[#A6947D]" />
-                            <span className="text-[9px] uppercase font-bold tracking-widest text-[#A6947D]">Public Floor</span>
-                          </div>
-                          <div className="space-y-1">
-                            {publicSlabs.map(renderSlabItem)}
-                          </div>
+                          <div className="flex items-center gap-2 border-b border-[#A6947D]/10 pb-1.5 px-1 sticky top-0 bg-[#020509] z-10"><Globe size={12} className="text-[#A6947D]" /><span className="text-[9px] uppercase font-bold tracking-widest text-[#A6947D]">Public Floor</span></div>
+                          <div className="space-y-1">{publicSlabs.map(renderSlabItem)}</div>
                         </div>
                       )}
                     </>
@@ -530,24 +525,54 @@ function SecureCommsContent() {
                 </div>
               </div>
 
+              {/* 2. VALUATION & INCOTERMS */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-[9px] text-[#A6947D] uppercase font-bold">Incoterm</label>
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => setOfferIncoterm('EXW')} className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${offerIncoterm === 'EXW' ? 'bg-amber-500 border-amber-500 text-[#020509]' : 'bg-[#020509] border-amber-500/30 text-amber-500/60'}`}>EXW</button>
-                    <button type="button" onClick={() => setOfferIncoterm('FOB')} className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${offerIncoterm === 'FOB' ? 'bg-amber-500 border-amber-500 text-[#020509]' : 'bg-[#020509] border-amber-500/30 text-amber-500/60'}`}>FOB</button>
+                  <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest">Incoterm</label>
+                  <div className="flex gap-2 bg-[#020509] p-1 rounded-xl border border-[#A6947D]/20">
+                    <button type="button" onClick={() => setOfferIncoterm('EXW')} className={`flex-1 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${offerIncoterm === 'EXW' ? 'bg-amber-500 text-[#020509]' : 'text-amber-500/60 hover:text-amber-500'}`}>EXW</button>
+                    <button type="button" onClick={() => setOfferIncoterm('FOB')} className={`flex-1 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${offerIncoterm === 'FOB' ? 'bg-amber-500 text-[#020509]' : 'text-amber-500/60 hover:text-amber-500'}`}>FOB</button>
+                    <button type="button" onClick={() => setOfferIncoterm('CIF')} className={`flex-1 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all ${offerIncoterm === 'CIF' ? 'bg-amber-500 text-[#020509]' : 'text-amber-500/60 hover:text-amber-500'}`}>CIF</button>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] text-[#A6947D] uppercase font-bold">Value (€)</label>
+                  <label className="text-[9px] text-[#A6947D] uppercase font-bold tracking-widest">Value (€)</label>
                   <div className="relative">
                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-500 font-mono">€</span>
-                     <input type="number" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} className="w-full bg-[#020509] border border-amber-500/30 rounded-xl pl-8 pr-4 py-3.5 text-sm font-mono text-amber-500 focus:outline-none focus:border-amber-500 shadow-inner" placeholder="0.00" required />
+                     <input type="number" value={offerPrice} onChange={(e) => setOfferPrice(e.target.value)} className="w-full bg-[#020509] border border-[#A6947D]/20 rounded-xl pl-8 pr-4 py-3 text-sm font-mono text-amber-500 focus:outline-none focus:border-amber-500 transition-colors" placeholder="0.00" required />
                   </div>
                 </div>
               </div>
+
+              {/* 3. DYNAMIC ESCROW FUNDING SCHEDULE */}
+              <div className="space-y-2 pt-4 border-t border-[#A6947D]/10">
+                <label className="text-[9px] font-bold text-[#A6947D] uppercase tracking-widest block">Escrow Funding Schedule</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setOfferPaymentTerms('100_escrow')} className={`p-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${offerPaymentTerms === '100_escrow' ? 'bg-amber-500/10 border-amber-500' : 'bg-[#020509] border-[#A6947D]/20 opacity-60'}`}>
+                    <Wallet size={14} className={offerPaymentTerms === '100_escrow' ? 'text-amber-500' : 'text-[#A6947D]'} />
+                    <span className={`text-[9px] font-bold uppercase tracking-widest ${offerPaymentTerms === '100_escrow' ? 'text-amber-500' : 'text-[#A6947D]'}`}>100% Escrow</span>
+                  </button>
+                  <button type="button" onClick={() => setOfferPaymentTerms('30_70_split')} className={`p-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${offerPaymentTerms === '30_70_split' ? 'bg-amber-500/10 border-amber-500' : 'bg-[#020509] border-[#A6947D]/20 opacity-60'}`}>
+                    <Landmark size={14} className={offerPaymentTerms === '30_70_split' ? 'text-amber-500' : 'text-[#A6947D]'} />
+                    <span className={`text-[9px] font-bold uppercase tracking-widest ${offerPaymentTerms === '30_70_split' ? 'text-amber-500' : 'text-[#A6947D]'}`}>30 / 70 Split</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 4. QUALITY ASSURANCE PROTOCOL */}
+              <div className="space-y-2 pt-4 border-t border-[#A6947D]/10">
+                <label className="text-[9px] font-bold text-[#A6947D] uppercase tracking-widest block">Quality Assurance Protocol</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setOfferInspection('waived')} className={`p-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${offerInspection === 'waived' ? 'bg-blue-500/10 border-blue-500' : 'bg-[#020509] border-[#A6947D]/20 opacity-60'}`}>
+                    <span className={`text-[9px] font-bold uppercase tracking-widest ${offerInspection === 'waived' ? 'text-blue-400' : 'text-[#A6947D]'}`}>Inspection Waived</span>
+                  </button>
+                  <button type="button" onClick={() => setOfferInspection('sgs_required')} className={`p-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${offerInspection === 'sgs_required' ? 'bg-emerald-500/10 border-emerald-500' : 'bg-[#020509] border-[#A6947D]/20 opacity-60'}`}>
+                    <span className={`text-[9px] font-bold uppercase tracking-widest ${offerInspection === 'sgs_required' ? 'text-emerald-400' : 'text-[#A6947D]'}`}>SGS Required</span>
+                  </button>
+                </div>
+              </div>
               
-              <button type="submit" disabled={!offerAssetId || !offerPrice.trim() || !selectedContact} className="w-full bg-amber-500 text-[#020509] font-bold uppercase tracking-widest py-4 rounded-xl transition-all text-[10px] shadow-lg disabled:opacity-50">Transmit Secure Offer</button>
+              <button type="submit" disabled={!offerAssetId || !offerPrice.trim() || !selectedContact} className="w-full bg-amber-500 hover:bg-white text-[#020509] font-black uppercase tracking-widest py-4 rounded-xl transition-all text-[10px] shadow-lg disabled:opacity-50 mt-4">Transmit Master Agreement</button>
             </form>
           </div>
         </div>
@@ -681,7 +706,6 @@ function SecureCommsContent() {
                     <div className="flex items-center gap-3 overflow-hidden">
                       <button onClick={() => setSelectedContact(null)} className="md:hidden text-[#A6947D] p-2 bg-[#A6947D]/10 rounded-lg flex-none"><ArrowLeft size={16} /></button>
                       <div className="overflow-hidden">
-                        {/* --- CLICKABLE PROFILE LINK --- */}
                         <button onClick={() => router.push(`/network/${selectedContact.id}`)} className="text-left group outline-none">
                           <h3 className="text-sm md:text-lg font-serif tracking-widest text-[#F8F5EE] group-hover:text-[#D4AF37] transition-colors uppercase truncate">
                             {selectedContact.company_name || selectedContact.email}
@@ -706,69 +730,53 @@ function SecureCommsContent() {
                                 <div className="flex flex-col gap-2 mt-2">
                                   {msg.attachments.map((file: any, idx: number) => (
                                     file.isImage || file.url?.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                                      // --- IMAGE VIEWER TRIGGER ---
-                                      <div 
-                                        key={idx} 
-                                        onClick={() => setViewingImage(file.url)}
-                                        className="relative group/img cursor-pointer"
-                                      >
+                                      <div key={idx} onClick={() => setViewingImage(file.url)} className="relative group/img cursor-pointer">
                                         <img src={file.url} alt="attachment" className="w-full max-w-[200px] h-auto rounded-lg border border-[#A6947D]/30 object-cover group-hover/img:brightness-75 transition-all" />
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity">
-                                          <ZoomIn className="text-white drop-shadow-md" size={32} />
-                                        </div>
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"><ZoomIn className="text-white drop-shadow-md" size={32} /></div>
                                       </div>
                                     ) : (
                                       <a key={idx} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-3 bg-[#020509]/50 rounded-lg border border-[#A6947D]/20 hover:border-[#A6947D]/60 hover:bg-[#A6947D]/5 transition-all w-full max-w-[250px] group/file">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                          <FileText size={16} className="shrink-0 text-[#A6947D]" />
-                                          <span className="text-[10px] truncate text-[#A6947D] group-hover/file:text-[#F8F5EE] transition-colors">{file.name || 'Secure Document'}</span>
-                                        </div>
+                                        <div className="flex items-center gap-2 overflow-hidden"><FileText size={16} className="shrink-0 text-[#A6947D]" /><span className="text-[10px] truncate text-[#A6947D] group-hover/file:text-[#F8F5EE] transition-colors">{file.name || 'Secure Document'}</span></div>
                                         <Download size={14} className="shrink-0 text-[#A6947D]/50 group-hover/file:text-[#A6947D] transition-colors" />
                                       </a>
                                     )
                                   ))}
                                 </div>
                               )}
-                              {/* --- TIMESTAMP ΚΑΙ ΚΟΥΜΠΙ ΔΙΑΓΡΑΦΗΣ --- */}
                               <div className={`flex items-center gap-2 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                {isMine && (
-                                  <button 
-                                    onClick={() => handleDeleteMessage(msg.id)}
-                                    className="text-[#A6947D]/40 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                    title="Eradicate Message"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                )}
-                                <p className={`text-[7px] font-mono tracking-widest ${isMine ? 'text-[#A6947D]/60' : 'text-[#A6947D]/40'}`}>
-                                  {formatTime(msg.created_at)}
-                                </p>
+                                {isMine && <button onClick={() => handleDeleteMessage(msg.id)} className="text-[#A6947D]/40 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" title="Eradicate Message"><Trash2 size={12} /></button>}
+                                <p className={`text-[7px] font-mono tracking-widest ${isMine ? 'text-[#A6947D]/60' : 'text-[#A6947D]/40'}`}>{formatTime(msg.created_at)}</p>
                               </div>
                             </div>
                           ) : (
                             <div className={`w-[280px] sm:w-[320px] p-4 md:p-5 rounded-2xl border shadow-2xl bg-[#01030A] ${isMine ? 'border-[#A6947D]/60' : 'border-[#A6947D]/20'}`}>
                                 <div className="flex items-center gap-3 mb-3 md:mb-4 border-b border-[#A6947D]/10 pb-3"><Handshake size={16} className="text-amber-500" /><div><p className="text-[8px] text-[#A6947D] uppercase font-bold tracking-widest">Protocol Attached</p><p className="text-[10px] text-[#F8F5EE] uppercase truncate">{msg.offer_details?.material}</p></div></div>
+                                
+                                {/* --- NEW DYNAMIC OFFER DETAILS --- */}
                                 <div className="space-y-2 mb-4">
-                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/10"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Terms</span><span className="text-[9px] font-bold text-amber-500">{msg.offer_details?.incoterm}</span></div>
-                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/20"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Value</span><span className="text-[11px] font-mono text-amber-500">{typeof msg.offer_details.price === 'number' ? formatCurrencyLocal(msg.offer_details.price) : `€${msg.offer_details.price}`}</span></div>
+                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/10"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Terms</span><span className="text-[9px] font-bold text-amber-500">{msg.offer_details?.incoterm || msg.offer_details?.incoterms}</span></div>
+                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/10">
+                                    <span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Escrow</span>
+                                    <span className={`text-[8px] font-bold uppercase tracking-widest ${msg.offer_details?.payment_terms === '30_70_split' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                                      {msg.offer_details?.payment_terms === '30_70_split' ? '30/70 Split' : '100% Locked'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center bg-[#020509] p-3 rounded-lg border border-[#A6947D]/10">
+                                    <span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">QA Status</span>
+                                    <span className={`text-[8px] font-bold uppercase tracking-widest ${msg.offer_details?.inspection === 'waived' ? 'text-blue-400' : 'text-emerald-400'}`}>
+                                      {msg.offer_details?.inspection === 'waived' ? 'Waived' : 'SGS Required'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center bg-[#A6947D]/5 p-3 rounded-lg border border-[#A6947D]/20"><span className="text-[8px] text-[#A6947D]/60 uppercase font-bold">Value</span><span className="text-[11px] font-mono text-[#F8F5EE]">{typeof msg.offer_details.price === 'number' ? formatCurrencyLocal(msg.offer_details.price) : `€${msg.offer_details.price}`}</span></div>
                                 </div>
+
                                 {!isMine && msg.offer_details.price !== 'Inquiry' && (
-                                  <button onClick={() => handleAcceptOffer(msg)} disabled={isAcceptingOffer} className="w-full bg-emerald-600 text-[#020509] font-bold uppercase tracking-widest py-3 rounded-xl text-[9px] shadow-lg disabled:opacity-50">Accept & Escrow</button>
+                                  <button onClick={() => handleAcceptOffer(msg)} disabled={isAcceptingOffer} className="w-full bg-emerald-600 text-[#020509] font-bold uppercase tracking-widest py-3 rounded-xl text-[9px] shadow-lg disabled:opacity-50">Accept & Execute Contract</button>
                                 )}
-                                {/* --- TIMESTAMP ΚΑΙ ΚΟΥΜΠΙ ΔΙΑΓΡΑΦΗΣ ΓΙΑ OFFERS --- */}
+                                
                                 <div className={`flex items-center gap-2 mt-3 ${isMine ? 'justify-end' : 'justify-start'}`}>
-                                  {isMine && (
-                                    <button 
-                                      onClick={() => handleDeleteMessage(msg.id)}
-                                      className="text-[#A6947D]/40 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                      title="Revoke Offer"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  )}
-                                  <p className={`text-[7px] font-mono tracking-widest ${isMine ? 'text-[#A6947D]/60' : 'text-[#A6947D]/40'}`}>
-                                    {formatTime(msg.created_at)}
-                                  </p>
+                                  {isMine && <button onClick={() => handleDeleteMessage(msg.id)} className="text-[#A6947D]/40 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" title="Revoke Offer"><Trash2 size={12} /></button>}
+                                  <p className={`text-[7px] font-mono tracking-widest ${isMine ? 'text-[#A6947D]/60' : 'text-[#A6947D]/40'}`}>{formatTime(msg.created_at)}</p>
                                 </div>
                             </div>
                           )}
