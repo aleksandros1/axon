@@ -7,7 +7,7 @@ import {
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   LogOut, Building2, ShieldCheck, Gavel, FileSignature, Menu, X, User, Users,
   UploadCloud, FileText, CheckCircle2, Activity, Loader2, AlertTriangle, Ship, Landmark,
-  CreditCard
+  CreditCard, Save, Search, Wallet
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -26,6 +26,16 @@ export default function DealsVault() {
 
   const [deals, setDeals] = useState<any[]>([]);
   const [isProcessingAction, setIsProcessingAction] = useState<string | null>(null);
+
+  // Βάρος του κάθε status για να ξέρουμε πού βρισκόμαστε στο Pipeline
+  const statusWeight: Record<string, number> = {
+    'pending': 0,
+    'advance_paid': 1,
+    'funded': 2,
+    'inspected': 3,
+    'shipped': 4,
+    'completed': 5
+  };
 
   useEffect(() => {
     fetchRealDeals();
@@ -64,13 +74,18 @@ export default function DealsVault() {
           id: c.id,
           asset_id: c.asset_id,
           vendor_id: c.vendor_id,
-          asset_name: assetInfo?.material || 'Institutional Asset',
+          buyer_id: c.buyer_id,
+          asset_name: assetInfo?.material || c.custom_material || 'Institutional Asset',
           price: c.price,
           role: isVendor ? 'vendor' : 'buyer',
           status: c.status,
           counterparty: counterpartyProfile?.company_name || counterpartyProfile?.email || 'Verified Entity',
           date: c.created_at,
-          bol_url: c.bol_url 
+          bol_url: c.bol_url,
+          sgs_url: c.sgs_url,
+          incoterms: c.incoterms || c.custom_incoterms || 'FOB',
+          inspection: c.inspection || 'waived',
+          payment_terms: c.payment_terms || '100_escrow'
         };
       });
       setDeals(mappedDeals);
@@ -84,81 +99,113 @@ export default function DealsVault() {
     return new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
   };
 
-  // --- STRIPE CHECKOUT ---
-  const handleFundEscrow = async (dealId: string, price: number, vendorId: string) => {
+  // --- DYNAMIC STATUS UPDATER (Mocking Stripe for UX) ---
+  const updateDealStatus = async (dealId: string, nextStatus: string) => {
     setIsProcessingAction(dealId);
     try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slabId: dealId, 
-          price: price,
-          buyerId: currentUser.id,
-          vendorId: vendorId
-        }),
-      });
-      
-      const data = await res.json();
-      
-      if (data.url) {
-        window.location.href = data.url; 
-      } else {
-        alert("Failed to initialize secure payment portal.");
-      }
-    } catch (err) {
-      console.error("Payment Error:", err);
-      alert("System Error. Please contact support.");
+      const { error } = await supabase.from('contracts').update({ status: nextStatus }).eq('id', dealId);
+      if (error) throw error;
+      setDeals(deals.map(d => d.id === dealId ? { ...d, status: nextStatus } : d));
+    } catch (err: any) {
+      alert("Error updating status.");
+    } finally {
+      setIsProcessingAction(null);
     }
-    setIsProcessingAction(null);
   };
 
-  // --- UPLOAD BOL ---
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, dealId: string) => {
+  // --- UPLOAD DOCUMENTS (SGS OR BOL) ---
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>, dealId: string, docType: 'sgs' | 'bol') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsProcessingAction(dealId);
+    setIsProcessingAction(`${dealId}_${docType}`);
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `bol_${dealId}_${Math.random()}.${fileExt}`;
+      const fileName = `${docType}_${dealId}_${Math.random()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage.from('contracts').upload(fileName, file);
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage.from('contracts').getPublicUrl(fileName);
 
-      const { error: dbError } = await supabase.from('contracts').update({
-        status: 'shipped',
-        bol_url: publicUrl
-      }).eq('id', dealId);
+      const nextStatus = docType === 'sgs' ? 'inspected' : 'shipped';
+      const updatePayload = docType === 'sgs' 
+        ? { status: nextStatus, sgs_url: publicUrl } 
+        : { status: nextStatus, bol_url: publicUrl };
 
+      const { error: dbError } = await supabase.from('contracts').update(updatePayload).eq('id', dealId);
       if (dbError) throw dbError;
 
-      setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'shipped', bol_url: publicUrl } : d));
+      setDeals(deals.map(d => d.id === dealId ? { ...d, status: nextStatus, [docType === 'sgs' ? 'sgs_url' : 'bol_url']: publicUrl } : d));
 
     } catch (err: any) {
-      alert("Failed to upload document. Please ensure you created the 'contracts' storage bucket.");
+      alert("Failed to upload document. Please check storage bucket.");
     } finally {
       setIsProcessingAction(null);
     }
   };
 
-  // --- RELEASE FUNDS ---
-  const handleReleaseFunds = async (dealId: string) => {
-    setIsProcessingAction(dealId);
-    const { error } = await supabase.from('contracts').update({ status: 'completed' }).eq('id', dealId);
-    if (!error) {
-      setDeals(deals.map(d => d.id === dealId ? { ...d, status: 'completed' } : d));
+  // --- DYNAMIC PIPELINE BUILDER ---
+  const buildPipeline = (deal: any) => {
+    let pipeline = [];
+    const currentW = statusWeight[deal.status] || 0;
+
+    // 1. FUNDING PHASE
+    if (deal.payment_terms === '30_70_split') {
+      pipeline.push({ id: 'advance', label: '30% Advance', icon: <Landmark size={14}/>, weight: 1 });
+      pipeline.push({ id: 'funded', label: '70% Escrow', icon: <Lock size={14}/>, weight: 2 });
+    } else {
+      pipeline.push({ id: 'funded', label: '100% Escrow', icon: <Wallet size={14}/>, weight: 2 });
     }
-    setIsProcessingAction(null);
+
+    // 2. INSPECTION PHASE
+    if (deal.inspection === 'sgs_required') {
+      pipeline.push({ id: 'inspected', label: 'SGS Report', icon: <Search size={14}/>, weight: 3 });
+    }
+
+    // 3. LOGISTICS
+    pipeline.push({ id: 'shipped', label: 'Logistics', icon: <Ship size={14}/>, weight: 4 });
+
+    // 4. SETTLEMENT
+    pipeline.push({ id: 'completed', label: 'Settled', icon: <CheckCircle2 size={14}/>, weight: 5 });
+
+    return pipeline.map(step => ({
+      ...step,
+      isActive: currentW >= step.weight
+    }));
+  };
+
+  // --- DYNAMIC MESSAGING ---
+  const getStatusMessage = (deal: any) => {
+    const isBuyer = deal.role === 'buyer';
+    const s = deal.status;
+    const p = deal.payment_terms;
+    const i = deal.inspection;
+
+    if (s === 'pending') {
+      return isBuyer ? (p === '30_70_split' ? 'Awaiting Your 30% Advance Deposit' : 'Awaiting Your Escrow Funding') : 'Awaiting Buyer Funding';
+    }
+    if (s === 'advance_paid') {
+      return isBuyer ? 'Awaiting Your 70% Escrow Deposit' : 'Awaiting Buyer 70% Escrow';
+    }
+    if (s === 'funded') {
+      if (i === 'sgs_required') return isBuyer ? 'Awaiting Vendor SGS Report' : 'Awaiting Your SGS Upload';
+      return isBuyer ? 'Awaiting Vendor Logistics (BoL)' : 'Awaiting Your BoL Upload';
+    }
+    if (s === 'inspected') {
+      return isBuyer ? 'Awaiting Vendor Logistics (BoL)' : 'Awaiting Your BoL Upload';
+    }
+    if (s === 'shipped') {
+      return isBuyer ? 'Awaiting Your Escrow Release' : 'Awaiting Buyer Final Release';
+    }
+    return 'Contract Fully Executed & Settled';
   };
 
   if (loading) {
     return (
       <div className="h-[100dvh] w-full bg-[#020509] flex flex-col items-center justify-center text-[#A6947D] animate-pulse">
         <Shield size={48} className="mb-6 opacity-50" />
-        <p className="font-mono text-[9px] uppercase tracking-[0.4em]">Accessing Secure Ledger</p>
+        <p className="font-mono text-[9px] uppercase tracking-[0.4em]">Accessing Dynamic Ledger</p>
       </div>
     );
   }
@@ -176,44 +223,6 @@ export default function DealsVault() {
           <Menu size={20} />
         </button>
       </div>
-
-      {/* EXECUTIVE COMMAND OVERLAY */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-[100] bg-[#01030A]/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-5 duration-300">
-          <div className="flex justify-between items-center p-6 border-b border-[#A6947D]/20 bg-[#020509]">
-            <div className="flex items-center gap-3">
-              <Shield size={20} className="text-[#A6947D]" />
-              <h2 className="text-lg font-serif uppercase tracking-[0.3em] text-[#F8F5EE]">Command Center</h2>
-            </div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 p-2"><X size={24} /></button>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">Core Modules</p>
-            <div className="grid grid-cols-2 gap-4 mb-8">
-              <Link href="/dashboard/bids" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <Gavel size={24} className="text-[#A6947D]" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Offers</span>
-              </Link>
-              <Link href="/contracts" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#A6947D]/10 border border-[#A6947D]/30 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/20 transition-colors shadow-inner">
-                <FileSignature size={24} className="text-[#A6947D]" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Deals Vault</span>
-              </Link>
-              <Link href="/scanner" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <Crosshair size={24} className="text-[#A6947D]" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">AI Scanner</span>
-              </Link>
-              <Link href="/network" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <Users size={24} className="text-[#A6947D]" />
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[#F8F5EE]">Network</span>
-              </Link>
-            </div>
-            <button onClick={handleLogout} className="w-full bg-[#020509] border border-red-900/30 text-red-500 p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px] tracking-widest mt-4">
-              <LogOut size={16} /> Disconnect
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* MASTER SIDEBAR - DESKTOP ONLY */}
       <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
@@ -241,7 +250,7 @@ export default function DealsVault() {
           <header className="mb-8 md:mb-12">
             <div className="flex items-center gap-2 md:gap-3 mb-3 md:mb-4">
               <span className="h-px w-6 md:w-8 bg-[#A6947D]/30"></span>
-              <p className="text-[8px] md:text-[10px] text-[#A6947D] uppercase tracking-[0.2em] font-mono">Escrow Execution Ledger</p>
+              <p className="text-[8px] md:text-[10px] text-[#A6947D] uppercase tracking-[0.2em] font-mono">Dynamic Escrow Ledger</p>
             </div>
             <h2 className="text-3xl md:text-5xl font-serif text-[#F8F5EE] uppercase truncate font-light tracking-wide mb-6">Deals Vault</h2>
             
@@ -255,125 +264,155 @@ export default function DealsVault() {
             </div>
           </header>
 
-          <div className="space-y-6 md:space-y-8 pb-10">
+          <div className="space-y-8 md:space-y-12 pb-10">
             {displayDeals.length === 0 ? (
               <div className="bg-[#01030A] border border-[#A6947D]/10 rounded-2xl p-12 text-center shadow-lg mb-8">
                 <FileSignature size={32} className="mx-auto text-[#A6947D]/30 mb-4" />
                 <p className="text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-widest">No active contracts found in ledger.</p>
               </div>
             ) : (
-              displayDeals.map((deal) => (
-                <div key={deal.id} className="bg-[#01030A] border border-[#A6947D]/20 rounded-2xl overflow-hidden shadow-2xl flex flex-col w-full animate-in fade-in">
-                  
-                  <div className="p-5 md:p-6 border-b border-[#A6947D]/10 bg-[#020509] flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className={`text-[7px] font-bold uppercase tracking-widest px-2 py-1 rounded-md border ${deal.role === 'vendor' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
-                          {deal.role === 'vendor' ? 'You are Vendor' : 'You are Buyer'}
-                        </span>
-                        <span className="text-[8px] text-[#A6947D]/60 font-mono uppercase tracking-widest">AX-{deal.id.substring(0,8)}</span>
+              displayDeals.map((deal) => {
+                const isBuyer = deal.role === 'buyer';
+                const isVendor = deal.role === 'vendor';
+                const pipeline = buildPipeline(deal);
+                const statusMsg = getStatusMessage(deal);
+
+                return (
+                  <div key={deal.id} className="bg-[#01030A] border border-[#A6947D]/30 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in flex flex-col">
+                    
+                    {/* DOSSIER HEADER */}
+                    <div className="bg-[#A6947D]/5 p-5 md:p-6 border-b border-[#A6947D]/20 flex justify-between items-center flex-none">
+                      <div>
+                        <h2 className="text-base md:text-xl font-serif uppercase tracking-widest text-[#F8F5EE]">AXON Master Agreement</h2>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <p className="text-[8px] md:text-[9px] font-mono text-[#A6947D] uppercase">Contract Ref: AX-CON-{deal.id.substring(0,8)}</p>
+                          <span className={`text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border ${isVendor ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' : 'bg-purple-500/10 text-purple-400 border-purple-500/20'}`}>
+                            {isVendor ? 'You: Vendor' : 'You: Buyer'}
+                          </span>
+                        </div>
                       </div>
-                      <h3 className="text-lg md:text-xl font-serif text-[#F8F5EE] uppercase tracking-widest">{deal.asset_name}</h3>
-                      <p className="text-[9px] text-[#A6947D]/80 font-bold uppercase tracking-widest mt-1 flex items-center gap-1.5"><Building2 size={12}/> Counterparty: <span className="text-[#F8F5EE]">{deal.counterparty}</span></p>
+                      <ShieldCheck size={32} className="text-[#A6947D]/30 hidden sm:block" />
                     </div>
-                    <div className="text-left md:text-right">
-                      <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1">Contract Value</p>
-                      <p className="text-2xl font-mono text-[#F8F5EE] tracking-tighter">{formatCurrency(deal.price)}</p>
-                    </div>
-                  </div>
 
-                  <div className="p-6 md:p-8 bg-[#01030A]">
-                    <div className="relative">
-                      <div className="absolute top-4 left-4 right-4 h-0.5 bg-[#020509] border-t border-[#A6947D]/10 z-0"></div>
-                      <div className="flex justify-between relative z-10">
-                        {['funded', 'shipped', 'completed'].map((step, idx) => {
-                          const icons = [<Lock size={14} key="l"/>, <Ship size={14} key="s"/>, <CheckCircle2 size={14} key="c"/>];
-                          const labels = ["Funds Locked", "Logistics (BoL)", "Settled"];
-                          
-                          const isFunded = deal.status === 'funded' || deal.status === 'shipped' || deal.status === 'completed';
-                          const isShipped = deal.status === 'shipped' || deal.status === 'completed';
-                          const isCompleted = deal.status === 'completed';
-                          
-                          const isActive = (step === 'funded' && isFunded) || (step === 'shipped' && isShipped) || (step === 'completed' && isCompleted);
-                          
-                          return (
-                            <div className="flex flex-col items-center gap-3" key={step}>
-                               <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-700 ${isActive ? 'bg-[#A6947D] text-[#020509] border-[#A6947D] shadow-[0_0_15px_rgba(166,148,125,0.4)]' : 'bg-[#020509] text-[#A6947D]/40 border-[#A6947D]/20'}`}>
-                                 {icons[idx]}
-                               </div>
-                               <span className="text-[7px] md:text-[8px] font-bold uppercase tracking-widest text-center text-[#A6947D]">{labels[idx]}</span>
-                            </div>
-                          );
-                        })}
+                    <div className="p-5 md:p-8 space-y-6 flex-1">
+                      {/* ASSET INFO */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-b border-[#A6947D]/10 pb-6 md:pb-8">
+                        <div>
+                          <p className="text-[9px] uppercase font-bold text-[#A6947D] mb-2 tracking-widest">Target Asset & Terms</p>
+                          <h3 className="text-lg md:text-xl font-serif text-[#F8F5EE] uppercase tracking-wider">{deal.asset_name}</h3>
+                          <p className="text-[10px] text-[#F8F5EE]/60 mt-1 uppercase tracking-widest flex items-center gap-1.5">
+                            <Building2 size={12}/> {deal.counterparty}
+                          </p>
+                        </div>
+                        <div className="sm:text-right">
+                          <p className="text-[9px] uppercase font-bold text-[#A6947D] mb-2 tracking-widest">Total Escrow Valuation</p>
+                          <h3 className="text-3xl font-mono text-[#F8F5EE] tracking-tighter">{formatCurrency(deal.price)}</h3>
+                          <p className="text-[9px] text-[#A6947D] font-bold uppercase tracking-widest mt-1">Incoterms: {deal.incoterms}</p>
+                        </div>
+                      </div>
+
+                      {/* DYNAMIC PIPELINE VISUALIZER */}
+                      <div className="py-6 w-full">
+                        <p className="text-[9px] uppercase font-bold text-[#A6947D] tracking-widest mb-6 text-center">Execution Pipeline</p>
+                        <div className="relative max-w-2xl mx-auto w-full">
+                          <div className="absolute top-4 left-4 right-4 h-0.5 bg-[#020509] border-t border-[#A6947D]/20 z-0"></div>
+                          <div className="flex justify-between relative z-10 w-full">
+                            {pipeline.map((step) => (
+                              <div className="flex flex-col items-center gap-2 bg-[#01030A] px-2 md:px-4 z-10" key={step.id}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all duration-700 ${step.isActive ? 'bg-[#A6947D] text-[#020509] border-[#A6947D] shadow-[0_0_15px_rgba(166,148,125,0.4)]' : 'bg-[#020509] text-[#A6947D]/40 border-[#A6947D]/20'}`}>
+                                  {step.icon}
+                                </div>
+                                <span className={`text-[7px] md:text-[8px] font-bold uppercase tracking-widest text-center ${step.isActive ? 'text-[#A6947D]' : 'text-[#A6947D]/40'}`}>
+                                  {step.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* DYNAMIC ACTION FOOTER */}
+                    <div className="p-5 md:p-6 bg-[#020509] border-t border-[#A6947D]/20 flex flex-col sm:flex-row items-center justify-between gap-4 flex-none shadow-inner">
+                      
+                      <div className="w-full sm:w-auto">
+                        <p className={`text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 ${deal.status === 'completed' ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {deal.status !== 'completed' && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>}
+                          {statusMsg}
+                        </p>
+                      </div>
+
+                      <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
+                        
+                        {/* BUYER ACTIONS */}
+                        {isBuyer && deal.status === 'pending' && deal.payment_terms === '30_70_split' && (
+                          <button onClick={() => updateDealStatus(deal.id, 'advance_paid')} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] px-6 py-4 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(166,148,125,0.2)] flex items-center justify-center gap-2">
+                            {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin"/> : <CreditCard size={14}/>} Transfer 30% Advance
+                          </button>
+                        )}
+                        {isBuyer && deal.status === 'advance_paid' && (
+                          <button onClick={() => updateDealStatus(deal.id, 'funded')} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] px-6 py-4 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(166,148,125,0.2)] flex items-center justify-center gap-2">
+                            {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin"/> : <Lock size={14}/>} Secure 70% Escrow
+                          </button>
+                        )}
+                        {isBuyer && deal.status === 'pending' && deal.payment_terms === '100_escrow' && (
+                          <button onClick={() => updateDealStatus(deal.id, 'funded')} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] px-6 py-4 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(166,148,125,0.2)] flex items-center justify-center gap-2">
+                            {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin"/> : <Lock size={14}/>} Secure 100% Escrow
+                          </button>
+                        )}
+                        {isBuyer && deal.status === 'shipped' && (
+                          <button onClick={() => updateDealStatus(deal.id, 'completed')} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-[#020509] px-6 py-4 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2">
+                            {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin"/> : <ShieldCheck size={14}/>} Release Funds
+                          </button>
+                        )}
+
+                        {/* VENDOR ACTIONS */}
+                        {isVendor && deal.status === 'funded' && deal.inspection === 'sgs_required' && (
+                          <>
+                            <input type="file" id={`sgs-${deal.id}`} className="hidden" accept=".pdf,image/*" onChange={(e) => handleDocumentUpload(e, deal.id, 'sgs')} />
+                            <label htmlFor={`sgs-${deal.id}`} className={`cursor-pointer w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-[#020509] px-6 py-4 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] flex items-center justify-center gap-2 ${isProcessingAction === deal.id+'_sgs' ? 'opacity-50 pointer-events-none' : ''}`}>
+                              {isProcessingAction === deal.id+'_sgs' ? <Loader2 size={14} className="animate-spin"/> : <UploadCloud size={14}/>} Upload SGS Report
+                            </label>
+                          </>
+                        )}
+                        {isVendor && ((deal.status === 'funded' && deal.inspection === 'waived') || deal.status === 'inspected') && (
+                          <>
+                            <input type="file" id={`bol-${deal.id}`} className="hidden" accept=".pdf,image/*" onChange={(e) => handleDocumentUpload(e, deal.id, 'bol')} />
+                            <label htmlFor={`bol-${deal.id}`} className={`cursor-pointer w-full sm:w-auto bg-blue-500 hover:bg-blue-400 text-[#020509] px-6 py-4 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all shadow-[0_0_20px_rgba(59,130,246,0.2)] flex items-center justify-center gap-2 ${isProcessingAction === deal.id+'_bol' ? 'opacity-50 pointer-events-none' : ''}`}>
+                              {isProcessingAction === deal.id+'_bol' ? <Loader2 size={14} className="animate-spin"/> : <UploadCloud size={14}/>} Upload BoL
+                            </label>
+                          </>
+                        )}
+
+                        {/* VIEW DOCUMENTS (BOTH PARTIES) */}
+                        {deal.sgs_url && (
+                          <a href={deal.sgs_url} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto border border-amber-500/30 text-amber-500 hover:bg-amber-500/10 px-4 py-4 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                            <Search size={14} /> View SGS
+                          </a>
+                        )}
+                        {deal.bol_url && (
+                          <a href={deal.bol_url} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto border border-blue-500/30 text-blue-500 hover:bg-blue-500/10 px-4 py-4 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2">
+                            <FileText size={14} /> View BoL
+                          </a>
+                        )}
+
+                        {/* PASSIVE STATES */}
+                        {((isVendor && (deal.status === 'pending' || deal.status === 'advance_paid')) || (isBuyer && (deal.status === 'funded' || deal.status === 'inspected'))) && (
+                          <div className="px-6 py-4 rounded-xl border border-[#A6947D]/20 bg-[#01030A] text-[#A6947D]/40 text-[9px] font-bold uppercase tracking-widest text-center cursor-not-allowed">
+                            Counterparty Action Required
+                          </div>
+                        )}
+                        {deal.status === 'completed' && (
+                          <div className="px-6 py-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-emerald-500 text-[9px] font-bold uppercase tracking-widest text-center cursor-default flex items-center gap-2">
+                            <CheckCircle2 size={14}/> Escrow Settled
+                          </div>
+                        )}
+
                       </div>
                     </div>
                   </div>
-
-                  <div className="p-5 md:p-6 bg-[#020509] border-t border-[#A6947D]/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="w-full sm:w-auto">
-                      {deal.status === 'pending' && <p className="text-[9px] text-red-400 font-bold uppercase tracking-widest flex items-center gap-2"><AlertTriangle size={12}/> Awaiting Funds Transfer</p>}
-                      {deal.status === 'funded' && <p className="text-[9px] text-amber-400 font-bold uppercase tracking-widest flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Awaiting {deal.role === 'vendor' ? 'Your Shipment' : 'Vendor Shipment'}</p>}
-                      {deal.status === 'shipped' && <p className="text-[9px] text-blue-400 font-bold uppercase tracking-widest flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Awaiting {deal.role === 'buyer' ? 'Your Verification' : 'Buyer Verification'}</p>}
-                      {deal.status === 'completed' && <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest flex items-center gap-2"><CheckCircle2 size={12} /> Transaction Settled</p>}
-                    </div>
-
-                    <div className="w-full sm:w-auto flex flex-col sm:flex-row gap-3">
-                      
-                      {deal.status === 'pending' && deal.role === 'buyer' && (
-                        <button onClick={() => handleFundEscrow(deal.id, deal.price, deal.vendor_id)} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
-                          {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />} FUND ESCROW VIA STRIPE
-                        </button>
-                      )}
-                      
-                      {deal.status === 'pending' && deal.role === 'vendor' && (
-                        <div className="px-6 py-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-500/60 text-[9px] font-bold uppercase tracking-widest text-center cursor-not-allowed">
-                          Awaiting Buyer Funding
-                        </div>
-                      )}
-
-                      {deal.role === 'vendor' && deal.status === 'funded' && (
-                        <>
-                          <input type="file" id={`file-${deal.id}`} className="hidden" accept=".pdf,image/*" onChange={(e) => handleFileChange(e, deal.id)} disabled={isProcessingAction === deal.id} />
-                          <label htmlFor={`file-${deal.id}`} className={`cursor-pointer w-full sm:w-auto bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 ${isProcessingAction === deal.id ? 'opacity-50 pointer-events-none' : ''}`}>
-                            {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />} Upload BoL
-                          </label>
-                        </>
-                      )}
-                      
-                      {deal.role === 'buyer' && deal.status === 'funded' && (
-                        <div className="px-6 py-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-amber-500/60 text-[9px] font-bold uppercase tracking-widest text-center cursor-not-allowed">
-                          Vendor Action Pending
-                        </div>
-                      )}
-
-                      {deal.role === 'buyer' && (deal.status === 'shipped' || deal.status === 'completed') && deal.bol_url && (
-                        <a href={deal.bol_url} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2">
-                          <FileText size={14} /> View Document
-                        </a>
-                      )}
-
-                      {deal.role === 'buyer' && deal.status === 'shipped' && (
-                        <button onClick={() => handleReleaseFunds(deal.id)} disabled={isProcessingAction === deal.id} className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-[#020509] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50">
-                          {isProcessingAction === deal.id ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />} Release Funds
-                        </button>
-                      )}
-
-                      {deal.role === 'vendor' && deal.status === 'shipped' && (
-                        <div className="px-6 py-3.5 rounded-xl border border-blue-500/20 bg-blue-500/5 text-blue-500/60 text-[9px] font-bold uppercase tracking-widest text-center cursor-not-allowed">
-                          Buyer Action Pending
-                        </div>
-                      )}
-
-                      {deal.status === 'completed' && deal.role === 'vendor' && (
-                        <button className="w-full sm:w-auto border border-[#A6947D]/30 text-[#A6947D] px-6 py-3.5 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 hover:bg-[#A6947D]/10">
-                          <CheckCircle2 size={14} /> Escrow Released
-                        </button>
-                      )}
-
-                    </div>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
