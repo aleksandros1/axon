@@ -78,8 +78,8 @@ export default function PortfolioDashboard() {
   // --- CONTRACT DATA STATE ---
   const [contractData, setContractData] = useState({
     contractId: `AX-${Math.floor(1000 + Math.random() * 9000)}-SIVEC`,
-    sellerName: 'Pavlidis S.A.', // ΝΕΟ
-    sellerRole: 'Verified Tier 1 Vendor', // ΝΕΟ
+    sellerName: 'Pavlidis S.A.',
+    sellerRole: 'Verified Tier 1 Vendor',
     buyerName: '',
     buyerEmail: '',
     material: 'Sivec White Premium',
@@ -241,6 +241,7 @@ export default function PortfolioDashboard() {
         setOutgoingOffers(out.map(o => ({ ...o, contactName: getContactName(o.receiver_id) })));
       }
 
+      // FETCH DB CONTRACTS & LOCAL CONTRACTS
       const localContracts = JSON.parse(localStorage.getItem('axon_custom_contracts') || '[]');
       const { data: contractsData } = await supabase
         .from('contracts')
@@ -251,22 +252,37 @@ export default function PortfolioDashboard() {
       let combinedContracts = [...localContracts];
       if (contractsData) {
         combinedContracts = [...localContracts, ...contractsData];
-        const activeStatuses = ['pending', 'funded', 'shipped'];
-        const total = combinedContracts
-          .filter(c => activeStatuses.includes(c.status))
-          .reduce((acc, curr) => {
-            const priceString = curr.price?.toString() || '0';
-            const cleanPrice = parseFloat(priceString.replace(/\./g, '').replace(/,/g, '.'));
-            return acc + (cleanPrice || 0);
-          }, 0);
-        setEscrowTotal(total);
       }
-      setMyContracts(combinedContracts);
+      
+      // Αφαιρούμε τα διπλότυπα για να μην δείχνει το ίδιο συμβόλαιο 2 φορές
+      const uniqueContracts = Array.from(new Map(combinedContracts.map(c => [c.id, c])).values());
+      setMyContracts(uniqueContracts);
 
       setLoading(false);
     };
     fetchDashboardData();
   }, [router]);
+
+  // --- ESCROW TOTAL REAL-TIME SYNCHRONIZER (ΤΟ FIX ΠΟΥ ΕΛΥΣΕ ΤΟ BUG) ---
+  useEffect(() => {
+    // Όλα τα active statuses που θέλουμε να μετράνε
+    const activeStatuses = ['pending', 'advance_paid', 'funded', 'inspected', 'shipped'];
+    
+    // Ξαναφιλτράρουμε τα μοναδικά (για ασφάλεια)
+    const uniqueContracts = Array.from(new Map(myContracts.map(c => [c.id, c])).values());
+    
+    const total = uniqueContracts
+      .filter(c => activeStatuses.includes(c.status))
+      .reduce((acc, curr) => {
+        // Αν είναι νούμερο, το παίρνει. Αν είναι string, καθαρίζει τα κόμματα/τελείες.
+        const priceVal = typeof curr.price === 'number' 
+          ? curr.price 
+          : parseFloat((curr.price || '0').toString().replace(/\./g, '').replace(/,/g, '.'));
+        return acc + (priceVal || 0);
+      }, 0);
+      
+    setEscrowTotal(total);
+  }, [myContracts]);
 
   const markAsRead = async (id: string) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
@@ -310,7 +326,7 @@ export default function PortfolioDashboard() {
   };
 
   const formatCurrency = (amount: string | number) => {
-    const val = typeof amount === 'string' ? parseFloat(amount.replace(/\./g, '').replace(/,/g, '.')) : amount;
+    const val = typeof amount === 'string' ? parseFloat(amount.toString().replace(/\./g, '').replace(/,/g, '.')) : amount;
     return new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(val || 0);
   };
 
@@ -398,7 +414,11 @@ export default function PortfolioDashboard() {
         localContracts.unshift(newContract); 
         localStorage.setItem('axon_custom_contracts', JSON.stringify(localContracts));
 
-        setMyContracts(prev => [newContract, ...prev]);
+        setMyContracts(prev => {
+          const updated = [newContract, ...prev];
+          // Το useEffect θα αναλάβει να ενημερώσει το Escrow Total
+          return updated;
+        });
 
         await supabase.from('contracts').insert({ 
           vendor_id: currentUser.id, 
@@ -439,7 +459,15 @@ export default function PortfolioDashboard() {
 
           const { error } = await supabase.from('messages').insert({
               sender_id: currentUser.id, receiver_id: receiverId, text: textMessage, is_offer: true,
-              offer_details: { asset_id: contractToSend.id.substring(0,8), price: contractToSend.price, incoterms: incoterms, material: materialName, is_contract: true }
+              offer_details: { 
+                asset_id: contractToSend.id.substring(0,8), 
+                price: contractToSend.price, 
+                incoterms: incoterms, 
+                material: materialName, 
+                payment_terms: contractToSend.payment_terms,
+                inspection: contractToSend.inspection,
+                is_contract: true 
+              }
           });
 
           if (error) throw error;
@@ -860,7 +888,7 @@ export default function PortfolioDashboard() {
                         
                         let statusColor = 'text-slate-400';
                         if (contract.status === 'funded' || contract.status === 'shipped') statusColor = 'text-emerald-500';
-                        if (contract.status === 'pending') statusColor = 'text-amber-500';
+                        if (contract.status === 'pending' || contract.status === 'advance_paid' || contract.status === 'inspected') statusColor = 'text-amber-500';
                         if (contract.status === 'cancelled' || contract.status === 'disputed') statusColor = 'text-red-500';
 
                         const displayId = contract.id || `MOCK-${index}`;
