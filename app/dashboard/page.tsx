@@ -8,7 +8,7 @@ import {
   LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
   Trash2, Handshake, ExternalLink, Calendar, AlertOctagon, RotateCcw, X, Loader2,
   Bell, Check, CheckCircle2, User, Target, Wallet, ArrowRight, FileSignature, Scale, Ship, ShieldCheck, Lock, Edit, ShoppingCart, Send, Menu,
-  Layers3, UserCircle, Save, FileText, Download, Mail, Archive, UserPlus
+  Layers3, UserCircle, Save, FileText, Download, Mail, Archive, UserPlus, Landmark
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -74,6 +74,8 @@ export default function PortfolioDashboard() {
 
   const [isContractGeneratorOpen, setIsContractGeneratorOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // --- ΝΕΟ CONTRACT DATA STATE (INSTITUTIONAL) ---
   const [contractData, setContractData] = useState({
     contractId: `AX-${Math.floor(1000 + Math.random() * 9000)}-SIVEC`,
     buyerName: '',
@@ -81,11 +83,24 @@ export default function PortfolioDashboard() {
     material: 'Sivec White Premium',
     quantity: '',
     price: '',
-    incoterms: 'FOB Piraeus',
+    incoterms: 'FOB', // Αλλαγή σε σκέτο FOB/EXW/CIF για το νέο layout
+    paymentTerms: '100_escrow',
+    inspection: 'waived',
+    customTerms: ''
   });
 
-  const handleContractChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleContractChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setContractData({ ...contractData, [e.target.name]: e.target.value });
+  };
+  
+  // Βοηθητική συνάρτηση για τα Triggers
+  const getEscrowTrigger = (term: string) => {
+    switch(term) {
+      case 'EXW': return "Upon Warehouse Pickup Confirmation (Ex Works)";
+      case 'FOB': return "Upon Presentation of Bill of Lading (Free On Board)";
+      case 'CIF': return "Upon Port of Destination Arrival Notification (Cost, Insurance, Freight)";
+      default: return "Manual Institutional Release";
+    }
   };
 
   // ==========================================
@@ -412,6 +427,9 @@ export default function PortfolioDashboard() {
           slab: { material: contractData.material || 'Unknown Material' },
           custom_quantity: contractData.quantity,
           custom_incoterms: contractData.incoterms,
+          payment_terms: contractData.paymentTerms,
+          inspection: contractData.inspection,
+          custom_terms: contractData.customTerms,
           is_local: true
         };
 
@@ -424,7 +442,16 @@ export default function PortfolioDashboard() {
         setMyContracts(prev => [newContract, ...prev]);
 
         // Προσπάθεια αποθήκευσης και στη βάση (χωρίς να νοιαζόμαστε αν "χτυπήσει" error στα Foreign Keys)
-        await supabase.from('contracts').insert({ vendor_id: currentUser.id, price: numericPrice, status: 'pending' });
+        // Στέλνουμε ΚΑΙ τα νέα πεδία (Incoterms, Payment, Inspection)
+        await supabase.from('contracts').insert({ 
+          vendor_id: currentUser.id, 
+          price: numericPrice, 
+          status: 'pending',
+          incoterms: contractData.incoterms,
+          payment_terms: contractData.paymentTerms,
+          inspection: contractData.inspection,
+          custom_terms: contractData.customTerms
+        });
 
         // Κλείσιμο modal και πλοήγηση στο Archive
         setIsContractGeneratorOpen(false);
@@ -454,7 +481,7 @@ export default function PortfolioDashboard() {
           const textMessage = `AXON SECURE CONTRACT INITIATED\nRef: AX-${contractToSend.id.substring(0,8).toUpperCase()}\n\nPlease review the terms and authorize Escrow funding below.`;
           
           const materialName = contractToSend.slab?.material || contractToSend.custom_material || 'Sivec Premium';
-          const incoterms = contractToSend.custom_incoterms || 'FOB Piraeus';
+          const incoterms = contractToSend.custom_incoterms || contractToSend.incoterms || 'FOB Piraeus';
 
           // Καρφώνουμε το μήνυμα ΚΑΤΕΥΘΕΙΑΝ στη βάση ως "ΠΡΟΣΦΟΡΑ"
           const { error } = await supabase.from('messages').insert({
@@ -550,7 +577,7 @@ export default function PortfolioDashboard() {
           </div>
           
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <button onClick={() => {setIsMobileMenuOpen(false); setIsContractGeneratorOpen(true);}} className="w-full bg-[#A6947D] border border-[#A6947D]/50 text-[#020509] p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px] tracking-widest mb-6 shadow-lg shadow-[#A6947D]/20">
+            <button onClick={() => {setIsMobileMenuOpen(false); setIsContractGeneratorOpen(true);}} className="w-full bg-[#D4AF37] border border-[#D4AF37]/50 text-[#020509] p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px] tracking-widest mb-6 shadow-[0_0_20px_rgba(212,175,55,0.2)]">
               <FileText size={16} /> CREATE SMART CONTRACT
             </button>
 
@@ -635,10 +662,10 @@ export default function PortfolioDashboard() {
             </div>
             <div className="relative flex items-center gap-4">
               
-              {/* CONTRACT GENERATOR BUTTON (DESKTOP) */}
+              {/* CONTRACT GENERATOR BUTTON (DESKTOP) - GOLDEN */}
               <button 
                 onClick={() => setIsContractGeneratorOpen(true)}
-                className="hidden md:flex bg-[#D4AF37] hover:bg-[#b5952f] text-[#020817] px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest items-center gap-2 transition-all shadow-[0_0_20px_rgba(212,175,55,0.2)]"
+                className="hidden md:flex bg-[#D4AF37] hover:bg-[#b5952f] text-[#020817] px-6 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest items-center gap-2 transition-all shadow-[0_0_20px_rgba(212,175,55,0.3)]"
               >
                 <FileText size={16} /> NEW CONTRACT
               </button>
@@ -876,7 +903,7 @@ export default function PortfolioDashboard() {
                  </div>
               )}
 
-              {/* --- ΝΕΟ: CONTRACT ARCHIVE TAB (ME OPTIMISTIC UI) --- */}
+              {/* --- CONTRACT ARCHIVE TAB --- */}
               {activeTab === 'archive' && (
                 <div className="w-full animate-in fade-in duration-500">
                   <div className="mb-6">
@@ -898,7 +925,7 @@ export default function PortfolioDashboard() {
                         const counterpartyName = contract.buyer?.company_name || contract.buyer?.company_name || 'UNKNOWN ENTITY';
                         const materialName = contract.slab?.material || contract.custom_material || 'Custom Asset';
                         const qty = contract.custom_quantity || 'As agreed';
-                        const inc = contract.custom_incoterms || 'FOB Piraeus';
+                        const inc = contract.custom_incoterms || contract.incoterms || 'FOB Piraeus';
                         
                         let statusColor = 'text-slate-400';
                         if (contract.status === 'funded' || contract.status === 'shipped') statusColor = 'text-emerald-500';
@@ -977,7 +1004,7 @@ export default function PortfolioDashboard() {
       {/* --- ΥΠΕΡΣΥΓΧΡΟΝΑ MODALS (EDIT, REFUND, TERM SHEET, CONTRACT GENERATOR) --- */}
       {/* ========================================================= */}
 
-      {/* 0. CONTRACT GENERATOR MODAL */}
+      {/* 0. CONTRACT GENERATOR MODAL (INSTITUTIONAL GRADE) */}
       {isContractGeneratorOpen && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center p-2 md:p-6 bg-[#01030A]/95 backdrop-blur-xl animate-in fade-in duration-300">
           <div className="bg-[#020509] border border-[#D4AF37]/30 rounded-2xl w-full max-w-[1400px] h-full max-h-[90vh] shadow-2xl overflow-hidden flex flex-col relative">
@@ -997,52 +1024,135 @@ export default function PortfolioDashboard() {
             </div>
 
             <div className="flex flex-col md:flex-row h-full overflow-y-auto custom-scrollbar">
-              {/* ΑΡΙΣΤΕΡΗ ΠΛΕΥΡΑ */}
-              <div className="w-full md:w-1/2 bg-[#0A192F] p-6 flex flex-col gap-5 border-r border-[#D4AF37]/10">
-                <div className="space-y-3">
-                  <label className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wider">Buyer Information</label>
-                  <input type="text" name="buyerName" placeholder="Company Name (e.g., Emaar Properties)" value={contractData.buyerName} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white placeholder-slate-500 outline-none transition-colors" />
-                  <input type="email" name="buyerEmail" placeholder="Contact Email" value={contractData.buyerEmail} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white placeholder-slate-500 outline-none transition-colors" />
-                </div>
-
-                <div className="space-y-3 pt-4 border-t border-slate-800">
-                  <label className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wider">Asset Details</label>
+              {/* ΑΡΙΣΤΕΡΗ ΠΛΕΥΡΑ: ΟΡΟΙ & INPUTS */}
+              <div className="w-full md:w-1/2 bg-[#0A192F] p-6 flex flex-col gap-6 border-r border-[#D4AF37]/10">
+                
+                {/* 1. BUYER & ASSET */}
+                <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <input type="text" name="material" placeholder="Material" value={contractData.material} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white placeholder-slate-500 outline-none" />
-                    <input type="text" name="quantity" placeholder="Quantity (e.g., 15,000 m²)" value={contractData.quantity} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white placeholder-slate-500 outline-none" />
+                    <div>
+                      <label className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-widest block mb-2">Counterparty (Buyer)</label>
+                      <input type="text" name="buyerName" placeholder="Company Name" value={contractData.buyerName} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-sm text-white placeholder-slate-500 outline-none transition-colors" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-widest block mb-2">Buyer Contact</label>
+                      <input type="email" name="buyerEmail" placeholder="Email Address" value={contractData.buyerEmail} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-sm text-white placeholder-slate-500 outline-none transition-colors" />
+                    </div>
                   </div>
-                </div>
-
-                <div className="space-y-3 pt-4 border-t border-slate-800">
-                  <label className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wider">Financial Terms</label>
+                  
                   <div className="grid grid-cols-2 gap-4">
-                    <select name="incoterms" value={contractData.incoterms} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-white outline-none appearance-none">
-                      <option value="FOB Piraeus">FOB Piraeus</option>
-                      <option value="EXW Drama">EXW Drama</option>
-                      <option value="CIF Dubai">CIF Dubai</option>
-                    </select>
-                    <div className="relative">
-                      <span className="absolute left-3 top-3 text-slate-400">€</span>
-                      <input type="number" name="price" placeholder="Total Value" value={contractData.price} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 pl-8 text-white placeholder-slate-500 outline-none" />
+                    <div>
+                      <label className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-widest block mb-2">Asset Material</label>
+                      <input type="text" name="material" placeholder="Material Name" value={contractData.material} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-sm text-white placeholder-slate-500 outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-widest block mb-2">Total Quantity</label>
+                      <input type="text" name="quantity" placeholder="e.g., 15,000 m²" value={contractData.quantity} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-sm text-white placeholder-slate-500 outline-none" />
                     </div>
                   </div>
                 </div>
 
+                {/* 2. INCOTERMS & VALUATION */}
+                <div className="space-y-4 pt-6 border-t border-slate-800">
+                  <label className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-widest block">Commercial Logistics (Incoterms 2020)</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['EXW', 'FOB', 'CIF'].map((term) => (
+                      <button 
+                        key={term}
+                        onClick={() => setContractData({...contractData, incoterms: term})}
+                        className={`py-3 rounded-lg border font-bold text-[10px] uppercase tracking-widest transition-all ${contractData.incoterms === term ? 'bg-[#D4AF37] text-[#020817] border-[#D4AF37]' : 'bg-[#020817] border-slate-700 text-slate-400 hover:border-slate-500'}`}
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <div className="mt-4">
+                    <label className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-widest block mb-2">Escrow Valuation (€)</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-3 text-slate-400">€</span>
+                      <input type="number" name="price" placeholder="Total Value" value={contractData.price} onChange={handleContractChange} className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 pl-8 text-sm text-white placeholder-slate-500 outline-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. ESCROW FUNDING SCHEDULE */}
+                <div className="space-y-4 pt-6 border-t border-slate-800">
+                  <label className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-widest block mb-2">Escrow Funding Schedule</label>
+                  <div className="grid grid-cols-1 gap-3">
+                    <button 
+                      onClick={() => setContractData({...contractData, paymentTerms: '100_escrow'})}
+                      className={`p-3 rounded-lg border flex flex-col items-start gap-1 transition-all ${contractData.paymentTerms === '100_escrow' ? 'bg-emerald-500/10 border-emerald-500/50' : 'bg-[#020817] border-slate-700 opacity-60 hover:opacity-100'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Wallet size={14} className={contractData.paymentTerms === '100_escrow' ? 'text-emerald-400' : 'text-slate-400'} />
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${contractData.paymentTerms === '100_escrow' ? 'text-emerald-400' : 'text-slate-400'}`}>100% Secured Escrow</span>
+                      </div>
+                      <span className="text-[9px] text-left text-slate-400 font-mono">Full amount locked in vault. Released only upon complete fulfillment of terms.</span>
+                    </button>
+                    
+                    <button 
+                      onClick={() => setContractData({...contractData, paymentTerms: '30_70_split'})}
+                      className={`p-3 rounded-lg border flex flex-col items-start gap-1 transition-all ${contractData.paymentTerms === '30_70_split' ? 'bg-[#D4AF37]/10 border-[#D4AF37]' : 'bg-[#020817] border-slate-700 opacity-60 hover:opacity-100'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Landmark size={14} className={contractData.paymentTerms === '30_70_split' ? 'text-[#D4AF37]' : 'text-slate-400'} />
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${contractData.paymentTerms === '30_70_split' ? 'text-white' : 'text-slate-400'}`}>30 / 70 Institutional Split</span>
+                      </div>
+                      <span className="text-[9px] text-left text-slate-400 font-mono">30% Advance Deposit to Vendor. 70% locked in Escrow against Bill of Lading.</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 4. QUALITY ASSURANCE (INSPECTOR) */}
+                <div className="space-y-4 pt-6 border-t border-slate-800">
+                  <label className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-widest block mb-2">Quality Assurance Protocol</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => setContractData({...contractData, inspection: 'waived'})}
+                      className={`p-3 rounded-lg border flex items-center justify-between transition-all ${contractData.inspection === 'waived' ? 'bg-blue-500/10 border-blue-500/50' : 'bg-[#020817] border-slate-700 opacity-60 hover:opacity-100'}`}
+                    >
+                      <span className={`text-[9px] font-bold uppercase tracking-widest ${contractData.inspection === 'waived' ? 'text-blue-400' : 'text-slate-400'}`}>Inspection Waived</span>
+                      {contractData.inspection === 'waived' && <CheckCircle2 size={14} className="text-blue-400" />}
+                    </button>
+                    
+                    <button 
+                      onClick={() => setContractData({...contractData, inspection: 'sgs_required'})}
+                      className={`p-3 rounded-lg border flex items-center justify-between transition-all ${contractData.inspection === 'sgs_required' ? 'bg-amber-500/10 border-amber-500/50' : 'bg-[#020817] border-slate-700 opacity-60 hover:opacity-100'}`}
+                    >
+                      <span className={`text-[9px] font-bold uppercase tracking-widest ${contractData.inspection === 'sgs_required' ? 'text-amber-400' : 'text-slate-400'}`}>Independent SGS Inspection</span>
+                      {contractData.inspection === 'sgs_required' && <CheckCircle2 size={14} className="text-amber-400" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* 5. CUSTOM COVENANTS */}
+                <div className="space-y-4 pt-6 border-t border-slate-800">
+                  <label className="text-[10px] font-semibold text-[#D4AF37] uppercase tracking-widest block mb-2">Additional Covenants</label>
+                  <textarea 
+                    name="customTerms"
+                    value={contractData.customTerms}
+                    onChange={handleContractChange}
+                    placeholder="Enter custom delivery requirements, packaging specs, or penalty clauses..."
+                    className="w-full bg-[#020817] border border-slate-700 focus:border-[#D4AF37] rounded-lg p-3 text-sm text-white placeholder-slate-500 outline-none h-24 resize-none custom-scrollbar"
+                  />
+                </div>
+
                 {/* ACTION BUTTONS */}
-                <div className="flex gap-4 pt-8 mt-auto pb-4">
-                  <button onClick={handleGenerateContract} disabled={isGenerating} className="flex-1 bg-[#D4AF37] hover:bg-[#b5952f] text-[#020817] font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                    {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                <div className="flex gap-4 pt-8 mt-auto pb-4 border-t border-slate-800">
+                  <button onClick={handleGenerateContract} disabled={isGenerating} className="flex-1 bg-[#D4AF37] hover:bg-[#b5952f] text-[#020817] font-bold py-4 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors text-[10px] uppercase tracking-[0.2em] shadow-lg">
+                    {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                     GENERATE & SAVE TO ARCHIVE
                   </button>
-                  <button onClick={() => triggerPDFDownload(contractData.contractId, contractData.buyerName, contractData.material, contractData.quantity, contractData.price, contractData.incoterms, new Date().toLocaleDateString())} className="px-4 border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg flex items-center justify-center transition-colors" title="Download PDF">
-                    <Download size={20} />
+                  <button onClick={() => triggerPDFDownload(contractData.contractId, contractData.buyerName, contractData.material, contractData.quantity, contractData.price, contractData.incoterms, new Date().toLocaleDateString())} className="px-5 border border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 rounded-lg flex items-center justify-center transition-colors" title="Download PDF">
+                    <Download size={18} />
                   </button>
                 </div>
               </div>
 
               {/* ΔΕΞΙΑ ΠΛΕΥΡΑ: LIVE DOCUMENT PREVIEW */}
               <div className="w-full md:w-1/2 bg-[#020509] flex items-start justify-center p-4 md:p-8 overflow-y-auto">
-                <div className="bg-white w-full max-w-[600px] min-h-[700px] shadow-[0_0_50px_rgba(255,255,255,0.1)] rounded-sm p-8 md:p-10 text-slate-900 font-serif relative">
+                <div className="bg-white w-full max-w-[600px] shadow-[0_0_50px_rgba(255,255,255,0.1)] rounded-sm p-8 md:p-10 text-slate-900 font-serif relative h-max">
                   
                   <div className="flex justify-between items-start border-b-2 border-[#0A192F] pb-6 mb-8">
                     <div>
@@ -1072,11 +1182,11 @@ export default function PortfolioDashboard() {
                   </div>
 
                   <div className="mb-8 text-sm">
-                    <h3 className="font-bold text-[#0A192F] mb-4 uppercase border-b border-slate-200 pb-1">Asset & Terms</h3>
+                    <h3 className="font-bold text-[#0A192F] mb-4 uppercase border-b border-slate-200 pb-1">Asset & Commercial Terms</h3>
                     <table className="w-full text-left border-collapse">
                       <tbody>
                         <tr className="border-b border-slate-100">
-                          <td className="py-2 text-slate-500">Material</td>
+                          <td className="py-2 text-slate-500 w-1/3">Material</td>
                           <td className="py-2 font-semibold">{contractData.material || '-'}</td>
                         </tr>
                         <tr className="border-b border-slate-100">
@@ -1086,6 +1196,14 @@ export default function PortfolioDashboard() {
                         <tr className="border-b border-slate-100">
                           <td className="py-2 text-slate-500">Incoterms</td>
                           <td className="py-2 font-semibold">{contractData.incoterms}</td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                          <td className="py-2 text-slate-500">Payment Schedule</td>
+                          <td className="py-2 font-semibold">{contractData.paymentTerms === '100_escrow' ? '100% Secured Escrow' : '30% Advance / 70% Escrow'}</td>
+                        </tr>
+                        <tr className="border-b border-slate-100">
+                          <td className="py-2 text-slate-500">Quality Inspection</td>
+                          <td className="py-2 font-semibold">{contractData.inspection === 'waived' ? 'Waived by Buyer' : 'Subject to Independent SGS Report'}</td>
                         </tr>
                         <tr className="bg-slate-50">
                           <td className="py-3 px-2 font-bold text-[#0A192F]">Total Value</td>
@@ -1097,17 +1215,34 @@ export default function PortfolioDashboard() {
                     </table>
                   </div>
 
+                  {contractData.customTerms && (
+                    <div className="mb-8 text-sm">
+                      <h3 className="font-bold text-[#0A192F] mb-2 uppercase border-b border-slate-200 pb-1">Additional Covenants</h3>
+                      <p className="text-slate-700 italic whitespace-pre-line bg-slate-50 p-4 rounded border border-slate-100">
+                        {contractData.customTerms}
+                      </p>
+                    </div>
+                  )}
+
                   <div className="bg-[#0A192F]/5 border border-[#0A192F]/20 p-4 rounded text-xs mt-12 text-[#0A192F]">
                     <div className="flex items-center gap-2 mb-2">
                       <ShieldCheck className="text-[#D4AF37] w-4 h-4" />
                       <h4 className="font-bold uppercase tracking-wider">Escrow Protocol Activated</h4>
                     </div>
+                    <p className="leading-relaxed mb-2">
+                      Funds will be secured in AXON Stripe Institutional Escrow. 
+                      {contractData.paymentTerms === '100_escrow' 
+                        ? " 100% of the funds will be automatically released to the Seller upon platform upload of a valid Bill of Lading (BOL)." 
+                        : " 30% advance deposit released immediately. 70% released upon platform upload of a valid Bill of Lading (BOL)."}
+                    </p>
                     <p className="leading-relaxed">
-                      Funds will be secured in AXON Stripe Institutional Escrow. 100% of the funds will be automatically released to the Seller upon platform upload of a valid Bill of Lading (BOL). By funding this contract, the Buyer waives physical inspection rights and accepts the AXON Purity Grading as final.
+                      {contractData.inspection === 'waived'
+                        ? "By funding this contract, the Buyer waives physical inspection rights and accepts the AXON Purity Grading as final."
+                        : "Funds release is strictly contingent upon a satisfactory third-party SGS inspection report uploaded to the AXON network."}
                     </p>
                   </div>
                   
-                  <div className="absolute bottom-10 left-10 right-10 flex justify-between text-xs text-slate-400 border-t border-slate-200 pt-4">
+                  <div className="mt-16 pt-4 flex justify-between text-xs text-slate-400 border-t border-slate-200">
                     <p>Generated via AXON Network</p>
                     <p>Legally Binding Document</p>
                   </div>
