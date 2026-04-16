@@ -22,7 +22,10 @@ export default function TradingFloor() {
   const [slabs, setSlabs] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [userRole, setUserRole] = useState('BUYER'); // <-- ΕΔΩ ΜΠΑΙΝΕΙ Ο ΡΟΛΟΣ
+  const [userRole, setUserRole] = useState('BUYER'); 
+  
+  // -- NEW: ASSET TYPE TAB STATE --
+  const [activeTab, setActiveTab] = useState<'SLAB' | 'BLOCK' | 'GRANITE'>('SLAB');
 
   useEffect(() => {
     const fetchSlabs = async () => {
@@ -30,7 +33,6 @@ export default function TradingFloor() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) { router.push('/auth'); return; }
 
-      // Τραβάμε τον ρόλο του χρήστη από το προφίλ του
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
@@ -41,7 +43,6 @@ export default function TradingFloor() {
         setUserRole(profile.role);
       }
 
-      // Τραβάμε τα υλικά
       const { data, error } = await supabase
         .from('slabs')
         .select('*, profiles(company_name, status, country)')
@@ -58,13 +59,17 @@ export default function TradingFloor() {
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/auth'); };
   const formatCurrency = (val: any) => new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(parseFloat(val) || 0);
 
-  const marketCap = useMemo(() => slabs.reduce((acc, s) => acc + (parseFloat(s.price) || 0), 0), [slabs]);
-
+  // -- DYNAMIC FILTERING & METRICS --
   const filteredSlabs = slabs.filter(slab => {
+    // Default to SLAB if old asset doesn't have a type
+    const type = slab.asset_type || 'SLAB'; 
+    const matchesTab = type === activeTab;
     const matchesSearch = (slab.material?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
                           (slab.id?.toLowerCase() || '').includes(searchQuery.toLowerCase());
-    return matchesSearch;
+    return matchesSearch && matchesTab;
   });
+
+  const marketCap = useMemo(() => filteredSlabs.reduce((acc, s) => acc + (parseFloat(s.price) || 0), 0), [filteredSlabs]);
 
   const groupedSlabs = useMemo(() => {
     return filteredSlabs.reduce((acc: any, slab) => {
@@ -90,7 +95,6 @@ export default function TradingFloor() {
             <div className="grid grid-cols-2 gap-4 mb-8">
               <Link href="/dashboard" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Layers3 size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE] text-center">{t('menu.portfolio')}</span></Link>
               
-              {/* ΕΛΕΓΧΟΣ ΡΟΛΟΥ ΓΙΑ MOBILE: Το βλέπουν ΜΟΝΟ οι SELLERS */}
               {userRole === 'SELLER' && (
                 <Link href="/scanner" className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3"><Crosshair size={24} className="text-[#A6947D]" /><span className="text-[9px] font-bold uppercase text-[#F8F5EE] text-center">{t('menu.scanner')}</span></Link>
               )}
@@ -118,7 +122,6 @@ export default function TradingFloor() {
         <nav className="flex-1 px-4 space-y-2 relative z-10 text-[10px] font-bold uppercase tracking-widest">
           <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><Layers3 size={16} /> {t('menu.portfolio')}</Link>
           
-          {/* ΕΛΕΓΧΟΣ ΡΟΛΟΥ ΓΙΑ DESKTOP: Το βλέπουν ΜΟΝΟ οι SELLERS */}
           {userRole === 'SELLER' && (
              <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><Crosshair size={16} /> {t('menu.scanner')}</Link>
           )}
@@ -136,7 +139,7 @@ export default function TradingFloor() {
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0 overflow-hidden"><Globe size={1000} className="text-[#A6947D]" /></div>
 
         <div className="p-4 md:p-12 max-w-7xl mx-auto relative z-10 w-full">
-          <header className="mb-12">
+          <header className="mb-8">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                     <span className="h-px w-8 bg-[#A6947D]/30"></span>
@@ -144,6 +147,13 @@ export default function TradingFloor() {
                 </div>
             </div>
             <h2 className="text-4xl md:text-7xl font-serif text-[#F8F5EE] uppercase tracking-[0.05em] mb-12">{t('trading.title')}</h2>
+
+            {/* -- ASSET CLASSIFICATION TABS -- */}
+            <div className="flex bg-[#01030A]/50 backdrop-blur-md border border-[#A6947D]/20 rounded-xl p-1 mb-8 overflow-x-auto custom-scrollbar flex-nowrap w-full">
+              <button onClick={() => setActiveTab('SLAB')} className={`flex-1 py-4 px-6 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] transition-all whitespace-nowrap min-w-[120px] ${activeTab === 'SLAB' ? 'bg-[#A6947D]/10 text-[#A6947D] border border-[#A6947D]/30 shadow-sm' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE] border border-transparent'}`}>Premium Slabs</button>
+              <button onClick={() => setActiveTab('BLOCK')} className={`flex-1 py-4 px-6 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] transition-all whitespace-nowrap min-w-[120px] ${activeTab === 'BLOCK' ? 'bg-[#A6947D]/10 text-[#A6947D] border border-[#A6947D]/30 shadow-sm' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE] border border-transparent'}`}>Raw Blocks</button>
+              <button onClick={() => setActiveTab('GRANITE')} className={`flex-1 py-4 px-6 rounded-lg text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] transition-all whitespace-nowrap min-w-[120px] ${activeTab === 'GRANITE' ? 'bg-[#A6947D]/10 text-[#A6947D] border border-[#A6947D]/30 shadow-sm' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE] border border-transparent'}`}>Granite</button>
+            </div>
 
             <div className="flex flex-col lg:flex-row items-center gap-4 bg-[#01030A]/50 backdrop-blur-md border border-[#A6947D]/20 p-2 rounded-2xl">
               <div className="flex-1 flex items-center bg-[#020509] rounded-xl px-4 w-full">
@@ -160,7 +170,7 @@ export default function TradingFloor() {
              </div>
              <div className="bg-[#01030A]/80 border border-[#A6947D]/10 p-6 rounded-2xl shadow-lg group hover:border-[#A6947D]/30 transition-all">
                 <div className="flex items-center gap-3 mb-3 text-[#A6947D]/60"><Package size={14} /><p className="text-[8px] font-bold uppercase tracking-widest">ACTIVE ASSETS</p></div>
-                <p className="text-2xl font-mono text-[#F8F5EE] group-hover:text-[#A6947D] transition-colors">{slabs.length}</p>
+                <p className="text-2xl font-mono text-[#F8F5EE] group-hover:text-[#A6947D] transition-colors">{filteredSlabs.length}</p>
              </div>
           </div>
 
@@ -194,14 +204,31 @@ export default function TradingFloor() {
                         <h4 className="text-2xl font-serif text-[#F8F5EE] uppercase tracking-wider mb-6 truncate cursor-pointer hover:text-[#A6947D] transition-colors" onClick={() => router.push(`/trading/${slab.id}`)}>{slab.material}</h4>
 
                         <div className="grid grid-cols-2 gap-3 mb-8">
-                             <div className="bg-[#020509] border border-[#A6947D]/10 p-3.5 rounded-xl shadow-inner">
-                                <p className="text-[7px] text-[#A6947D]/50 uppercase font-bold mb-1.5 tracking-widest">STOCK</p>
-                                <p className="text-xs font-mono font-bold text-[#F8F5EE]">{slab.quantity || ''} m²</p>
-                             </div>
-                             <div className="bg-[#020509] border border-[#A6947D]/10 p-3.5 rounded-xl shadow-inner">
-                                <p className="text-[7px] text-[#A6947D]/50 uppercase font-bold mb-1.5 tracking-widest">THICKNESS</p>
-                                <p className="text-xs font-mono font-bold text-[#F8F5EE]">{slab.thickness || ''} cm</p>
-                             </div>
+                             {/* -- DYNAMIC CARD FIELDS -- */}
+                             {activeTab === 'BLOCK' ? (
+                                <>
+                                  <div className="bg-[#020509] border border-[#A6947D]/10 p-3.5 rounded-xl shadow-inner">
+                                      <p className="text-[7px] text-[#A6947D]/50 uppercase font-bold mb-1.5 tracking-widest">WEIGHT</p>
+                                      <p className="text-xs font-mono font-bold text-[#F8F5EE]">{slab.weight || '---'} T</p>
+                                  </div>
+                                  <div className="bg-[#020509] border border-[#A6947D]/10 p-3.5 rounded-xl shadow-inner">
+                                      <p className="text-[7px] text-[#A6947D]/50 uppercase font-bold mb-1.5 tracking-widest">DIMENSIONS</p>
+                                      <p className="text-[10px] font-mono font-bold text-[#F8F5EE]">{slab.length || '-'}x{slab.width || '-'}x{slab.height || '-'}</p>
+                                  </div>
+                                </>
+                             ) : (
+                                <>
+                                  <div className="bg-[#020509] border border-[#A6947D]/10 p-3.5 rounded-xl shadow-inner">
+                                      <p className="text-[7px] text-[#A6947D]/50 uppercase font-bold mb-1.5 tracking-widest">STOCK</p>
+                                      <p className="text-xs font-mono font-bold text-[#F8F5EE]">{slab.quantity || '---'} m²</p>
+                                  </div>
+                                  <div className="bg-[#020509] border border-[#A6947D]/10 p-3.5 rounded-xl shadow-inner">
+                                      <p className="text-[7px] text-[#A6947D]/50 uppercase font-bold mb-1.5 tracking-widest">THICKNESS</p>
+                                      <p className="text-xs font-mono font-bold text-[#F8F5EE]">{slab.thickness || '---'} cm</p>
+                                  </div>
+                                </>
+                             )}
+                             
                              <div className="bg-[#020509] border border-[#A6947D]/10 p-3.5 rounded-xl shadow-inner">
                                 <p className="text-[7px] text-[#A6947D]/50 uppercase font-bold mb-1.5 tracking-widest">LOGISTICS</p>
                                 <p className="text-xs font-bold text-[#F8F5EE] uppercase">{slab.incoterm || 'EXW'}</p>

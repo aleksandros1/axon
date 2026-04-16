@@ -7,7 +7,7 @@ import {
   Shield, UploadCloud, X, Loader2, CheckCircle2, 
   BarChart3, Crosshair, Globe, MessageSquare, LogOut, Users, Camera, ImagePlus, User,
   ShoppingCart, Lock, ShieldCheck, FileText, Layers, Tag, Menu, FileSignature, Gavel,
-  Layers3, UserCircle
+  Layers3, UserCircle, Hexagon
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -21,12 +21,24 @@ export default function AssetScanner() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   
+  // -- NEW: ASSET CLASSIFICATION STATE --
+  const [assetType, setAssetType] = useState<'SLAB' | 'BLOCK' | 'GRANITE'>('SLAB');
+  
   const [material, setMaterial] = useState('');
   const [price, setPrice] = useState('');
   const [origin, setOrigin] = useState('');
   const [incoterm, setIncoterm] = useState('EXW');
+  
+  // -- DYNAMIC FIELDS --
   const [thickness, setThickness] = useState('20');
   const [quantity, setQuantity] = useState('');
+  
+  // Block specifics
+  const [length, setLength] = useState('');
+  const [width, setWidth] = useState('');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
+  
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState(''); 
   
@@ -87,12 +99,17 @@ export default function AssetScanner() {
 
       const { error: dbError } = await supabase.from('slabs').insert([{
         user_id: session.user.id,
+        asset_type: assetType, // <-- Tag for the DB (SLAB, BLOCK, GRANITE)
         material,
         price,
         origin,
         incoterm,
-        thickness,
-        quantity,
+        thickness: assetType !== 'BLOCK' ? thickness : null,
+        quantity: assetType !== 'BLOCK' ? quantity : null,
+        length: assetType === 'BLOCK' ? length : null,
+        width: assetType === 'BLOCK' ? width : null,
+        height: assetType === 'BLOCK' ? height : null,
+        weight: assetType === 'BLOCK' ? weight : null,
         location,
         description, 
         image_url: uploadedUrls[0],
@@ -247,6 +264,16 @@ export default function AssetScanner() {
                 <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageSelect} />
               </div>
 
+              {/* -- THE METAMORPHOSIS SWITCH -- */}
+              <div className="bg-[#01030A] p-5 rounded-2xl border border-[#A6947D]/20 shadow-inner mb-6 relative z-10">
+                <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest mb-4 flex items-center gap-2"><Layers size={14} className="text-[#A6947D]"/> Asset Classification</label>
+                <div className="flex bg-[#020509] border border-[#A6947D]/10 rounded-xl p-1 flex-col sm:flex-row">
+                  <button type="button" onClick={() => setAssetType('SLAB')} className={`flex-1 py-3 px-2 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${assetType === 'SLAB' ? 'bg-[#A6947D]/10 text-[#A6947D] border border-[#A6947D]/30 shadow-sm' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE] border border-transparent'}`}>Marble Slab</button>
+                  <button type="button" onClick={() => setAssetType('BLOCK')} className={`flex-1 py-3 px-2 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${assetType === 'BLOCK' ? 'bg-[#A6947D]/10 text-[#A6947D] border border-[#A6947D]/30 shadow-sm' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE] border border-transparent'}`}>Raw Block</button>
+                  <button type="button" onClick={() => setAssetType('GRANITE')} className={`flex-1 py-3 px-2 rounded-lg text-[9px] md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all ${assetType === 'GRANITE' ? 'bg-[#A6947D]/10 text-[#A6947D] border border-[#A6947D]/30 shadow-sm' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE] border border-transparent'}`}>Granite</button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 w-full relative z-10">
                 <div className="bg-[#01030A] p-5 rounded-2xl border border-[#A6947D]/20 shadow-inner">
                   <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest mb-4 flex items-center gap-2"><ShieldCheck size={14} className="text-[#A6947D]"/> Placement</label>
@@ -268,7 +295,7 @@ export default function AssetScanner() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 w-full relative z-10">
                 <div className="space-y-2">
                   <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">{t('scanner.material')}</label>
-                  <input type="text" required value={material} onChange={(e) => setMaterial(e.target.value)} placeholder="e.g. Sivec Premium" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-sans text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all uppercase placeholder:text-[#F8F5EE]/20 shadow-inner" />
+                  <input type="text" required value={material} onChange={(e) => setMaterial(e.target.value)} placeholder={assetType === 'BLOCK' ? "e.g. Sivec Raw Block" : "e.g. Sivec Premium"} className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-sans text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all uppercase placeholder:text-[#F8F5EE]/20 shadow-inner" />
                 </div>
                 
                 <div className="space-y-2">
@@ -292,18 +319,40 @@ export default function AssetScanner() {
                   <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Current Storage" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-sans text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all uppercase placeholder:text-[#F8F5EE]/20 shadow-inner" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 w-full">
-                  <div className="space-y-2">
-                    <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">{t('scanner.thickness')} (CM)</label>
-                    <input type="number" value={thickness} onChange={(e) => setThickness(e.target.value)} placeholder="20" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20 shadow-inner" />
+                {/* -- DYNAMIC RENDERING: BLOCK vs SLAB/GRANITE -- */}
+                {assetType === 'BLOCK' ? (
+                  <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+                    <div className="space-y-2">
+                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Length (CM)</label>
+                      <input type="number" value={length} onChange={(e) => setLength(e.target.value)} placeholder="280" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20 shadow-inner" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Width (CM)</label>
+                      <input type="number" value={width} onChange={(e) => setWidth(e.target.value)} placeholder="150" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20 shadow-inner" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Height (CM)</label>
+                      <input type="number" value={height} onChange={(e) => setHeight(e.target.value)} placeholder="130" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20 shadow-inner" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Weight (TONS)</label>
+                      <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="24.5" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20 shadow-inner" />
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">{t('scanner.quantity')} (M²)</label>
-                    <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="0" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20 shadow-inner" />
+                ) : (
+                  <div className="md:col-span-2 grid grid-cols-2 gap-4 w-full">
+                    <div className="space-y-2">
+                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">{t('scanner.thickness')} (CM)</label>
+                      <input type="number" value={thickness} onChange={(e) => setThickness(e.target.value)} placeholder="20" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20 shadow-inner" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">{t('scanner.quantity')} (M²)</label>
+                      <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="0" className="w-full bg-[#020509] border border-[#A6947D]/30 rounded-xl px-4 py-3.5 text-sm font-mono text-[#F8F5EE] focus:outline-none focus:border-[#A6947D] transition-all placeholder:text-[#F8F5EE]/20 shadow-inner" />
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="space-y-2 w-full">
+                <div className="space-y-2 w-full md:col-span-2">
                   <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">{t('scanner.incoterm')}</label>
                   <div className="flex gap-2">
                     {['EXW', 'FOB', 'CIF'].map(term => (
