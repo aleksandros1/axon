@@ -11,59 +11,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-// STRIPE IMPORTS
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
-
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher';
-import InboxBadge from '../components/InboxBadge'; 
-
-const stripePromise = loadStripe('pk_test_51TBwXT1RTGOC3MKLvHSA6uyyLoE1PaPGVb46ogLGueeTPnGEq5F0wZfFLE0c9FqHQRwB5aP8FsRbluepidkYreT700CBUJiDPV');
-
-// --- STRIPE CHECKOUT FORM COMPONENT ---
-function StripeCheckoutForm({ onSuccess, onCancel, themeColorBg }: any) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-    setIsProcessing(true);
-    setErrorMessage('');
-    const { error } = await stripe.confirmPayment({
-      elements,
-      redirect: 'if_required',
-    });
-    if (error) {
-      setErrorMessage(error.message || 'Payment processing failed.');
-      setIsProcessing(false);
-    } else {
-      onSuccess();
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6 bg-[#01030A] w-full">
-      <div className="min-h-[200px] w-full">
-        <PaymentElement options={{ layout: 'tabs' }} />
-      </div>
-      {errorMessage && (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 text-[10px] text-red-400 uppercase font-bold tracking-widest shadow-inner">
-          <AlertTriangle size={16} className="flex-none text-red-500"/> <span>{errorMessage}</span>
-        </div>
-      )}
-      <div className="pt-4 flex gap-3 md:gap-4 w-full">
-        <button type="button" onClick={onCancel} disabled={isProcessing} className="px-4 md:px-6 py-4 rounded-xl border border-[#A6947D]/30 text-[#A6947D] hover:bg-[#A6947D]/10 text-[10px] font-bold uppercase tracking-widest transition-all flex-1">Cancel</button>
-        <button type="submit" disabled={!stripe || isProcessing} className={`flex-[2] ${themeColorBg} text-[#020509] font-bold uppercase tracking-widest py-4 rounded-xl transition-all text-[10px] flex items-center justify-center gap-2 shadow-[0_4px_15px_rgba(16,185,129,0.2)]`}>
-          {isProcessing ? <><Loader2 size={16} className="animate-spin"/> Syncing...</> : <><Lock size={16}/> Authorize Funds</>}
-        </button>
-      </div>
-    </form>
-  );
-}
 
 export default function DealsVault() {
   const router = useRouter();
@@ -80,15 +29,47 @@ export default function DealsVault() {
   const [viewingContract, setViewingContract] = useState<any>(null);
 
   // --- STRIPE PAYMENT STATES ---
-  const [checkoutMode, setCheckoutMode] = useState<'advance' | 'escrow' | null>(null);
-  const [clientSecret, setClientSecret] = useState('');
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [activeDealForPayment, setActiveDealForPayment] = useState<any>(null);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   useEffect(() => {
     fetchRealDeals();
   }, []);
+
+  // --- O "ΚΑΤΑΣΚΟΠΟΣ" ΤΟΥ URL (Πιάνει την επιστροφή από το Stripe) ---
+  useEffect(() => {
+    if (typeof window !== 'undefined' && currentUser) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('payment') === 'success') {
+        handleSuccessfulReturnFromStripe();
+      }
+    }
+  }, [currentUser]);
+
+  const handleSuccessfulReturnFromStripe = async () => {
+    setPaymentSuccess(true);
+    
+    // Βρίσκουμε το τελευταίο pending συμβόλαιο του αγοραστή και το κάνουμε funded!
+    const { data } = await supabase.from('contracts')
+      .select('*')
+      .eq('buyer_id', currentUser.id)
+      .in('status', ['pending', 'advance_paid'])
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (data && data.length > 0) {
+      const targetDeal = data[0];
+      const nextStatus = (targetDeal.status === 'pending' && targetDeal.payment_terms === '30_70_split') ? 'advance_paid' : 'funded';
+      await supabase.from('contracts').update({ status: nextStatus }).eq('id', targetDeal.id);
+      fetchRealDeals(); // Κάνουμε refresh τα δεδομένα
+    }
+
+    // Καθαρίζουμε το URL και κλείνουμε το Popup μετά από 4 δευτερόλεπτα
+    setTimeout(() => {
+      setPaymentSuccess(false);
+      router.replace('/contracts');
+    }, 4000);
+  };
 
   const fetchRealDeals = async () => {
     setLoading(true);
@@ -103,12 +84,6 @@ export default function DealsVault() {
       .select('*')
       .or(`buyer_id.eq.${userId},vendor_id.eq.${userId}`)
       .order('created_at', { ascending: false });
-
-    if (contractError) {
-      console.error("Supabase Error:", contractError);
-      setLoading(false);
-      return;
-    }
 
     if (contractsData) {
       const { data: profiles } = await supabase.from('profiles').select('id, company_name, email');
@@ -169,13 +144,10 @@ export default function DealsVault() {
     setIsProcessingAction(null);
   };
 
-  // --- STRIPE LOGIC ---
+  // --- STRIPE HOSTED CHECKOUT LOGIC ---
   const initializeStripePayment = async (deal: any, mode: 'advance' | 'escrow') => {
     setIsVerifying(true);
-    setActiveDealForPayment(deal);
-    setCheckoutMode(mode);
 
-    // Υπολογισμός ποσού (Αν είναι advance 30%, αν είναι escrow το υπόλοιπο ή 100%)
     let paymentAmount = parseFloat(deal.price);
     if (deal.payment_terms === '30_70_split') {
         paymentAmount = mode === 'advance' ? paymentAmount * 0.30 : paymentAmount * 0.70;
@@ -186,7 +158,7 @@ export default function DealsVault() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          slabId: deal.asset_id || deal.id, // Fallback
+          slabId: deal.asset_id || deal.id,
           price: paymentAmount,
           buyerId: currentUser.id,
           vendorId: deal.vendor_id
@@ -195,35 +167,18 @@ export default function DealsVault() {
       
       const data = await res.json();
       
+      // ΑΝΑΚΑΤΕΥΘΥΝΣΗ ΣΤΟ HOSTED CHECKOUT ΤΟΥ STRIPE
       if (data.url) {
         window.location.href = data.url; 
       } else {
         setIsVerifying(false);
-        setCheckoutMode(null);
         alert("Failed to initialize secure payment portal. Check console.");
       }
     } catch (err) { 
       setIsVerifying(false);
-      setCheckoutMode(null);
       console.error(err);
       alert("System Error. Please contact AXON support."); 
     }
-  };
-
-  const handlePaymentSuccess = async () => {
-    setPaymentSuccess(true);
-    const nextStatus = checkoutMode === 'advance' ? 'advance_paid' : 'funded';
-    
-    if (activeDealForPayment) {
-        await supabase.from('contracts').update({ status: nextStatus }).eq('id', activeDealForPayment.id);
-        setDeals(deals.map(d => d.id === activeDealForPayment.id ? { ...d, status: nextStatus } : d));
-    }
-    
-    setTimeout(() => {
-        setCheckoutMode(null);
-        setPaymentSuccess(false);
-        setActiveDealForPayment(null);
-    }, 2000);
   };
 
   const getPipelineSteps = (deal: any) => {
@@ -254,39 +209,24 @@ export default function DealsVault() {
   return (
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans antialiased relative">
       
-      {/* STRIPE CHECKOUT MODAL */}
-      {checkoutMode && clientSecret && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-[#01030A]/95 backdrop-blur-md animate-in fade-in duration-300 overflow-x-hidden">
-          <div className="bg-[#020509] border border-[#A6947D]/20 rounded-2xl w-full max-w-lg relative shadow-2xl overflow-hidden my-auto">
-            {paymentSuccess ? (
+      {/* SUCCESS OVERLAY ΟΤΑΝ ΓΥΡΝΑΕΙ ΑΠΟ ΤΟ STRIPE */}
+      {paymentSuccess && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-[#01030A]/95 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#020509] border border-emerald-500/30 rounded-2xl w-full max-w-lg relative shadow-[0_0_50px_rgba(16,185,129,0.2)]">
               <div className="p-12 text-center animate-in zoom-in">
-                <CheckCircle2 size={48} className="text-emerald-400 mx-auto mb-4" />
-                <h2 className="text-xl font-serif uppercase tracking-widest text-[#F8F5EE]">FUNDS SECURED</h2>
-                <p className="text-[#A6947D]/80 text-[10px] font-bold uppercase tracking-widest mt-3">AXON Escrow Protocol Engaged.</p>
+                <CheckCircle2 size={56} className="text-emerald-400 mx-auto mb-6 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                <h2 className="text-2xl font-serif uppercase tracking-widest text-[#F8F5EE]">FUNDS SECURED</h2>
+                <p className="text-emerald-400/80 text-[10px] font-bold uppercase tracking-widest mt-4">AXON Escrow Protocol Engaged successfully.</p>
+                <div className="w-full h-1 bg-[#01030A] mt-8 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 animate-[pulse_4s_ease-in-out]"></div>
+                </div>
               </div>
-            ) : (
-              <>
-                <div className="p-6 border-b border-[#A6947D]/10 flex justify-between items-center bg-[#01030A]">
-                  <div className="flex items-center gap-3 text-[#A6947D]"><Lock size={18} /><h2 className="text-sm font-serif uppercase tracking-widest text-[#F8F5EE]">Secure Escrow Funding</h2></div>
-                  <button onClick={() => {setCheckoutMode(null); setIsVerifying(false);}} className="p-2 bg-[#020509] text-[#F8F5EE]/40 hover:text-red-500 rounded-full transition-colors"><X size={20} /></button>
-                </div>
-                <div className="p-10 text-center border-b border-[#A6947D]/10">
-                  <p className="text-[10px] text-[#A6947D]/80 uppercase font-bold tracking-widest mb-3">Amount to Lock</p>
-                  <p className="text-4xl md:text-5xl font-mono text-[#F8F5EE] tracking-tighter">
-                    {formatCurrency(checkoutMode === 'advance' ? activeDealForPayment.price * 0.3 : (activeDealForPayment.payment_terms === '30_70_split' ? activeDealForPayment.price * 0.7 : activeDealForPayment.price))}
-                  </p>
-                </div>
-                <Elements stripe={stripePromise} options={{ clientSecret, appearance: { theme: 'night', variables: { colorPrimary: '#10B981', colorBackground: '#01030A', colorDanger: '#EF4444' } } }}>
-                  <StripeCheckoutForm onSuccess={handlePaymentSuccess} onCancel={() => {setCheckoutMode(null); setIsVerifying(false);}} themeColorBg="bg-emerald-500 hover:bg-emerald-400" />
-                </Elements>
-              </>
-            )}
           </div>
         </div>
       )}
 
-      {/* VERIFICATION SPINNER */}
-      {isVerifying && !clientSecret && (
+      {/* VERIFICATION SPINNER (Πριν φύγει για Stripe) */}
+      {isVerifying && !paymentSuccess && (
         <div className="fixed inset-0 z-[200] bg-[#01030A]/95 backdrop-blur-xl flex flex-col items-center justify-center text-center p-6">
           <div className="relative mb-8">
             <div className="w-24 h-24 border border-[#A6947D]/20 rounded-full flex items-center justify-center animate-spin-slow bg-[#020509]">
@@ -295,7 +235,7 @@ export default function DealsVault() {
             <div className="absolute inset-0 border border-[#A6947D]/50 rounded-full animate-ping opacity-20"></div>
           </div>
           <h2 className="text-xl font-serif uppercase tracking-[0.3em] text-[#F8F5EE] mb-4">Securing Portal</h2>
-          <p className="mt-6 text-[9px] font-bold text-[#A6947D]/60 uppercase tracking-widest animate-pulse">Please wait while we initialize the secure connection.</p>
+          <p className="mt-6 text-[9px] font-bold text-[#A6947D]/60 uppercase tracking-widest animate-pulse">Initializing direct connection to banking layer.</p>
         </div>
       )}
 
@@ -394,7 +334,7 @@ export default function DealsVault() {
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                      {/* BUYER BUTTONS (TΩΡΑ ΣΥΝΔΕΔΕΜΕΝΑ ΜΕ STRIPE) */}
+                      {/* BUYER BUTTONS */}
                       {deal.role === 'buyer' && deal.status === 'pending' && deal.payment_terms === '30_70_split' && (
                         <button onClick={() => initializeStripePayment(deal, 'advance')} className="bg-[#A6947D] text-[#020509] px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-lg hover:bg-white transition-all flex items-center gap-2"><CreditCard size={14}/> Pay 30% Advance</button>
                       )}
