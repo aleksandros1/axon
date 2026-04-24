@@ -497,16 +497,31 @@ export default function PublicAssetDossier() {
 
             </div>
 
-            {/* SPECS GRID */}
+            {/* DYNAMIC SPECS GRID */}
             <div className="grid grid-cols-3 gap-3 md:gap-4 w-full">
-              <div className="bg-[#01030A] border border-[#A6947D]/10 p-4 rounded-xl text-center shadow-inner">
-                <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1.5">{t('scanner.thickness').split(' (')[0]}</p>
-                <p className="text-sm font-mono text-[#F8F5EE]">{slab.thickness || '2.0'} cm</p>
-              </div>
-              <div className="bg-[#01030A] border border-[#A6947D]/10 p-4 rounded-xl text-center shadow-inner">
-                <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1.5">{t('scanner.quantity').split(' (')[0]}</p>
-                <p className="text-sm font-mono text-[#F8F5EE]">{slab.quantity || '0'} M²</p>
-              </div>
+              {slab?.asset_type === 'BLOCK' ? (
+                <>
+                  <div className="bg-[#01030A] border border-[#A6947D]/10 p-4 rounded-xl text-center shadow-inner">
+                    <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1.5">WEIGHT</p>
+                    <p className="text-sm font-mono text-[#F8F5EE]">{slab.weight || '---'} T</p>
+                  </div>
+                  <div className="bg-[#01030A] border border-[#A6947D]/10 p-4 rounded-xl text-center shadow-inner">
+                    <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1.5">DIMENSIONS</p>
+                    <p className="text-[11px] md:text-xs font-mono text-[#F8F5EE]">{slab.length || '-'}x{slab.width || '-'}x{slab.height || '-'}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-[#01030A] border border-[#A6947D]/10 p-4 rounded-xl text-center shadow-inner">
+                    <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1.5">{t('scanner.thickness').split(' (')[0]}</p>
+                    <p className="text-sm font-mono text-[#F8F5EE]">{slab.thickness || '---'} cm</p>
+                  </div>
+                  <div className="bg-[#01030A] border border-[#A6947D]/10 p-4 rounded-xl text-center shadow-inner">
+                    <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1.5">{t('scanner.quantity').split(' (')[0]}</p>
+                    <p className="text-sm font-mono text-[#F8F5EE]">{slab.quantity || '0'} M²</p>
+                  </div>
+                </>
+              )}
               <div className="bg-[#01030A] border border-[#A6947D]/10 p-4 rounded-xl text-center shadow-inner">
                 <p className="text-[8px] text-[#A6947D]/60 uppercase font-bold tracking-widest mb-1.5">{t('scanner.incoterm')}</p>
                 <p className="text-sm font-sans font-bold text-[#F8F5EE]">{slab.incoterm || 'EXW'}</p>
