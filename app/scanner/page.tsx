@@ -19,9 +19,10 @@ export default function AssetScanner() {
   const { t, language, setLanguage } = useLanguage(); 
   
   const [loading, setLoading] = useState(false);
+  const [converting, setConverting] = useState(false); // Νέο state για το UI κατά τη μετατροπή HEIC
   const [success, setSuccess] = useState(false);
   
-  // -- NEW: ASSET CLASSIFICATION STATE --
+  // -- ASSET CLASSIFICATION STATE --
   const [assetType, setAssetType] = useState<'SLAB' | 'BLOCK' | 'GRANITE'>('SLAB');
   
   const [material, setMaterial] = useState('');
@@ -51,17 +52,53 @@ export default function AssetScanner() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- THE NEW INTERCEPTOR: HEIC TO JPG CONVERTER ---
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      if (images.length + selectedFiles.length > 4) {
-        alert(language === 'el' ? 'Μπορείτε να ανεβάσετε μέχρι 4 φωτογραφίες.' : 'You can upload up to 4 photos.');
-        return;
+      setConverting(true); // Ανάβουμε το loading για να μην πατήσει ο χρήστης κάτι
+      try {
+        const selectedFiles = Array.from(e.target.files);
+        if (images.length + selectedFiles.length > 4) {
+          alert(language === 'el' ? 'Μπορείτε να ανεβάσετε μέχρι 4 φωτογραφίες.' : 'You can upload up to 4 photos.');
+          setConverting(false);
+          return;
+        }
+
+        const processedFiles: File[] = [];
+        const newPreviews: string[] = [];
+
+        for (let file of selectedFiles) {
+          // Έλεγχος αν το αρχείο είναι της Apple (HEIC)
+          if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+            // Το φορτώνουμε δυναμικά για να μην "σπάσει" το Next.js
+            const heic2any = (await import('heic2any')).default;
+            
+            const convertedBlob = await heic2any({
+              blob: file,
+              toType: 'image/jpeg',
+              quality: 0.8
+            });
+            
+            // Το heic2any μπορεί να επιστρέψει πίνακα (array), παίρνουμε το πρώτο
+            const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+            
+            // Δημιουργούμε νέο καθαρό αρχείο JPG
+            const newFileName = file.name.replace(/\.heic$/i, '.jpg');
+            file = new File([finalBlob], newFileName, { type: 'image/jpeg' });
+          }
+          
+          processedFiles.push(file);
+          newPreviews.push(URL.createObjectURL(file));
+        }
+
+        setImages(prev => [...prev, ...processedFiles]);
+        setPreviews(prev => [...prev, ...newPreviews]);
+      } catch (err) {
+        console.error("Error converting image:", err);
+        alert(language === 'el' ? 'Σφάλμα κατά την επεξεργασία της φωτογραφίας. Δοκιμάστε άλλη.' : 'Error processing image format.');
+      } finally {
+        setConverting(false);
       }
-      const newImages = [...images, ...selectedFiles];
-      setImages(newImages);
-      const newPreviews = selectedFiles.map(file => URL.createObjectURL(file));
-      setPreviews([...previews, ...newPreviews]);
     }
   };
 
@@ -97,7 +134,6 @@ export default function AssetScanner() {
         uploadedUrls.push(publicUrlData.publicUrl);
       }
 
-      // THE FIX IS HERE: using (variable || null) turns empty strings into pure NULLs for the DB
       const { error: dbError } = await supabase.from('slabs').insert([{
         user_id: session.user.id,
         asset_type: assetType, 
@@ -256,13 +292,23 @@ export default function AssetScanner() {
                     </div>
                   ))}
                   {previews.length < 4 && (
-                    <div onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-xl bg-[#01030A] border border-[#A6947D]/30 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-[#020509] hover:border-[#A6947D]/60 transition-all group">
-                      <ImagePlus size={24} strokeWidth={1} className="text-[#A6947D]/40 group-hover:text-[#A6947D] mb-3 transition-colors" />
-                      <span className="text-[8px] font-mono uppercase tracking-[0.3em] text-[#A6947D]/60 group-hover:text-[#A6947D]">{t('scanner.add_photo')}</span>
+                    <div onClick={() => fileInputRef.current?.click()} className="aspect-square rounded-xl bg-[#01030A] border border-[#A6947D]/30 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-[#020509] hover:border-[#A6947D]/60 transition-all group relative overflow-hidden">
+                      {converting ? (
+                        <div className="flex flex-col items-center text-[#A6947D]">
+                          <Loader2 size={24} className="animate-spin mb-2" />
+                          <span className="text-[7px] font-mono uppercase tracking-widest">CONVERTING...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <ImagePlus size={24} strokeWidth={1} className="text-[#A6947D]/40 group-hover:text-[#A6947D] mb-3 transition-colors" />
+                          <span className="text-[8px] font-mono uppercase tracking-[0.3em] text-[#A6947D]/60 group-hover:text-[#A6947D]">{t('scanner.add_photo')}</span>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
-                <input type="file" multiple accept="image/*" className="hidden" ref={fileInputRef} onChange={handleImageSelect} />
+                {/* Το input disabled όσο γίνεται μετατροπή για να μην πατήσει πολλά μαζί */}
+                <input type="file" multiple accept="image/*,.heic,.heif" className="hidden" ref={fileInputRef} onChange={handleImageSelect} disabled={converting} />
               </div>
 
               {/* -- THE METAMORPHOSIS SWITCH -- */}
@@ -377,7 +423,7 @@ export default function AssetScanner() {
               </div>
 
               <div className="pt-6 border-t border-[#A6947D]/10 w-full relative z-10">
-                <button type="submit" disabled={loading || images.length === 0} className="w-full bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all text-[10px] md:text-xs flex items-center justify-center gap-2 shadow-[0_4px_15px_rgba(166,148,125,0.2)] disabled:opacity-50">
+                <button type="submit" disabled={loading || converting || images.length === 0} className="w-full bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all text-[10px] md:text-xs flex items-center justify-center gap-2 shadow-[0_4px_15px_rgba(166,148,125,0.2)] disabled:opacity-50">
                   {loading ? <><Loader2 size={16} className="animate-spin" /> SYNCHRONIZING...</> : <><UploadCloud size={16} strokeWidth={2.5} /> {t('scanner.publish_btn')}</>}
                 </button>
               </div>
