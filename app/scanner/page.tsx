@@ -97,19 +97,20 @@ export default function AssetScanner() {
         uploadedUrls.push(publicUrlData.publicUrl);
       }
 
+      // THE FIX IS HERE: using (variable || null) turns empty strings into pure NULLs for the DB
       const { error: dbError } = await supabase.from('slabs').insert([{
         user_id: session.user.id,
-        asset_type: assetType, // <-- Tag for the DB (SLAB, BLOCK, GRANITE)
+        asset_type: assetType, 
         material,
-        price,
+        price: price || null,
         origin,
         incoterm,
-        thickness: assetType !== 'BLOCK' ? thickness : null,
-        quantity: assetType !== 'BLOCK' ? quantity : null,
-        length: assetType === 'BLOCK' ? length : null,
-        width: assetType === 'BLOCK' ? width : null,
-        height: assetType === 'BLOCK' ? height : null,
-        weight: assetType === 'BLOCK' ? weight : null,
+        thickness: assetType !== 'BLOCK' ? (thickness || null) : null,
+        quantity: assetType !== 'BLOCK' ? (quantity || null) : null,
+        length: assetType === 'BLOCK' ? (length || null) : null,
+        width: assetType === 'BLOCK' ? (width || null) : null,
+        height: assetType === 'BLOCK' ? (height || null) : null,
+        weight: assetType === 'BLOCK' ? (weight || null) : null,
         location,
         description, 
         image_url: uploadedUrls[0],
