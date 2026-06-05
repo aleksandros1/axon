@@ -16,6 +16,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-[#020509]">
         <LanguageProvider>
+          <NotificationCenter />
           {children}
         </LanguageProvider>
       </body>

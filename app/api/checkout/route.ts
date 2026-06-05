@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         },
         application_fee_amount: platformFeeInCents, // Κρατάει το 2.5% στο δικό σου λογαριασμό AXON
       },
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard?status=success`,
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/contracts?payment=success`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/dashboard?status=cancelled`,
       metadata: {
         slab_id: slabId,

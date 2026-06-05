@@ -7,13 +7,30 @@ import { Shield, Lock, Mail, Loader2, ArrowRight, AlertTriangle, Building2, Glob
 import Link from 'next/link';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 
+/**
+ * AXON Protocol - Institutional ID Generator
+ * Παράγει αυτόματα το θεσμικό ID βάσει του email κατά την εγγραφή.
+ */
+const generateAxonId = (emailStr: string) => {
+  const prefix = "AX";
+  const randomBuffer = new Uint32Array(1);
+  crypto.getRandomValues(randomBuffer);
+  const randomPart = randomBuffer[0].toString(36).substring(0, 4).toUpperCase();
+  
+  // Παίρνουμε τα πρώτα γράμματα από το email πριν το @
+  const cleanEmail = emailStr.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
+  const namePart = cleanEmail.length > 1 ? cleanEmail : 'USER';
+  
+  return `${prefix}-${namePart}${randomPart}`;
+};
+
 export default function AuthPage() {
   const router = useRouter();
   const { t } = useLanguage();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedRole, setSelectedRole] = useState<'BUYER' | 'SELLER'>('BUYER'); // <-- ΝΕΟ: Επιλογή Ρόλου
+  const [selectedRole, setSelectedRole] = useState<'BUYER' | 'SELLER'>('BUYER');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,27 +41,46 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        // --- LOGIN ---
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        router.push('/dashboard');
+        // --- LOGIN & AUTH GATE ---
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        if (authError) throw authError;
+
+        if (authData.user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', authData.user.id)
+            .single();
+
+          // REDIRECT STRATEGY: Ο κάθε ένας στο αρχηγείο του
+          if (profile?.role === 'SELLER') {
+            router.push('/scanner');
+          } else {
+            router.push('/trading');
+          }
+        }
       } else {
-        // --- SIGN UP ---
+        // --- SIGN UP & ID GENERATION ---
+        const newAxonId = generateAxonId(email);
+
         const { data, error } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
-            data: { role: selectedRole } // Αποθήκευση ρόλου στα μεταδεδομένα του χρήστη
+            data: { role: selectedRole, axon_id: newAxonId } 
           }
         });
         if (error) throw error;
 
-        // Ενημέρωση και του πίνακα profiles με τον ρόλο που επέλεξε
+        // Ενημέρωση του πίνακα profiles με τον ρόλο και το νέο AXON ID
         if (data?.user) {
-          await supabase.from('profiles').update({ role: selectedRole }).eq('id', data.user.id);
+          await supabase.from('profiles').update({ 
+            role: selectedRole,
+            axon_id: newAxonId
+          }).eq('id', data.user.id);
         }
 
-        setError('REGISTRATION SUCCESSFUL. PLEASE AWAIT INSTITUTIONAL CLEARANCE.');
+        setError(`REGISTRATION SUCCESSFUL. YOUR IDENTITY IS [${newAxonId}]. PLEASE AWAIT CLEARANCE.`);
       }
     } catch (err: any) {
       setError(err.message || 'AUTHENTICATION FAILED');
@@ -80,7 +116,7 @@ export default function AuthPage() {
 
           <form onSubmit={handleAuth} className="space-y-6">
             
-            {/* ΝΕΟ: ΕΠΙΛΟΓΗ ΡΟΛΟΥ (Φαίνεται ΜΟΝΟ στο Sign Up) */}
+            {/* ΕΠΙΛΟΓΗ ΡΟΛΟΥ (Φαίνεται ΜΟΝΟ στο Sign Up) */}
             {!isLogin && (
               <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                 <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Entity Classification</label>

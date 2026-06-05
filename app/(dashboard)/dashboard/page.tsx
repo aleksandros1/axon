@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+
+// ΔΙΟΡΘΩΣΗ: Χρήση του absolute path alias (@/)
+import { supabase } from '@/lib/supabase';
 import { 
   Shield, Globe, BarChart3, Crosshair, MessageSquare, 
   LogOut, Users, Package, ArrowDownRight, ArrowUpRight, 
@@ -15,8 +17,8 @@ import Link from 'next/link';
 // STRIPE IMPORTS
 import { loadStripe } from '@stripe/stripe-js';
 
-import { useLanguage } from '../../lib/i18n/LanguageContext';
-import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher';
+// ΔΙΟΡΘΩΣΗ: Χρήση του absolute path alias (@/)
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 const stripePromise = loadStripe('pk_test_51TBwXT1RTGOC3MKLvHSA6uyyLoE1PaPGVb46ogLGueeTPnGEq5F0wZfFLE0c9FqHQRwB5aP8FsRbluepidkYreT700CBUJiDPV');
 
@@ -227,18 +229,18 @@ export default function PortfolioDashboard() {
       const { data: offersData } = await supabase.from('messages').select('*').eq('is_offer', true).or(`receiver_id.eq.${user.id},sender_id.eq.${user.id}`).order('created_at', { ascending: false });
 
       if (offersData) {
-        const inc = offersData.filter(o => o.receiver_id === user.id);
-        const out = offersData.filter(o => o.sender_id === user.id);
-        const profileIds = [...new Set(offersData.map(o => o.sender_id === user.id ? o.receiver_id : o.sender_id))];
+        const inc = offersData.filter((o: any) => o.receiver_id === user.id);
+        const out = offersData.filter((o: any) => o.sender_id === user.id);
+        const profileIds = [...new Set(offersData.map((o: any) => o.sender_id === user.id ? o.receiver_id : o.sender_id))];
         const { data: profilesData } = await supabase.from('profiles').select('id, company_name, email').in('id', profileIds);
 
         const getContactName = (id: string) => {
-          const p = profilesData?.find(p => p.id === id);
+          const p = profilesData?.find((p: any) => p.id === id);
           return p ? (p.company_name || p.email) : 'Unknown Entity';
         };
 
-        setIncomingOffers(inc.map(o => ({ ...o, contactName: getContactName(o.sender_id) })));
-        setOutgoingOffers(out.map(o => ({ ...o, contactName: getContactName(o.receiver_id) })));
+        setIncomingOffers(inc.map((o: any) => ({ ...o, contactName: getContactName(o.sender_id) })));
+        setOutgoingOffers(out.map((o: any) => ({ ...o, contactName: getContactName(o.receiver_id) })));
       }
 
       // FETCH DB CONTRACTS & LOCAL CONTRACTS
@@ -255,7 +257,7 @@ export default function PortfolioDashboard() {
       }
       
       // Αφαιρούμε τα διπλότυπα για να μην δείχνει το ίδιο συμβόλαιο 2 φορές
-      const uniqueContracts = Array.from(new Map(combinedContracts.map(c => [c.id, c])).values());
+      const uniqueContracts = Array.from(new Map(combinedContracts.map((c: any) => [c.id, c])).values());
       setMyContracts(uniqueContracts);
 
       setLoading(false);
@@ -269,11 +271,11 @@ export default function PortfolioDashboard() {
     const activeStatuses = ['pending', 'advance_paid', 'funded', 'inspected', 'shipped'];
     
     // Ξαναφιλτράρουμε τα μοναδικά (για ασφάλεια)
-    const uniqueContracts = Array.from(new Map(myContracts.map(c => [c.id, c])).values());
+    const uniqueContracts = Array.from(new Map(myContracts.map((c: any) => [c.id, c])).values());
     
     const total = uniqueContracts
-      .filter(c => activeStatuses.includes(c.status))
-      .reduce((acc, curr) => {
+      .filter((c: any) => activeStatuses.includes(c.status))
+      .reduce((acc: number, curr: any) => {
         // Αν είναι νούμερο, το παίρνει. Αν είναι string, καθαρίζει τα κόμματα/τελείες.
         const priceVal = typeof curr.price === 'number' 
           ? curr.price 
@@ -285,7 +287,7 @@ export default function PortfolioDashboard() {
   }, [myContracts]);
 
   const markAsRead = async (id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id));
+    setNotifications(prev => prev.filter((n: any) => n.id !== id));
     await supabase.from('notifications').update({ is_read: true }).eq('id', id);
   };
 
@@ -293,7 +295,7 @@ export default function PortfolioDashboard() {
 
   const deleteSlab = async (id: string) => {
     if (confirm(language === 'el' ? 'ΠΡΟΣΟΧΗ: Θέλετε σίγουρα να διαγράψετε αυτό το Asset;' : 'WARNING: Are you sure you want to delete this Asset?')) {
-      setMySlabs(mySlabs.filter(s => s.id !== id)); 
+      setMySlabs(mySlabs.filter((s: any) => s.id !== id)); 
       await supabase.from('slabs').delete().eq('id', id).eq('user_id', currentUser.id);
     }
   };
@@ -319,7 +321,7 @@ export default function PortfolioDashboard() {
         is_vault: editForm.visibility === 'private'
       }).eq('id', editingSlab.id);
       if (error) throw error;
-      setMySlabs(prev => prev.map(s => s.id === editingSlab.id ? { ...s, ...editForm, is_vault: editForm.visibility === 'private' } : s));
+      setMySlabs(prev => prev.map((s: any) => s.id === editingSlab.id ? { ...s, ...editForm, is_vault: editForm.visibility === 'private' } : s));
       setIsEditModalOpen(false);
       setEditingSlab(null);
     } catch (error: any) { alert(`Update Error: ${error.message}`); } finally { setIsSavingEdit(false); }
@@ -352,8 +354,8 @@ export default function PortfolioDashboard() {
       await fetch('/api/refund', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentIntentId, amountToRefund }) });
       if (selectedDeal?.id) {
         await supabase.from('messages').delete().eq('id', selectedDeal.id);
-        setIncomingOffers(prev => prev.filter(offer => offer.id !== selectedDeal.id));
-        setOutgoingOffers(prev => prev.filter(offer => offer.id !== selectedDeal.id));
+        setIncomingOffers(prev => prev.filter((offer: any) => offer.id !== selectedDeal.id));
+        setOutgoingOffers(prev => prev.filter((offer: any) => offer.id !== selectedDeal.id));
       }
       setRefundSuccess(true);
       setTimeout(() => { setIsRefundModalOpen(false); setSelectedDeal(null); }, 2500);
@@ -377,7 +379,7 @@ export default function PortfolioDashboard() {
       });
       if (error) throw error;
       await supabase.from('saved_assets').delete().match({ user_id: currentUser.id, slab_id: selectedTarget.id });
-      setTrackedSlabs(prev => prev.filter(s => s.id !== selectedTarget.id));
+      setTrackedSlabs(prev => prev.filter((s: any) => s.id !== selectedTarget.id));
       setTermSuccess(true);
       setTimeout(() => { setIsTermSheetOpen(false); router.push('/inbox'); }, 2000);
     } catch (error) { console.error(error); alert(t('common.error')); } finally { setIsSubmittingTerm(false); }
@@ -482,21 +484,21 @@ export default function PortfolioDashboard() {
       }
   };
 
-  const publicAssets = mySlabs.filter(slab => slab.visibility !== 'private');
-  const privateAssets = mySlabs.filter(slab => slab.visibility === 'private');
+  const publicAssets = mySlabs.filter((slab: any) => slab.visibility !== 'private');
+  const privateAssets = mySlabs.filter((slab: any) => slab.visibility === 'private');
 
-  const myPortfolioValue = publicAssets.reduce((acc, slab) => {
+  const myPortfolioValue = publicAssets.reduce((acc: number, slab: any) => {
     const val = typeof slab.price === 'string' ? parseFloat(slab.price.replace(/\./g, '').replace(/,/g, '.')) : (slab.price || 0);
     return acc + val;
   }, 0);
 
-  const trackedVaultValue = trackedSlabs.reduce((acc, slab) => {
+  const trackedVaultValue = trackedSlabs.reduce((acc: number, slab: any) => {
     const val = typeof slab.price === 'string' ? parseFloat(slab.price.replace(/\./g, '').replace(/,/g, '.')) : (slab.price || 0);
     return acc + val;
   }, 0);
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
+    <div className="flex flex-col h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
       {/* --------------------------------------------------------- */}
       {/* CONTACT SELECTOR MODAL (NEW) */}
@@ -514,7 +516,7 @@ export default function PortfolioDashboard() {
                 {platformContacts.length === 0 ? (
                   <p className="text-[10px] text-slate-500 text-center py-4">No verified contacts found in network.</p>
                 ) : (
-                  platformContacts.map(contact => (
+                  platformContacts.map((contact: any) => (
                     <button 
                       key={contact.id} onClick={() => confirmSendToChat(contact.id)} disabled={isGenerating}
                       className="w-full bg-[#01030A] border border-[#A6947D]/20 hover:border-[#A6947D] hover:bg-[#A6947D]/10 p-4 rounded-xl flex items-center justify-between transition-all group text-left"
@@ -583,34 +585,6 @@ export default function PortfolioDashboard() {
       )}
       {/* --------------------------------------------------------- */}
 
-      {/* MASTER SIDEBAR - DESKTOP ONLY */}
-      <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none shrink-0"><Shield size={300} className="text-[#A6947D]" /></div>
-        
-        <div className="p-8 pb-10 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
-          <div className="w-12 h-12 border border-[#A6947D]/30 rounded-full flex items-center justify-center relative mb-4 shadow-[0_0_15px_rgba(166,148,125,0.05)] bg-[#01030A]">
-            <Shield size={20} className="text-[#A6947D]"/>
-          </div>
-          <h1 className="text-2xl font-serif uppercase text-[#F8F5EE] tracking-[0.2em] font-light leading-none mb-1">AXON</h1>
-          <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">ΘΕΣΜΙΚΟΥ ΕΠΙΠΕΔΟΥ</p>
-        </div>
-
-        <SidebarLanguageSwitcher />
-
-        <nav className="flex-1 px-4 space-y-2 relative z-10">
-          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><Layers3 size={16} /> ΧΑΡΤΟΦΥΛΑΚΙΟ & ΣΥΜΦΩΝΙΕΣ</Link>
-          {userRole === 'SELLER' && (
-            <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Crosshair size={16} /> ΣΑΡΩΤΗΣ ΥΛΙΚΩΝ</Link>
-          )}
-          <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> ΔΗΜΟΣΙΑ ΑΓΟΡΑ</Link>
-          <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> ΠΑΓΚΟΣΜΙΟ ΔΙΚΤΥΟ</Link>
-          <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> ΑΣΦΑΛΕΙΣ ΣΥΝΟΜΙΛΙΕΣ</Link>
-          <Link href="/me" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><UserCircle size={16} /> ΕΤΑΙΡΙΚΟ ΠΡΟΦΙΛ</Link>
-        </nav>
-
-        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><LogOut size={16} /> ΑΠΟΣΥΝΔΕΣΗ</button></div>
-      </aside>
-
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020509] pb-[80px] md:pb-0 custom-scrollbar w-full z-10">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.02] z-0 overflow-hidden">
@@ -641,7 +615,7 @@ export default function PortfolioDashboard() {
                 <div className="absolute right-0 top-12 mt-2 w-[calc(100vw-2rem)] sm:w-80 max-w-sm bg-[#01030A] border border-[#A6947D]/30 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
                   <div className="p-4 border-b border-[#A6947D]/10 bg-[#020509] flex justify-between items-center"><p className="text-[10px] font-bold uppercase tracking-widest text-[#A6947D]">Intelligence Feed</p><button onClick={() => setShowNotifs(false)} className="text-[#A6947D]/60 hover:text-[#A6947D]"><X size={14}/></button></div>
                   <div className="max-h-80 md:max-h-96 overflow-y-auto custom-scrollbar">
-                    {notifications.length === 0 ? <div className="p-10 text-center text-[10px] font-mono text-[#A6947D]/40 uppercase tracking-widest">No active alerts.</div> : notifications.map(n => (
+                    {notifications.length === 0 ? <div className="p-10 text-center text-[10px] font-mono text-[#A6947D]/40 uppercase tracking-widest">No active alerts.</div> : notifications.map((n: any) => (
                       <div key={n.id} className="p-4 border-b border-[#A6947D]/5 hover:bg-[#A6947D]/5 transition-colors group">
                         <p className="text-[10px] font-bold text-[#F8F5EE] uppercase mb-1">{n.title}</p><p className="text-[10px] md:text-[11px] text-[#A6947D] leading-relaxed mb-3">{n.message}</p>
                         <div className="flex gap-2"><button onClick={() => markAsRead(n.id)} className="text-[9px] text-[#A6947D]/40 hover:text-emerald-400 p-1.5 transition-colors"><Check size={14}/></button></div>
@@ -711,7 +685,7 @@ export default function PortfolioDashboard() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 w-full">
-                      {publicAssets.map(slab => (
+                      {publicAssets.map((slab: any) => (
                         <div key={slab.id} className="bg-[#01030A]/80 backdrop-blur-md border border-[#A6947D]/15 rounded-2xl overflow-hidden hover:border-[#A6947D]/40 transition-all duration-500 group flex flex-col shadow-lg w-full">
                           <div className="h-40 md:h-48 bg-[#020509] relative overflow-hidden">
                             {slab.image_url ? <img src={slab.image_url} alt={slab.material} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-transform duration-700 group-hover:scale-105" /> : <div className="w-full h-full flex items-center justify-center text-[#A6947D]/20"><Package size={40} /></div>}
@@ -747,7 +721,7 @@ export default function PortfolioDashboard() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 w-full">
-                      {privateAssets.map(slab => (
+                      {privateAssets.map((slab: any) => (
                         <div key={slab.id} className="bg-[#01030A]/90 backdrop-blur-xl border border-indigo-500/30 rounded-2xl overflow-hidden hover:border-indigo-500/60 hover:shadow-[0_0_20px_rgba(99,102,241,0.1)] transition-all duration-300 group flex flex-col relative shadow-lg w-full">
                           <div className="absolute top-2 right-2 md:top-3 md:right-3 z-20 flex items-center gap-1.5 bg-indigo-900/80 backdrop-blur-md border border-indigo-500/50 px-2 py-1 rounded-lg shadow-lg"><Lock size={10} className="text-indigo-400"/><span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest">Off-Market</span></div>
                           <div className="h-40 md:h-48 bg-[#020509] relative overflow-hidden border-b border-indigo-500/20">
@@ -782,7 +756,7 @@ export default function PortfolioDashboard() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 w-full">
-                      {trackedSlabs.map(slab => (
+                      {trackedSlabs.map((slab: any) => (
                         <div key={slab.id} className="bg-[#01030A]/90 backdrop-blur-xl border border-amber-500/30 rounded-2xl overflow-hidden hover:border-amber-500/60 hover:shadow-[0_0_20px_rgba(245,158,11,0.1)] transition-all duration-300 group flex flex-col relative w-full">
                           <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded shadow-lg"><Target size={10} className="text-amber-500 animate-pulse"/><span className="text-[8px] font-bold text-amber-500 uppercase tracking-widest">Locked</span></div>
                           <Link href={`/trading/${slab.id}`}>
@@ -814,7 +788,7 @@ export default function PortfolioDashboard() {
                      <p className="text-[9px] md:text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-[0.2em]">No incoming offers detected.</p>
                    </div>
                  ) : (
-                   incomingOffers.map(offer => (
+                   incomingOffers.map((offer: any) => (
                      <div key={offer.id} className="bg-[#01030A]/80 backdrop-blur-md border border-emerald-500/20 rounded-2xl p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-start md:items-center relative overflow-hidden group shadow-lg w-full">
                         <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.4)]"></div>
                         <div className="flex-1 space-y-3 w-full pl-2">
@@ -842,7 +816,7 @@ export default function PortfolioDashboard() {
                      <p className="text-[9px] md:text-[10px] text-[#A6947D]/60 font-mono uppercase tracking-[0.2em]">No active transmissions.</p>
                    </div>
                  ) : (
-                   outgoingOffers.map(offer => (
+                   outgoingOffers.map((offer: any) => (
                      <div key={offer.id} className="bg-[#01030A]/80 backdrop-blur-md border border-amber-500/20 rounded-2xl p-4 md:p-8 flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-start md:items-center relative overflow-hidden group shadow-lg w-full">
                         <div className="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.3)]"></div>
                         <div className="flex-1 space-y-3 w-full pl-2">
@@ -879,7 +853,7 @@ export default function PortfolioDashboard() {
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-                      {myContracts.map((contract, index) => {
+                      {myContracts.map((contract: any, index: number) => {
                         const isSeller = currentUser?.id === contract.vendor_id;
                         const counterpartyName = contract.buyer?.company_name || contract.buyer?.company_name || 'UNKNOWN ENTITY';
                         const materialName = contract.slab?.material || contract.custom_material || 'Custom Asset';

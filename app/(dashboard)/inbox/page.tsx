@@ -2,22 +2,19 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../../lib/supabase';
 import { 
-  Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
-  LogOut, Search, Send, Building2, ShieldCheck, Users, Gavel, 
-  Loader2, Paperclip, X, FileText, ImageIcon, Handshake, Layers, CheckCircle2, Trash2, Anchor, Factory, MapPin, User, Package, AlertOctagon, ArrowLeft,
-  Layers3, UserCircle, Menu, Download, ZoomIn, Landmark, Wallet
+  Shield, Globe, Lock, Search, Send, CheckCircle2, Trash2, Package, AlertOctagon, ArrowLeft,
+  Loader2, Paperclip, X, FileText, ImageIcon, Handshake, Layers, ZoomIn, Landmark, Wallet, Download,
+  MessageSquare, Gavel
 } from 'lucide-react';
-import Link from 'next/link';
 
-import { useLanguage } from '../../lib/i18n/LanguageContext';
-import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher'; 
+import { useLanguage } from '../../../lib/i18n/LanguageContext';
 
 function SecureCommsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { t, language, setLanguage } = useLanguage(); 
+  const { t, language } = useLanguage(); 
   
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -52,8 +49,6 @@ function SecureCommsContent() {
   const [isAcceptingOffer, setIsAcceptingOffer] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationStep, setVerificationStep] = useState(0);
-
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // --- IMAGE VIEWER MODAL STATE ---
   const [viewingImage, setViewingImage] = useState<string | null>(null);
@@ -219,8 +214,6 @@ function SecureCommsContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleLogout = async () => { await supabase.auth.signOut(); router.push('/auth'); };
-
   const formatCurrencyLocal = (val: any) => new Intl.NumberFormat('el-GR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(parseFloat(val) || 0);
 
   const sortedUsers = [...allUsers].sort((a, b) => {
@@ -331,7 +324,6 @@ function SecureCommsContent() {
     runVerificationProtocol(async () => {
       const tempId = `temp_offer_${Date.now()}`;
       
-      // ΒΑΖΟΥΜΕ ΟΛΑ ΤΑ INSTITUTIONAL TERMS ΣΤΟ PAYLOAD
       const newMsgObj = { 
         sender_id: currentUser.id, 
         receiver_id: selectedContact.id, 
@@ -342,8 +334,8 @@ function SecureCommsContent() {
           price: offerPrice, 
           incoterm: offerIncoterm,
           material: targetAsset?.material || 'Private Asset',
-          payment_terms: offerPaymentTerms,  // NEW
-          inspection: offerInspection        // NEW
+          payment_terms: offerPaymentTerms,
+          inspection: offerInspection
         },
         is_read: false 
       };
@@ -352,7 +344,6 @@ function SecureCommsContent() {
       setMessages(prev => [...prev, displayMsg]);
       setLastActivity(prev => ({ ...prev, [selectedContact.id]: Date.now() }));
 
-      // RESET STATE
       setIsOfferModalOpen(false); 
       setOfferAssetId(''); 
       setOfferPrice(''); 
@@ -375,7 +366,6 @@ function SecureCommsContent() {
     });
   };
 
-  // --- DYNAMIC ACCEPT & SYNC (ΤΟ ΣΗΜΑΝΤΙΚΟΤΕΡΟ ΚΟΜΜΑΤΙ) ---
   const handleAcceptOffer = async (msg: any) => {
     if (!currentUser || isAcceptingOffer) return;
     runVerificationProtocol(async () => {
@@ -384,15 +374,14 @@ function SecureCommsContent() {
         const payload = msg.offer_details;
         const priceClean = payload.price === 'Inquiry' ? 0 : Number(payload.price);
         
-        // Φτιάχνουμε το 100% συγχρονισμένο συμβόλαιο
         const contractPayload = {
           asset_id: payload.asset_id, 
           buyer_id: currentUser.id, 
           vendor_id: msg.sender_id, 
           price: priceClean, 
           incoterms: payload.incoterm || payload.incoterms || 'FOB',
-          payment_terms: payload.payment_terms || '100_escrow',  // ΔΙΑΒΑΖΕΙ ΤΟΥΣ ΝΕΟΥΣ ΟΡΟΥΣ
-          inspection: payload.inspection || 'waived',            // ΔΙΑΒΑΖΕΙ ΤΟΥΣ ΝΕΟΥΣ ΟΡΟΥΣ
+          payment_terms: payload.payment_terms || '100_escrow',
+          inspection: payload.inspection || 'waived',
           custom_material: payload.material,
           status: 'pending'
         };
@@ -400,10 +389,8 @@ function SecureCommsContent() {
         const { error: contractError } = await supabase.from('contracts').insert([contractPayload]);
         if (contractError) throw contractError;
 
-        // Κλείδωμα Πλάκας
         const { error: slabUpdateError } = await supabase.from('slabs').update({ is_available: false }).eq('id', payload.asset_id);
         
-        // Ειδοποίηση
         await supabase.from('notifications').insert([{
           user_id: msg.sender_id, title: 'Deal Accepted!',
           message: `The terms for Asset AX-${payload.asset_id.substring(0,6)} have been accepted. Check your Contracts Vault.`,
@@ -445,7 +432,7 @@ function SecureCommsContent() {
   );
 
   return (
-    <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
+    <div className="flex h-full w-full bg-transparent text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative">
       
       {/* IMAGE VIEWER MODAL */}
       {viewingImage && (
@@ -578,83 +565,8 @@ function SecureCommsContent() {
         </div>
       )}
 
-      {/* --------------------------------------------------------- */}
-      {/* EXECUTIVE COMMAND OVERLAY (THE SMART MENU) */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-[100] bg-[#01030A]/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-5 duration-300">
-          <div className="flex justify-between items-center p-6 border-b border-[#A6947D]/20 bg-[#020509]">
-            <div className="flex items-center gap-3">
-              <Shield size={20} className="text-[#A6947D]" />
-              <h2 className="text-lg font-serif uppercase tracking-[0.3em] text-[#F8F5EE]">ΚΕΝΤΡΟ ΕΠΙΧΕΙΡΗΣΕΩΝ</h2>
-            </div>
-            <button onClick={() => setIsMobileMenuOpen(false)} className="text-[#F8F5EE]/40 hover:text-red-500 p-2"><X size={24} /></button>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">ΒΑΣΙΚΕΣ ΕΝΟΤΗΤΕΣ</p>
-            <div className="grid grid-cols-2 gap-4 mb-8">
-              <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <Layers3 size={24} className="text-[#A6947D]" />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Χαρτοφυλακιο &<br/>Συμφωνιες</span>
-              </Link>
-              <Link href="/scanner" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <Crosshair size={24} className="text-[#A6947D]" />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Σαρωτης<br/>Υλικων</span>
-              </Link>
-              <Link href="/trading" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <Globe size={24} className="text-[#A6947D]" />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Δημοσια<br/>Αγορα</span>
-              </Link>
-              <Link href="/network" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <Users size={24} className="text-[#A6947D]" />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Παγκοσμιο<br/>Δικτυο</span>
-              </Link>
-              <Link href="/inbox" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#A6947D]/10 border border-[#A6947D]/40 p-5 rounded-xl flex flex-col items-center justify-center gap-3 transition-colors shadow-inner">
-                <MessageSquare size={24} className="text-[#A6947D]" />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Ασφαλεις<br/>Συνομιλιες</span>
-              </Link>
-              <Link href="/me" onClick={() => setIsMobileMenuOpen(false)} className="bg-[#020509] border border-[#A6947D]/20 p-5 rounded-xl flex flex-col items-center justify-center gap-3 active:bg-[#A6947D]/10 transition-colors shadow-inner">
-                <UserCircle size={24} className="text-[#A6947D]" />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[#F8F5EE] text-center">Εταιρικο<br/>Προφιλ</span>
-              </Link>
-            </div>
-
-            <p className="text-[10px] text-[#A6947D]/60 uppercase font-mono tracking-widest mb-4">ΣΥΣΤΗΜΑ</p>
-            <button onClick={handleLogout} className="w-full bg-[#020509] border border-red-900/30 text-red-500 p-4 rounded-xl flex items-center justify-center gap-3 uppercase font-bold text-[10px] tracking-widest">
-              <LogOut size={16} /> ΑΠΟΣΥΝΔΕΣΗ
-            </button>
-          </div>
-        </div>
-      )}
-      {/* --------------------------------------------------------- */}
-
-      {/* MASTER SIDEBAR - DESKTOP ONLY */}
-      <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none"><Shield size={300} className="text-[#A6947D]" /></div>
-        <div className="p-8 pb-12 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
-          <div className="w-12 h-12 border border-[#A6947D]/30 rounded-full flex items-center justify-center relative mb-4 shadow-[0_0_15px_rgba(166,148,125,0.05)] bg-[#01030A]">
-            <MessageSquare size={20} className="text-[#A6947D]"/>
-          </div>
-          <h1 className="text-2xl font-serif uppercase text-[#F8F5EE] tracking-[0.2em] font-light leading-none mb-1">AXON</h1>
-          <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">ΘΕΣΜΙΚΟΥ ΕΠΙΠΕΔΟΥ</p>
-        </div>
-        
-        <SidebarLanguageSwitcher />
-
-        <nav className="flex-1 px-4 space-y-2 relative z-10">
-          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Layers3 size={16} /> ΧΑΡΤΟΦΥΛΑΚΙΟ & ΣΥΜΦΩΝΙΕΣ</Link>
-          <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Crosshair size={16} /> ΣΑΡΩΤΗΣ ΥΛΙΚΩΝ</Link>
-          <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> ΔΗΜΟΣΙΑ ΑΓΟΡΑ</Link>
-          <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> ΠΑΓΚΟΣΜΙΟ ΔΙΚΤΥΟ</Link>
-          <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><MessageSquare size={16} /> ΑΣΦΑΛΕΙΣ ΣΥΝΟΜΙΛΙΕΣ</Link>
-          <Link href="/me" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><UserCircle size={16} /> ΕΤΑΙΡΙΚΟ ΠΡΟΦΙΛ</Link>
-        </nav>
-
-        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><LogOut size={16} /> ΑΠΟΣΥΝΔΕΣΗ</button></div>
-      </aside>
-
       {/* MAIN COMMS AREA */}
-      <main className="flex-1 flex overflow-hidden bg-[#020509] pb-[56px] md:pb-0 w-full relative">
+      <main className="flex-1 flex overflow-hidden w-full relative">
         {loading ? (
           <div className="flex w-full items-center justify-center text-[#A6947D] animate-pulse font-mono text-[10px] uppercase tracking-[0.3em]">{t('common.syncing')}</div>
         ) : (
@@ -836,16 +748,8 @@ function SecureCommsContent() {
           </div>
         )}
       </main>
-
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-1 flex justify-between items-center z-50 shadow-2xl w-full h-[56px] pb-[env(safe-area-inset-bottom)]">
-        <Link href="/dashboard" className="text-[#A6947D]/40 flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><Layers3 size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Port</span></Link>
-        <Link href="/trading" className="text-[#A6947D]/40 flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><Globe size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Floor</span></Link>
-        <Link href="/inbox" className="text-[#A6947D] flex flex-col items-center gap-0.5 flex-1 h-full justify-center"><MessageSquare size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Comms</span></Link>
-        <button onClick={() => setIsMobileMenuOpen(true)} className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-0.5 flex-1 h-full justify-center transition-colors"><Menu size={18} /><span className="text-[7px] uppercase font-bold tracking-widest">Menu</span></button>
-      </nav>
     </div>
   );
-  
 }
 
 export default function SecureComms() {

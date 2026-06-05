@@ -2,17 +2,17 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { 
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   LogOut, ArrowLeft, MapPin, Building2, ShieldCheck, Gavel, ArrowRight,
   Award, TrendingUp, CheckCircle2, User, Users, Package, ShoppingCart, Loader2,
-  Menu, X, FileSignature, Layers3, UserCircle
+  Menu, X, FileSignature, Layers3, UserCircle, Fingerprint
 } from 'lucide-react';
 import Link from 'next/link';
 
-import { useLanguage } from '../../lib/i18n/LanguageContext';
-import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import SidebarLanguageSwitcher from '@/app/components/SidebarLanguageSwitcher';
 
 export default function MyProfileDossier() {
   const router = useRouter();
@@ -87,7 +87,7 @@ export default function MyProfileDossier() {
     <div className="flex flex-col md:flex-row h-[100dvh] w-full bg-[#020509] text-[#F8F5EE] overflow-hidden font-sans selection:bg-[#A6947D]/30 relative antialiased">
       
       {/* --------------------------------------------------------- */}
-      {/* EXECUTIVE COMMAND OVERLAY (THE SMART MENU) */}
+      {/* EXECUTIVE COMMAND OVERLAY (THE SMART MENU - MOBILE ONLY) */}
       {isMobileMenuOpen && (
         <div className="md:hidden fixed inset-0 z-[100] bg-[#01030A]/95 backdrop-blur-xl flex flex-col animate-in slide-in-from-bottom-5 duration-300">
           <div className="flex justify-between items-center p-6 border-b border-[#A6947D]/20 bg-[#020509]">
@@ -136,30 +136,6 @@ export default function MyProfileDossier() {
       )}
       {/* --------------------------------------------------------- */}
 
-      {/* MASTER SIDEBAR - DESKTOP ONLY */}
-      <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none shrink-0"><Shield size={300} className="text-[#A6947D]" /></div>
-        <div className="p-8 pb-10 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
-          <div className="w-12 h-12 border border-[#A6947D]/30 rounded-full flex items-center justify-center relative mb-4 bg-[#01030A] shadow-[0_0_15px_rgba(166,148,125,0.05)]">
-            <UserCircle size={20} className="text-[#A6947D]"/>
-          </div>
-          <h1 className="text-2xl font-serif uppercase text-[#F8F5EE] tracking-[0.2em] font-light leading-none mb-2">AXON</h1>
-          <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">ΘΕΣΜΙΚΟΥ ΕΠΙΠΕΔΟΥ</p>
-        </div>
-
-        <SidebarLanguageSwitcher />
-
-        <nav className="flex-1 px-4 space-y-2 relative z-10">
-          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Layers3 size={16} /> ΧΑΡΤΟΦΥΛΑΚΙΟ & ΣΥΜΦΩΝΙΕΣ</Link>
-          <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Crosshair size={16} /> ΣΑΡΩΤΗΣ ΥΛΙΚΩΝ</Link>
-          <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> ΔΗΜΟΣΙΑ ΑΓΟΡΑ</Link>
-          <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> ΠΑΓΚΟΣΜΙΟ ΔΙΚΤΥΟ</Link>
-          <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> ΑΣΦΑΛΕΙΣ ΣΥΝΟΜΙΛΙΕΣ</Link>
-          <Link href="/me" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><UserCircle size={16} /> ΕΤΑΙΡΙΚΟ ΠΡΟΦΙΛ</Link>
-        </nav>
-        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase tracking-[0.2em] flex items-center gap-2 transition-colors"><LogOut size={16} /> ΑΠΟΣΥΝΔΕΣΗ</button></div>
-      </aside>
-
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020509] pb-[80px] md:pb-0 custom-scrollbar w-full">
         
@@ -190,9 +166,19 @@ export default function MyProfileDossier() {
                     </span>
                   )}
                 </div>
+                
                 <h1 className="text-2xl md:text-4xl font-serif text-[#F8F5EE] mb-2 leading-tight truncate tracking-wider">
                   {vendorData.company_name || vendorData.email}
                 </h1>
+
+                {/* THE GOLDEN AXON ID DISPLAY */}
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="flex items-center gap-2 text-sm md:text-base text-[#A6947D] font-mono font-bold tracking-[0.2em] bg-gradient-to-r from-[#A6947D]/20 to-transparent px-4 py-2 rounded-lg border-l-2 border-[#A6947D] shadow-[inset_4px_0_10px_rgba(166,148,125,0.1)]">
+                    <Fingerprint size={16} /> 
+                    {vendorData.axon_id || 'ID PENDING'}
+                  </span>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-4 text-[9px] text-[#A6947D]/80 font-bold uppercase tracking-widest">
                   {vendorData.country && <span className="flex items-center gap-1.5"><MapPin size={12} className="text-[#A6947D]" /> {vendorData.country}</span>}
                   <span className="flex items-center gap-1.5"><Award size={12} className="text-[#A6947D]" /> Master Node</span>
@@ -214,16 +200,16 @@ export default function MyProfileDossier() {
                   <p className="text-sm font-serif text-[#F8F5EE] uppercase tracking-widest truncate">{vendorData.company_name || 'N/A'}</p>
                 </div>
                 <div>
+                  <p className="text-[8px] text-[#A6947D]/60 font-bold uppercase tracking-widest mb-1.5">Institutional ID</p>
+                  <p className="text-xs font-mono text-[#A6947D] tracking-[0.2em] truncate">{vendorData.axon_id || 'PENDING'}</p>
+                </div>
+                <div>
                   <p className="text-[8px] text-[#A6947D]/60 font-bold uppercase tracking-widest mb-1.5">Secure Transmission Email</p>
                   <p className="text-xs font-mono text-[#F8F5EE]/80 truncate">{vendorData.email}</p>
                 </div>
                 <div>
                   <p className="text-[8px] text-[#A6947D]/60 font-bold uppercase tracking-widest mb-1.5">Jurisdiction</p>
                   <p className="text-xs font-mono text-[#F8F5EE]/80 truncate uppercase">{vendorData.country || 'Global'}</p>
-                </div>
-                <div>
-                  <p className="text-[8px] text-[#A6947D]/60 font-bold uppercase tracking-widest mb-1.5">Access Level</p>
-                  <p className="text-xs font-mono text-[#F8F5EE]/80 uppercase">{vendorData.role || 'Member'}</p>
                 </div>
               </div>
             </div>
@@ -316,6 +302,7 @@ export default function MyProfileDossier() {
         </div>
       </main>
 
+      {/* MOBILE BOTTOM NAVIGATION */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 pb-[calc(0.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.8)] w-full">
         <Link href="/dashboard" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Layers3 size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Port</span></Link>
         <Link href="/trading" className="text-[#A6947D]/40 hover:text-[#A6947D] p-2 flex flex-col items-center gap-1 flex-1 transition-colors"><Globe size={20} /><span className="text-[8px] uppercase font-bold tracking-widest">Floor</span></Link>

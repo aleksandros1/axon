@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { 
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   ArrowLeft, Handshake, Building2, Calendar, Package, AlertTriangle, 
@@ -17,7 +17,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 // LANGUAGE SYNC
-import { useLanguage } from '../../../lib/i18n/LanguageContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 const stripePromise = loadStripe('pk_test_51TBwXT1RTGOC3MKLvHSA6uyyLoE1PaPGVb46ogLGueeTPnGEq5F0wZfFLE0c9FqHQRwB5aP8FsRbluepidkYreT700CBUJiDPV');
 

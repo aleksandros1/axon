@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { 
   Shield, Globe, Lock, BarChart3, Crosshair, MessageSquare, 
   LogOut, Search, Building2, ShieldCheck, Users, 
@@ -11,8 +11,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-import { useLanguage } from '../../lib/i18n/LanguageContext';
-import SidebarLanguageSwitcher from '../components/SidebarLanguageSwitcher';
+import { useLanguage } from '../../../lib/i18n/LanguageContext';
 
 export default function TradingFloor() {
   const router = useRouter();
@@ -109,33 +108,8 @@ export default function TradingFloor() {
         </div>
       )}
 
-      {/* MASTER SIDEBAR - DESKTOP */}
-      <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl fixed h-full">
-        <div className="p-8 pb-10 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
-          <div className="w-12 h-12 border border-[#A6947D]/30 rounded-full flex items-center justify-center relative mb-4 bg-[#01030A]">
-            <Globe size={20} className="text-[#A6947D]"/>
-          </div>
-          <h1 className="text-2xl font-serif uppercase text-[#F8F5EE] tracking-[0.2em] mb-1">AXON</h1>
-          <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.3em]">{t('common.institutional_grade')}</p>
-        </div>
-        <SidebarLanguageSwitcher />
-        <nav className="flex-1 px-4 space-y-2 relative z-10 text-[10px] font-bold uppercase tracking-widest">
-          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><Layers3 size={16} /> {t('menu.portfolio')}</Link>
-          
-          {userRole === 'SELLER' && (
-             <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><Crosshair size={16} /> {t('menu.scanner')}</Link>
-          )}
-          
-          <Link href="/trading" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl border border-[#A6947D]/20 shadow-inner"><Globe size={16} /> {t('menu.floor')}</Link>
-          <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><Users size={16} /> {t('menu.network')}</Link>
-          <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><MessageSquare size={16} /> {t('menu.comms')}</Link>
-          <Link href="/me" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] transition-all"><UserCircle size={16} /> {t('menu.profile')}</Link>
-        </nav>
-        <div className="p-6 border-t border-[#A6947D]/10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2"><LogOut size={16} /> {t('common.disconnect')}</button></div>
-      </aside>
-
       {/* PUBLIC FLOOR MAIN CONTENT */}
-      <main className="flex-1 overflow-y-auto relative bg-[#020509] pb-24 md:pl-[280px] custom-scrollbar w-full">
+      <main className="flex-1 overflow-y-auto relative bg-[#020509] pb-24 custom-scrollbar w-full">
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0 overflow-hidden"><Globe size={1000} className="text-[#A6947D]" /></div>
 
         <div className="p-4 md:p-12 max-w-7xl mx-auto relative z-10 w-full">

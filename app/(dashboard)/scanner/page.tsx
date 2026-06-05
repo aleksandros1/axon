@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../../lib/supabase';
 import { 
   Shield, UploadCloud, X, Loader2, CheckCircle2, 
   BarChart3, Crosshair, Globe, MessageSquare, LogOut, Users, Camera, ImagePlus, User,
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-import { useLanguage } from '../../lib/i18n/LanguageContext';
+import { useLanguage } from '../../../lib/i18n/LanguageContext';
 
 export default function AssetScanner() {
   const router = useRouter();
@@ -220,35 +220,6 @@ export default function AssetScanner() {
         </div>
       )}
       {/* --------------------------------------------------------- */}
-
-      {/* SIDEBAR - DESKTOP ONLY */}
-      <aside className="w-[280px] flex-none bg-[#01030A] border-r border-[#A6947D]/10 hidden md:flex flex-col z-20 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-10 left-[-40%] opacity-[0.02] pointer-events-none shrink-0"><Shield size={300} className="text-[#A6947D]" /></div>
-        <div className="p-8 pb-12 relative z-10 flex flex-col items-center border-b border-[#A6947D]/10 mb-6">
-          <div className="w-12 h-12 border border-[#A6947D]/30 rounded-full flex items-center justify-center relative mb-4 shadow-[0_0_15px_rgba(166,148,125,0.05)] bg-[#01030A]">
-            <Crosshair size={20} className="text-[#A6947D]"/>
-          </div>
-          <h1 className="text-2xl font-serif uppercase text-[#F8F5EE] tracking-[0.2em] font-light leading-none mb-1">AXON</h1>
-          <p className="text-[#A6947D]/80 text-[8px] font-bold uppercase tracking-[0.4em]">ΘΕΣΜΙΚΟΥ ΕΠΙΠΕΔΟΥ</p>
-        </div>
-
-        <div className="px-8 mb-6 relative z-10">
-          <div className="flex items-center justify-between bg-[#020509] border border-[#A6947D]/10 p-1 rounded-lg shadow-inner">
-            <button onClick={() => setLanguage('en')} className={`flex-1 py-2 text-[9px] font-bold tracking-widest rounded-md transition-all ${language === 'en' ? 'bg-[#A6947D]/20 text-[#A6947D]' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]'}`}>EN</button>
-            <button onClick={() => setLanguage('el')} className={`flex-1 py-2 text-[9px] font-bold tracking-widest rounded-md transition-all ${language === 'el' ? 'bg-[#A6947D]/20 text-[#A6947D]' : 'text-[#F8F5EE]/40 hover:text-[#F8F5EE]'}`}>EL</button>
-          </div>
-        </div>
-
-        <nav className="flex-1 px-4 space-y-2 relative z-10">
-          <Link href="/dashboard" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Layers3 size={16} /> ΧΑΡΤΟΦΥΛΑΚΙΟ & ΣΥΜΦΩΝΙΕΣ</Link>
-          <Link href="/scanner" className="flex items-center gap-3 px-4 py-3 bg-[#A6947D]/10 text-[#A6947D] rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#A6947D]/20 shadow-inner"><Crosshair size={16} /> ΣΑΡΩΤΗΣ ΥΛΙΚΩΝ</Link>
-          <Link href="/trading" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Globe size={16} /> ΔΗΜΟΣΙΑ ΑΓΟΡΑ</Link>
-          <Link href="/network" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><Users size={16} /> ΠΑΓΚΟΣΜΙΟ ΔΙΚΤΥΟ</Link>
-          <Link href="/inbox" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><MessageSquare size={16} /> ΑΣΦΑΛΕΙΣ ΣΥΝΟΜΙΛΙΕΣ</Link>
-          <Link href="/me" className="flex items-center gap-3 px-4 py-3 text-[#F8F5EE]/60 hover:text-[#A6947D] hover:bg-[#A6947D]/5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all"><UserCircle size={16} /> ΕΤΑΙΡΙΚΟ ΠΡΟΦΙΛ</Link>
-        </nav>
-        <div className="p-6 border-t border-[#A6947D]/10 relative z-10"><button onClick={handleLogout} className="text-red-400/80 hover:text-red-400 text-[10px] font-bold uppercase flex items-center gap-2 transition-colors"><LogOut size={16} /> ΑΠΟΣΥΝΔΕΣΗ</button></div>
-      </aside>
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-[#020509] pb-[80px] md:pb-0 custom-scrollbar w-full z-10">

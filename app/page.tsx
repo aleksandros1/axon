@@ -1,10 +1,12 @@
 'use client';
 
-import LanguageSwitcher from './components/LanguageSwitcher';
+// ΔΙΟΡΘΩΣΗ: Χρήση του path alias @/ για τα components
+import LanguageSwitcher from '@/app/components/LanguageSwitcher';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase'; 
-import { useLanguage } from '../lib/i18n/LanguageContext';
+// ΔΙΟΡΘΩΣΗ: Χρήση του path alias @/ για το LanguageContext
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { 
   Shield, Globe, Lock, ArrowRight, ChevronRight, 
   BarChart3, Building2, CheckCircle2, Hexagon, Activity, Anchor, Maximize2, 

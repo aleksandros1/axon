@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { 
   Shield, Globe, BarChart3, Crosshair, MessageSquare, 
   LogOut, Users, User, Gavel, ArrowDownRight, ArrowUpRight, 
@@ -11,8 +11,8 @@ import {
 import Link from 'next/link';
 
 // Η ΑΛΛΑΓΗ ΕΓΙΝΕ ΕΔΩ: useLanguage αντί για useTranslation
-import { useLanguage } from '../../../lib/i18n/LanguageContext';
-import SidebarLanguageSwitcher from '../../components/SidebarLanguageSwitcher';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import SidebarLanguageSwitcher from '@/app/components/SidebarLanguageSwitcher';
 
 export default function BidsDashboard() {
   const router = useRouter();
