@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { 
   Shield, UploadCloud, X, Loader2, CheckCircle2, 
   BarChart3, Crosshair, Globe, MessageSquare, LogOut, Users, Camera, ImagePlus, User,
@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 
-import { useLanguage } from '../../../lib/i18n/LanguageContext';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 export default function AssetScanner() {
   const router = useRouter();
