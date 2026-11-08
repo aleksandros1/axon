@@ -25,8 +25,6 @@ export default function DealsVault() {
 
   const [deals, setDeals] = useState<any[]>([]);
   const [isProcessingAction, setIsProcessingAction] = useState<string | null>(null);
-  
-  const [viewingContract, setViewingContract] = useState<any>(null);
 
   // --- STRIPE PAYMENT STATES ---
   const [isVerifying, setIsVerifying] = useState(false);
@@ -119,7 +117,6 @@ export default function DealsVault() {
     const { error } = await supabase.from('contracts').update({ status: nextStatus }).eq('id', dealId);
     if (!error) {
       setDeals(deals.map(d => d.id === dealId ? { ...d, status: nextStatus } : d));
-      if (viewingContract?.id === dealId) setViewingContract({...viewingContract, status: nextStatus});
     }
     setIsProcessingAction(null);
   };
@@ -281,9 +278,9 @@ export default function DealsVault() {
               return (
                 <div key={deal.id} className="bg-[#01030A] border border-[#A6947D]/20 rounded-2xl overflow-hidden shadow-2xl transition-all hover:border-[#A6947D]/40">
                   
-                  {/* CARD HEADER */}
+                  {/* CARD HEADER - ΤΩΡΑ ΟΔΗΓΕΙ ΣΤΟ DEAL ROOM */}
                   <div 
-                    onClick={() => setViewingContract(deal)}
+                    onClick={() => router.push(`/contracts/${deal.id}`)}
                     className="p-6 md:p-8 border-b border-[#A6947D]/10 bg-[#020509]/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 cursor-pointer group"
                   >
                     <div className="flex-1">
@@ -373,75 +370,6 @@ export default function DealsVault() {
           </div>
         </div>
       </main>
-
-      {/* --- MASTER CONTRACT MODAL --- */}
-      {viewingContract && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-[#01030A]/95 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-[800px] h-[90vh] rounded-sm overflow-y-auto shadow-[0_0_100px_rgba(166,148,125,0.2)] text-slate-900 font-serif relative">
-            <button onClick={() => setViewingContract(null)} className="fixed top-6 right-6 p-3 bg-black text-white rounded-full hover:scale-110 transition-all z-10"><X size={24}/></button>
-            
-            <div className="p-8 md:p-16">
-              <div className="flex justify-between items-start border-b-2 border-[#0A192F] pb-8 mb-10">
-                <div>
-                  <h1 className="text-4xl font-black tracking-tighter text-[#0A192F]">AXON</h1>
-                  <p className="text-[12px] uppercase tracking-[0.3em] text-[#A6947D] font-sans font-bold mt-1">Institutional Ledger</p>
-                </div>
-                <div className="text-right text-xs text-slate-500 font-sans">
-                  <p>Contract ID: <strong className="text-[#0A192F]">AX-{viewingContract.id.substring(0,8).toUpperCase()}</strong></p>
-                  <p>Status: <span className="uppercase font-bold text-amber-600">{viewingContract.status}</span></p>
-                  <p>Date: {new Date(viewingContract.created_at).toLocaleDateString()}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-12 mb-12 text-sm">
-                <div>
-                  <h3 className="font-bold uppercase text-[#0A192F] border-b border-slate-200 pb-2 mb-4 font-sans text-[11px]">Vendor</h3>
-                  <p className="font-bold text-base">{viewingContract.role === 'vendor' ? 'Your Company' : viewingContract.counterparty}</p>
-                  <p className="text-slate-500 font-sans text-xs">Verified Tier 1 Supplier</p>
-                </div>
-                <div>
-                  <h3 className="font-bold uppercase text-[#0A192F] border-b border-slate-200 pb-2 mb-4 font-sans text-[11px]">Acquirer</h3>
-                  <p className="font-bold text-base">{viewingContract.role === 'buyer' ? 'Your Company' : viewingContract.counterparty}</p>
-                  <p className="text-slate-500 font-sans text-xs">Verified AXON Network Buyer</p>
-                </div>
-              </div>
-
-              <div className="mb-12">
-                <h3 className="font-bold uppercase text-[#0A192F] border-b border-slate-200 pb-2 mb-6 font-sans text-[11px]">Purchase Specifications</h3>
-                <table className="w-full text-left text-sm font-sans">
-                  <tbody className="divide-y divide-slate-100">
-                    <tr><td className="py-3 text-slate-500">Material Designation</td><td className="py-3 font-bold text-[#0A192F]">{viewingContract.asset_name}</td></tr>
-                    <tr><td className="py-3 text-slate-500">Incoterms (2020)</td><td className="py-3 font-bold text-[#0A192F]">{viewingContract.incoterms}</td></tr>
-                    <tr><td className="py-3 text-slate-500">Payment Protocol</td><td className="py-3 font-bold text-[#0A192F]">{viewingContract.payment_terms === '100_escrow' ? '100% Secured Escrow' : '30% Advance / 70% Escrow'}</td></tr>
-                    <tr><td className="py-3 text-slate-500">Quality Assurance</td><td className="py-3 font-bold text-[#0A192F]">{viewingContract.inspection === 'waived' ? 'Buyer Waived Inspection' : 'Independent SGS Certified'}</td></tr>
-                    <tr className="bg-slate-50 font-bold"><td className="py-4 px-2 text-[#0A192F]">TOTAL CONTRACT VALUE</td><td className="py-4 px-2 text-xl text-[#0A192F] font-mono">{formatCurrency(viewingContract.price)}</td></tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {viewingContract.custom_terms && (
-                <div className="mb-12">
-                  <h3 className="font-bold uppercase text-[#0A192F] border-b border-slate-200 pb-2 mb-4 font-sans text-[11px]">Special Covenants</h3>
-                  <p className="text-slate-700 italic text-sm p-4 bg-slate-50 rounded border border-slate-100 leading-relaxed">{viewingContract.custom_terms}</p>
-                </div>
-              )}
-
-              <div className="bg-slate-900 text-white p-6 rounded-lg font-sans text-xs">
-                <div className="flex items-center gap-2 mb-3"><Shield size={16} className="text-[#A6947D]"/><h4 className="font-bold uppercase tracking-widest">Escrow Protection Active</h4></div>
-                <p className="opacity-70 leading-relaxed">This contract is digitally signed and secured via AXON Cryptographic Ledger. Funds are held in a multi-sig escrow account and are only eligible for release upon verified fulfillment of the logistics triggers defined above.</p>
-              </div>
-
-              <div className="mt-16 pt-8 border-t border-slate-200 flex justify-between items-end opacity-40 grayscale">
-                <div className="text-[10px] font-sans">
-                  <p>© {new Date().getFullYear()} AXON NETWORK</p>
-                  <p>GENUINE BLOCKCHAIN TICKET #ID-{viewingContract.id.substring(0,10)}</p>
-                </div>
-                <Shield size={40}/>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* MOBILE NAV */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#01030A]/95 backdrop-blur-xl border-t border-[#A6947D]/20 px-2 py-2 flex justify-between items-center z-50 shadow-2xl">

@@ -3,13 +3,15 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Archive, MessageSquare, PlusSquare, LogOut, Shield, Crosshair } from 'lucide-react';
+// ΠΡΟΣΤΕΘΗΚΕ ΤΟ FileSignature ΣΤΑ ICONS
+import { LayoutDashboard, Archive, MessageSquare, PlusSquare, LogOut, Shield, Crosshair, FileSignature } from 'lucide-react';
 import SidebarLanguageSwitcher from './SidebarLanguageSwitcher'; // Προσάρμοσε το path αν χρειάζεται
 
 const navLinks = [
   { name: 'ACTION CENTER', href: '/dashboard', icon: LayoutDashboard },
   { name: 'MY VAULT', href: '/vault', icon: Archive },
   { name: 'SCANNER', href: '/scanner', icon: Crosshair },
+  { name: 'DEALS VAULT', href: '/contracts', icon: FileSignature },
   { name: 'DEAL DESK', href: '/inbox', icon: MessageSquare },
 ];
 

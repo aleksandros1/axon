@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useRouter } from 'next/navigation';
-import { Shield, Lock, Mail, Loader2, ArrowRight, AlertTriangle, Building2, Globe } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Shield, Lock, Mail, Loader2, ArrowRight, AlertTriangle, Building2, Globe, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 
 /**
  * AXON Protocol - Institutional ID Generator
- * Παράγει αυτόματα το θεσμικό ID βάσει του email κατά την εγγραφή.
  */
 const generateAxonId = (emailStr: string) => {
   const prefix = "AX";
@@ -17,7 +16,6 @@ const generateAxonId = (emailStr: string) => {
   crypto.getRandomValues(randomBuffer);
   const randomPart = randomBuffer[0].toString(36).substring(0, 4).toUpperCase();
   
-  // Παίρνουμε τα πρώτα γράμματα από το email πριν το @
   const cleanEmail = emailStr.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').substring(0, 4).toUpperCase();
   const namePart = cleanEmail.length > 1 ? cleanEmail : 'USER';
   
@@ -26,13 +24,58 @@ const generateAxonId = (emailStr: string) => {
 
 export default function AuthPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const inviteCode = searchParams.get('invite');
   const { t } = useLanguage();
-  const [isLogin, setIsLogin] = useState(true);
+  
+  // Αν υπάρχει invite code, ξεκινάμε σε "SignUp" mode αυτόματα. Διαφορετικά, Login.
+  const [isLogin, setIsLogin] = useState(!inviteCode); 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<'BUYER' | 'SELLER'>('BUYER');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Agent Invitation State
+  const [isInvited, setIsInvited] = useState(false);
+  const [parentCompanyId, setParentCompanyId] = useState<string | null>(null);
+  const [parentCompanyName, setParentCompanyName] = useState<string>('');
+
+  useEffect(() => {
+    const verifyInvite = async () => {
+      if (inviteCode) {
+        // Ψάχνουμε τον κωδικό στη βάση
+        const { data, error } = await supabase
+          .from('agent_passes')
+          .select('pass_code, is_used, created_by')
+          .eq('pass_code', inviteCode)
+          .single();
+
+        if (error || !data) {
+           setError('INVALID OR EXPIRED INVITATION LINK.');
+           return;
+        }
+
+        if (data.is_used) {
+           setError('THIS INVITATION HAS ALREADY BEEN CLAIMED.');
+           return;
+        }
+
+        // Αν είναι έγκυρος, βρίσκουμε το όνομα της εταιρείας που έστειλε την πρόσκληση
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('company_name')
+          .eq('id', data.created_by)
+          .single();
+
+        setIsInvited(true);
+        setParentCompanyId(data.created_by);
+        setParentCompanyName(profileData?.company_name || 'Verified Institution');
+      }
+    };
+
+    verifyInvite();
+  }, [inviteCode]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,46 +84,62 @@ export default function AuthPage() {
 
     try {
       if (isLogin) {
-        // --- LOGIN & AUTH GATE ---
+        // --- LOGIN ---
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
         if (authError) throw authError;
 
         if (authData.user) {
-          const { data: profile, error: profileError } = await supabase
+          const { data: profile } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', authData.user.id)
             .single();
 
-          // REDIRECT STRATEGY: Ο κάθε ένας στο αρχηγείο του
           if (profile?.role === 'SELLER') {
             router.push('/scanner');
           } else {
-            router.push('/trading');
+            router.push('/dashboard'); 
           }
         }
       } else {
-        // --- SIGN UP & ID GENERATION ---
+        // --- SIGN UP ---
         const newAxonId = generateAxonId(email);
 
-        const { data, error } = await supabase.auth.signUp({ 
+        const { data, error: signUpError } = await supabase.auth.signUp({ 
           email, 
           password,
           options: {
-            data: { role: selectedRole, axon_id: newAxonId } 
+            data: { 
+              role: isInvited ? 'SELLER' : selectedRole, // Οι Agents (Sales) θεωρούνται κομμάτι του SELLER
+              axon_id: newAxonId 
+            } 
           }
         });
-        if (error) throw error;
+        if (signUpError) throw signUpError;
 
-        // Ενημέρωση του πίνακα profiles με τον ρόλο και το νέο AXON ID
         if (data?.user) {
+          // 1. Ενημέρωση προφίλ
           await supabase.from('profiles').update({ 
-            role: selectedRole,
-            axon_id: newAxonId
+            role: isInvited ? 'SELLER' : selectedRole,
+            axon_id: newAxonId,
+            is_agent: isInvited,
+            parent_company_id: isInvited ? parentCompanyId : null
           }).eq('id', data.user.id);
+
+          // 2. Αν είναι Agent, "καίμε" τον κωδικό και τον βάζουμε ΑΠΕΥΘΕΙΑΣ ΜΕΣΑ
+          if (isInvited && inviteCode) {
+            await supabase.from('agent_passes').update({
+              is_used: true,
+              used_by: data.user.id
+            }).eq('pass_code', inviteCode);
+            
+            // REDIRECT ΑΠΕΥΘΕΙΑΣ - Τέλειο Frictionless Flow
+            router.push('/dashboard');
+            return; // Σταματάμε τη συνάρτηση εδώ για να μην δείξει το μήνυμα
+          }
         }
 
-        setError(`REGISTRATION SUCCESSFUL. YOUR IDENTITY IS [${newAxonId}]. PLEASE AWAIT CLEARANCE.`);
+        setError(`REGISTRATION SUCCESSFUL. YOUR IDENTITY IS [${newAxonId}].`);
       }
     } catch (err: any) {
       setError(err.message || 'AUTHENTICATION FAILED');
@@ -110,14 +169,25 @@ export default function AuthPage() {
 
         {/* AUTH BOX */}
         <div className="bg-[#01030A]/80 backdrop-blur-xl border border-[#A6947D]/20 p-8 md:p-10 rounded-2xl shadow-2xl">
-          <h2 className="text-xl font-serif text-[#F8F5EE] uppercase tracking-widest mb-8">
-            {isLogin ? 'SECURE LOGIN' : t('auth.request_access')}
-          </h2>
+          
+          {/* Μήνυμα Invite (αν υπάρχει) */}
+          {isInvited ? (
+             <div className="mb-8 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-center">
+               <CheckCircle2 size={24} className="text-emerald-400 mx-auto mb-2" />
+               <p className="text-[10px] text-emerald-400 uppercase font-bold tracking-widest leading-relaxed">
+                 You have been invited to join <br/> <span className="text-[#F8F5EE] text-xs font-serif">{parentCompanyName}</span> <br/> as a Sales Agent.
+               </p>
+             </div>
+          ) : (
+            <h2 className="text-xl font-serif text-[#F8F5EE] uppercase tracking-widest mb-8">
+              {isLogin ? 'SECURE LOGIN' : t('auth.request_access')}
+            </h2>
+          )}
 
           <form onSubmit={handleAuth} className="space-y-6">
             
-            {/* ΕΠΙΛΟΓΗ ΡΟΛΟΥ (Φαίνεται ΜΟΝΟ στο Sign Up) */}
-            {!isLogin && (
+            {/* ΕΠΙΛΟΓΗ ΡΟΛΟΥ (Φαίνεται ΜΟΝΟ στο Sign Up ΚΑΙ ΟΧΙ αν έχει γίνει Invite) */}
+            {!isLogin && !isInvited && (
               <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                 <label className="text-[9px] text-[#A6947D]/80 uppercase font-bold tracking-widest">Entity Classification</label>
                 <div className="grid grid-cols-2 gap-3">
@@ -154,7 +224,7 @@ export default function AuthPage() {
               <input 
                 type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-[#020509] border border-[#A6947D]/20 focus:border-[#A6947D] rounded-xl px-4 py-4 text-sm outline-none transition-colors shadow-inner font-mono text-[#F8F5EE]"
-                placeholder="admin@institution.com"
+                placeholder={isInvited ? "your.name@company.com" : "admin@institution.com"}
               />
             </div>
 
@@ -164,7 +234,7 @@ export default function AuthPage() {
                   <Lock size={12}/> Passcode
                 </label>
                 
-                {isLogin && (
+                {isLogin && !isInvited && (
                   <Link href="/forgot-password" className="text-[8px] text-[#A6947D]/60 hover:text-[#A6947D] uppercase font-bold tracking-widest transition-colors">
                     Protocol Recovery?
                   </Link>
@@ -185,18 +255,22 @@ export default function AuthPage() {
             )}
 
             <button 
-              type="submit" disabled={loading || !email || !password}
+              type="submit" disabled={loading || !email || !password || (!!inviteCode && !isInvited && !error?.includes('SUCCESSFUL'))}
               className="w-full bg-[#A6947D] hover:bg-[#c4b198] text-[#020509] font-bold uppercase tracking-[0.2em] py-4 rounded-xl transition-all text-[10px] flex items-center justify-center gap-2 disabled:opacity-50 shadow-[0_4px_15px_rgba(166,148,125,0.2)]"
             >
-              {loading ? <Loader2 size={16} className="animate-spin" /> : (isLogin ? 'AUTHORIZE ACCESS' : 'SUBMIT REQUEST')}
+              {loading ? <Loader2 size={16} className="animate-spin" /> : (isLogin ? 'AUTHORIZE ACCESS' : (isInvited ? 'ACCEPT INVITATION' : 'SUBMIT REQUEST'))}
             </button>
           </form>
           
-          <div className="mt-6 flex flex-col gap-4 text-center">
-            <button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="text-[9px] text-[#A6947D]/60 hover:text-[#A6947D] font-bold uppercase tracking-widest transition-colors">
-              {isLogin ? 'REQUEST NEW ENTITY ACCESS' : 'RETURN TO LOGIN'}
-            </button>
-          </div>
+          {/* Κρύβουμε την εναλλαγή Login/Signup αν είναι σε διαδικασία Invite */}
+          {!inviteCode && (
+             <div className="mt-6 flex flex-col gap-4 text-center">
+               <button onClick={() => { setIsLogin(!isLogin); setError(null); }} className="text-[9px] text-[#A6947D]/60 hover:text-[#A6947D] font-bold uppercase tracking-widest transition-colors">
+                 {isLogin ? 'REQUEST NEW ENTITY ACCESS' : 'RETURN TO LOGIN'}
+               </button>
+             </div>
+          )}
+
         </div>
 
         <div className="mt-8 text-center">

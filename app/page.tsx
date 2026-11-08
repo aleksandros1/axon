@@ -1,17 +1,32 @@
 'use client';
 
-// ΔΙΟΡΘΩΣΗ: Χρήση του path alias @/ για τα components
 import LanguageSwitcher from '@/app/components/LanguageSwitcher';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase'; 
-// ΔΙΟΡΘΩΣΗ: Χρήση του path alias @/ για το LanguageContext
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { 
-  Shield, Globe, Lock, ArrowRight, ChevronRight, 
-  BarChart3, Building2, CheckCircle2, Hexagon, Activity, Anchor, Maximize2, 
-  ShieldCheck, X, Zap, Briefcase, Scale, Smartphone, Laptop
+  Globe, Lock, ArrowRight, ChevronRight, 
+  BarChart3, Building2, CheckCircle2, Activity, Anchor, Maximize2, 
+  ShieldCheck, X, Briefcase
 } from 'lucide-react';
+
+// --- CUSTOM AXON LOGO COMPONENT ---
+const AxonLogo = ({ className = "w-10 h-10" }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 120 120" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg" 
+    className={className}
+  >
+    <rect width="120" height="120" rx="24" fill="#01030A" />
+    <rect x="1" y="1" width="118" height="118" rx="23" stroke="#A6947D" strokeOpacity="0.2" strokeWidth="2" />
+    <path d="M60 25L90 42.5V77.5L60 95L30 77.5V42.5L60 25Z" stroke="#A6947D" strokeOpacity="0.3" strokeWidth="2" strokeLinejoin="round"/>
+    <path d="M60 35L80 46.5V73.5L60 85L40 73.5V46.5L60 35Z" stroke="#A6947D" strokeWidth="4" strokeLinejoin="round"/>
+    <path d="M60 46L46 72H52.5L60 55L67.5 72H74L60 46Z" fill="#F8F5EE"/>
+    <circle cx="60" cy="66" r="3.5" fill="#A6947D"/>
+  </svg>
+);
 
 export default function LandingPage() {
   const { t, language } = useLanguage();
@@ -58,7 +73,7 @@ export default function LandingPage() {
       desc: language === 'el' 
         ? "Διασφάλιση κεφαλαίων μέσω έξυπνων συμβολαίων Stripe Connect. Τα χρήματα αποδεσμεύονται μόνο με την επιβεβαίωση των όρων." 
         : "Securing funds through Stripe Connect smart contracts. Funds are released only upon verification of terms.",
-      icon: <Lock size={20} className="text-emerald-500" />
+      icon: <Lock size={20} className="text-[#A6947D]" />
     },
     {
       title: "Global KYC/AML",
@@ -147,42 +162,33 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1598305001402-997f64d0d366?q=80&w=2000&auto=format&fit=crop')] opacity-5 mix-blend-overlay bg-cover bg-center shrink-0"></div>
       </div>
 
-      {/* NAVIGATION */}
-      <nav className="relative z-50 border-b border-[#A6947D]/10 bg-[#01030A]/80 backdrop-blur-md sticky top-0 w-full">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Shield size={28} className="text-[#A6947D] md:w-7 md:h-7" />
-            <span className="text-2xl md:text-2xl font-serif uppercase tracking-[0.2em] text-[#F8F5EE]">AXON</span>
-          </div>
-          <div className="flex items-center gap-4 md:gap-6">
-            <LanguageSwitcher />
-            <Link href="/auth" className="bg-[#A6947D] text-[#020509] px-5 py-3 md:px-6 md:py-2.5 rounded-lg text-[11px] md:text-[10px] font-bold uppercase tracking-[0.15em] transition-all shadow-xl">
-              {t('auth.request_access').substring(0, 10)}...
-            </Link>
-          </div>
+      {/* MINIMAL FLOATING LOGO */}
+      <div className="absolute top-0 left-0 w-full px-6 py-8 md:px-12 z-50 flex items-start justify-between pointer-events-none">
+        <div className="flex items-center gap-4 pointer-events-auto">
+          <AxonLogo className="w-10 h-10 md:w-12 md:h-12 shadow-[0_0_20px_rgba(166,148,125,0.15)] rounded-2xl" />
+          <span className="text-2xl md:text-3xl font-serif uppercase tracking-[0.2em] text-[#F8F5EE]">AXON</span>
         </div>
-      </nav>
+        <div className="pointer-events-auto">
+          <LanguageSwitcher />
+        </div>
+      </div>
 
       {/* HERO SECTION */}
-      <section className="relative z-10 pt-24 md:pt-32 pb-24 md:pb-48 px-4 md:px-6 min-h-[90vh] flex items-center w-full">
+      <section className="relative z-10 pt-32 md:pt-40 pb-24 md:pb-48 px-4 md:px-12 min-h-screen flex items-center w-full">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-16 items-center w-full overflow-hidden">
           
           <div className="lg:col-span-7 flex flex-col items-center lg:items-start text-center lg:text-left w-full">
-            <div className="inline-flex items-center gap-2 border border-[#A6947D]/30 bg-[#A6947D]/5 px-4 py-2 md:py-1.5 rounded-full mb-8 md:mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="w-2 h-2 md:w-1.5 md:h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-[10px] md:text-[9px] font-mono text-[#A6947D] uppercase tracking-widest">{t('landing.network_online')}</span>
-            </div>
             
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif text-[#F8F5EE] uppercase tracking-[0.05em] leading-tight mb-8 md:mb-6 w-full animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-100">
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif text-[#F8F5EE] uppercase tracking-[0.05em] leading-tight mb-8 md:mb-6 w-full animate-in fade-in slide-in-from-bottom-6 duration-1000">
               {t('landing.hero_title_1')} <br/> <span className="text-[#A6947D] italic font-light">{t('landing.hero_title_2')}</span> {t('landing.hero_title_3')}
             </h1>
             
-            {/* THE HEAVY ASSET NEXUS MANIFESTO */}
-            <p className="text-sm sm:text-base md:text-lg text-[#F8F5EE]/70 font-sans max-w-2xl mb-12 md:mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200 border-l-2 border-[#A6947D]/50 pl-4 md:pl-6 py-1">
-              A decentralized neural network engineered exclusively for fine marble. AXON transforms traditional stone procurement into a high-velocity, secure digital exchange. <br className="hidden md:block"/><br className="hidden md:block"/> We bridge the gap between physical extraction and global architecture, securing every multi-million dollar transaction through immutable escrow protocols.
+            {/* INSTITUTIONAL MANIFESTO */}
+            <p className="text-sm sm:text-base md:text-lg text-[#F8F5EE]/70 font-sans max-w-2xl mb-12 md:mb-12 leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100 border-l-2 border-[#A6947D]/50 pl-4 md:pl-6 py-1">
+              An institutional-grade trading network engineered exclusively for fine marble. AXON transforms traditional stone procurement into a high-velocity, secure digital exchange. <br className="hidden md:block"/><br className="hidden md:block"/> We bridge the gap between physical extraction and global architecture, securing every multi-million dollar transaction through immutable escrow protocols.
             </p>
             
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-300">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-200">
               <Link href="/auth" className="w-full sm:w-auto bg-[#F8F5EE] text-[#020612] px-8 py-5 md:py-4 rounded-xl text-xs md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 shadow-xl group">
                 {t('landing.hero_btn')} <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform md:w-3.5 md:h-3.5" />
               </Link>
@@ -191,13 +197,13 @@ export default function LandingPage() {
                 onClick={() => setIsServicesOpen(true)}
                 className="w-full sm:w-auto bg-transparent border border-[#A6947D]/30 text-[#A6947D] px-8 py-5 md:py-4 rounded-xl text-xs md:text-[10px] font-bold uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-2 hover:bg-[#A6947D]/10"
               >
-                <Zap size={16} className="md:w-3.5 md:h-3.5" /> {t('landing.services_btn')}
+                {t('landing.services_btn')}
               </button>
             </div>
           </div>
 
           {/* FEATURED ASSET CARD */}
-          <div className="lg:col-span-5 relative flex items-center justify-center lg:justify-end animate-in fade-in zoom-in duration-1000 delay-400 w-full">
+          <div className="lg:col-span-5 relative flex items-center justify-center lg:justify-end animate-in fade-in zoom-in duration-1000 delay-300 w-full">
             <div className="bg-[#01030A] border border-[#A6947D]/30 rounded-3xl p-5 md:p-4 w-full max-w-sm relative shadow-2xl transition-all duration-500 hover:border-[#A6947D] overflow-hidden">
                 <div className="relative aspect-[4/3] bg-[#020509] rounded-2xl overflow-hidden border border-[#A6947D]/20 shadow-inner">
                     {loadingSlab ? (
@@ -211,7 +217,7 @@ export default function LandingPage() {
                           className="w-full h-full object-cover transition-transform duration-700" 
                         />
                     )}
-                    <div className="absolute top-4 left-4 md:top-3 md:left-3 bg-[#020509]/90 backdrop-blur-md px-3 py-1.5 rounded-full text-[9px] md:text-[7px] font-mono text-amber-400 uppercase tracking-widest border border-amber-500/20">
+                    <div className="absolute top-4 left-4 md:top-3 md:left-3 bg-[#020509]/90 backdrop-blur-md px-3 py-1.5 rounded-full text-[9px] md:text-[7px] font-mono text-[#A6947D] uppercase tracking-widest border border-[#A6947D]/20">
                         {t('landing.verified_asset')} AX-{featuredSlab?.id ? featuredSlab.id.slice(0,5) : 'XXXXX'}
                     </div>
                 </div>
@@ -226,7 +232,7 @@ export default function LandingPage() {
                       </div>
                       <Link href="/auth" className="text-[#A6947D] p-2 md:p-1.5 bg-[#020509] rounded-full border border-[#A6947D]/30 transition-colors flex-none"><Maximize2 size={16} className="md:w-3 md:h-3"/></Link>
                   </div>
-                  <p className="text-lg md:text-sm font-mono text-emerald-400 tracking-tighter">
+                  <p className="text-lg md:text-sm font-mono text-[#F8F5EE] tracking-tighter">
                     {featuredSlab?.price 
                       ? `€${featuredSlab.price.toLocaleString(language === 'el' ? 'el-GR' : 'en-US')}` 
                       : '---'} 
@@ -248,7 +254,7 @@ export default function LandingPage() {
             <p className="text-[10px] md:text-[9px] uppercase tracking-widest text-[#A6947D]/60 font-bold">{t('landing.countries_connected')}</p>
           </div>
           <div className="flex flex-col items-center text-center w-full">
-            <Lock size={24} className="text-emerald-500 mb-3 md:w-4 md:h-4 md:mb-3" />
+            <Lock size={24} className="text-[#A6947D] mb-3 md:w-4 md:h-4 md:mb-3" />
             <p className="text-3xl md:text-3xl font-mono text-[#F8F5EE] mb-2 md:mb-1">€0</p>
             <p className="text-[10px] md:text-[9px] uppercase tracking-widest text-[#A6947D]/60 font-bold">{t('landing.counterparty_risk')}</p>
           </div>
@@ -267,8 +273,8 @@ export default function LandingPage() {
 
       {/* FOOTER */}
       <footer className="relative z-10 border-t border-[#A6947D]/10 bg-[#020509] py-10 md:py-10 text-center w-full">
-        <div className="flex items-center justify-center gap-2 mb-5 md:mb-4 text-[#A6947D]">
-          <Shield size={18} className="md:w-3.5 md:h-3.5" />
+        <div className="flex items-center justify-center gap-3 mb-5 md:mb-4 text-[#A6947D]">
+          <AxonLogo className="w-6 h-6 rounded-lg" />
           <span className="text-sm md:text-xs font-serif uppercase tracking-[0.2em]">AXON</span>
         </div>
         <p className="text-[10px] md:text-[8px] font-mono uppercase tracking-widest text-[#F8F5EE]/50 md:text-[#F8F5EE]/40 leading-relaxed px-6">

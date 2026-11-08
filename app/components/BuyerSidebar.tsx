@@ -3,8 +3,8 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-// ΠΡΟΣΤΕΘΗΚΕ ΤΟ Crosshair ΣΤΑ ICONS
-import { Layers3, Globe, Users, MessageSquare, UserCircle, LogOut, Crosshair } from 'lucide-react';
+// ΠΡΟΣΤΕΘΗΚΕ ΤΟ FileSignature ΣΤΑ ICONS
+import { Layers3, Globe, Users, MessageSquare, UserCircle, LogOut, Crosshair, FileSignature } from 'lucide-react';
 import { useLanguage } from '../../lib/i18n/LanguageContext';
 import SidebarLanguageSwitcher from './SidebarLanguageSwitcher';
 import { supabase } from '../../lib/supabase';
@@ -19,11 +19,12 @@ export default function BuyerSidebar() {
     router.push('/auth');
   };
 
-  // Η λίστα με τα μενού (ΠΡΟΣΤΕΘΗΚΕ ΤΟ SCANNER)
+  // Η λίστα με τα μενού (ΠΡΟΣΤΕΘΗΚΕ ΤΟ DEALS VAULT)
   const navItems = [
     { href: '/dashboard', icon: Layers3, label: t('menu.portfolio') || 'PORTFOLIO & DEALS' },
     { href: '/scanner', icon: Crosshair, label: t('menu.scanner') || 'ASSET DIGITIZATION' },
     { href: '/trading', icon: Globe, label: t('menu.floor') || 'TRADING FLOOR' },
+    { href: '/contracts', icon: FileSignature, label: t('menu.contracts') || 'DEALS VAULT' },
     { href: '/network', icon: Users, label: t('menu.network') || 'GLOBAL NETWORK' },
     { href: '/inbox', icon: MessageSquare, label: t('menu.comms') || 'SECURE COMMS' },
     { href: '/me', icon: UserCircle, label: t('menu.profile') || 'CORPORATE PROFILE' },

@@ -1,5 +1,5 @@
 import React from 'react';
-import BuyerSidebar from '@/app/components/BuyerSidebar'; // Βεβαιώσου ότι το import path είναι σωστό
+import BuyerSidebar from '@/app/components/BuyerSidebar';
 
 export default function BuyerLayout({
   children,
@@ -8,10 +8,18 @@ export default function BuyerLayout({
 }) {
   return (
     <div className="flex h-screen bg-[#020509] overflow-hidden text-[#F8F5EE]">
+      {/* Sidebar - Σταθερό στο πλάι */}
       <BuyerSidebar />
-      {/* Το main content ξεκινάει δεξιά από το sidebar (280px) */}
-      <main className="flex-1 ml-[280px] overflow-y-auto h-screen relative scroll-smooth">
-        <div className="max-w-[1600px] mx-auto p-8 lg:p-12">
+      
+      {/* Main Content 
+        Προσθήκη custom-scrollbar για να ταιριάζει με το dark theme 
+        και διατήρηση του ml-[280px] για να μην πέφτει πάνω στο sidebar.
+      */}
+      <main className="flex-1 ml-[280px] overflow-y-auto h-screen relative scroll-smooth custom-scrollbar">
+        {/* Αφαιρέσαμε το max-w-1600px αν θέλεις η γκαλερί να είναι πιο επιβλητική 
+          ή το αφήνουμε για να μην "απλώνουν" υπερβολικά οι φωτογραφίες σε ultra-wide οθόνες.
+        */}
+        <div className="w-full">
            {children}
         </div>
       </main>

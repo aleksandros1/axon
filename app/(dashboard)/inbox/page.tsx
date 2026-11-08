@@ -483,7 +483,7 @@ function SecureCommsContent() {
               {!selectedContact && (
                 <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
                   <AlertOctagon size={16} className="text-amber-500 mt-0.5 flex-none" />
-                  <p className="text-[10px] text-amber-500/80 font-mono tracking-widest uppercase">Target Required: Select a contact from Radar first.</p>
+                  <p className="text-[10px] text-amber-500/80 font-mono tracking-widest uppercase">Target Required: Select a counterparty from the directory first.</p>
                 </div>
               )}
 
@@ -575,14 +575,14 @@ function SecureCommsContent() {
             {/* RADAR (CONTACTS) */}
             <div className={`w-full md:w-80 lg:w-96 flex-none border-r border-[#A6947D]/10 flex flex-col bg-[#01030A]/50 backdrop-blur-md z-10 overflow-hidden ${selectedContact ? 'hidden md:flex' : 'flex'}`}>
               <div className="p-4 md:p-6 border-b border-[#A6947D]/10 flex-none">
-                <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#A6947D] mb-4">Radar Intelligence</h2>
-                <div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A6947D]/50" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Nodes..." className="w-full bg-[#020509] border border-[#A6947D]/20 rounded-xl pl-11 pr-4 py-3 text-xs text-[#F8F5EE] focus:border-[#A6947D]/60 focus:outline-none transition-all placeholder:text-[#A6947D]/30 shadow-inner" /></div>
+                <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#A6947D] mb-4">Network Directory</h2>
+                <div className="relative"><Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A6947D]/50" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search Counterparties..." className="w-full bg-[#020509] border border-[#A6947D]/20 rounded-xl pl-11 pr-4 py-3 text-xs text-[#F8F5EE] focus:border-[#A6947D]/60 focus:outline-none transition-all placeholder:text-[#A6947D]/30 shadow-inner" /></div>
               </div>
               <div className="flex-1 overflow-y-auto p-2 md:p-4 space-y-1 custom-scrollbar overflow-x-hidden">
                 {filteredContacts.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center opacity-40 p-6 text-center">
                      <Shield size={32} className="text-[#A6947D] mb-3" />
-                     <p className="text-[10px] font-mono text-[#A6947D] uppercase tracking-widest leading-relaxed">No Active Connections.<br/>Radar is empty.</p>
+                     <p className="text-[10px] font-mono text-[#A6947D] uppercase tracking-widest leading-relaxed">No Active Connections.<br/>Directory is empty.</p>
                   </div>
                 ) : (
                   filteredContacts.map(contact => (
@@ -594,7 +594,7 @@ function SecureCommsContent() {
                             <span className="w-2 h-2 bg-[#FF204E] rounded-full shadow-[0_0_8px_rgba(255,32,78,0.6)] animate-pulse shrink-0"></span>
                           )}
                         </h3>
-                        <p className="text-[8px] md:text-[9px] font-mono tracking-widest text-[#A6947D]/40 mt-1 uppercase">Active Node</p>
+                        <p className="text-[8px] md:text-[9px] font-mono tracking-widest text-[#A6947D]/40 mt-1 uppercase">Verified Entity</p>
                       </div>
                     </button>
                   ))
@@ -610,7 +610,7 @@ function SecureCommsContent() {
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-8 relative z-10 w-full">
                   <MessageSquare size={40} className="text-[#A6947D]/40 mb-4" strokeWidth={1} />
                   <h3 className="text-xl md:text-2xl font-serif text-[#A6947D] uppercase tracking-[0.2em] font-light">{t('inbox.title')}</h3>
-                  <p className="text-[10px] text-[#F8F5EE]/40 uppercase tracking-[0.3em] font-mono mt-2">Select Target Entity to Commence P2P Session</p>
+                  <p className="text-[10px] text-[#F8F5EE]/40 uppercase tracking-[0.3em] font-mono mt-2">Select a verified counterparty to open an encrypted channel</p>
                 </div>
               ) : (
                 <>
